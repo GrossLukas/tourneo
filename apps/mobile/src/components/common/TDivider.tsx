@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing } from '../../theme/spacing';
 
 interface TDividerProps {
@@ -12,7 +12,7 @@ export const TDivider: React.FC<TDividerProps> = ({
   marginVertical = spacing.md,
   style,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   return (
     <View

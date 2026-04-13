@@ -1,5 +1,5 @@
 export default {
-  app: { name: 'Turneo', tagline: 'Your Sport. Your Tournament.' },
+  app: { name: 'Tourneo', tagline: 'Your Sport. Your Tournament.' },
   tabs: { home: 'Home', padel: 'Padel', bookings: 'Bookings', community: 'Community', profile: 'Profile' },
   common: {
     loading: 'Loading...', error: 'An error occurred', retry: 'Retry', cancel: 'Cancel',
@@ -8,7 +8,7 @@ export default {
     sort: 'Sort', seeAll: 'See All', noResults: 'No results', pullToRefresh: 'Pull to refresh',
   },
   auth: {
-    welcome: 'Welcome to Turneo', login: 'Log In', register: 'Register', logout: 'Log Out',
+    welcome: 'Welcome to Tourneo', login: 'Log In', register: 'Register', logout: 'Log Out',
     email: 'Email', password: 'Password', confirmPassword: 'Confirm Password',
     forgotPassword: 'Forgot Password?', resetPassword: 'Reset Password',
     signInWithApple: 'Sign in with Apple', alreadyHaveAccount: 'Already have an account?',
@@ -78,7 +78,7 @@ export default {
     totalPrize: 'Total Prize Money',
   },
   membership: {
-    currentPlan: 'Current Plan', free: 'Free', plus: 'Turneo Plus', club: 'Turneo Club',
+    currentPlan: 'Current Plan', free: 'Free', plus: 'Tourneo Plus', club: 'Tourneo Club',
     perMonth: '/month', upgrade: 'Upgrade', manage: 'Manage', benefits: 'Benefits',
     discount: '{{percent}}% off tournament fees', earlyAccess: '{{hours}}h early access',
     waitlistPriority: 'Higher waitlist priority', exclusiveEvents: 'Exclusive tournaments',
@@ -86,7 +86,7 @@ export default {
   },
   venues: {
     discover: 'Discover Courts', courts: 'Courts', bookExternally: 'Book Externally',
-    externalDisclaimer: 'Booking is handled by the venue. Turneo is not responsible.',
+    externalDisclaimer: 'Booking is handled by the venue. Tourneo is not responsible.',
     openingHours: 'Opening Hours', website: 'Website', noCourts: 'No courts found near you',
   },
   bracket: {

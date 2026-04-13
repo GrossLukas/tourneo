@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { TCard } from '../common/TCard';
 import { TButton } from '../common/TButton';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 import { MembershipTierInfo } from '../../store/membershipStore';
 
@@ -17,7 +17,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   isCurrentTier,
   onSelect,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   const getTierColor = (): string => {
     switch (tier.tier) {

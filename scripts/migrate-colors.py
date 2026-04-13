@@ -2,8 +2,8 @@ import os
 import re
 
 # Files to process
-APP_DIR = '/workspace/turneo/apps/mobile/app'
-SRC_DIR = '/workspace/turneo/apps/mobile/src'
+APP_DIR = '/workspace/tourneo/apps/mobile/app'
+SRC_DIR = '/workspace/tourneo/apps/mobile/src'
 
 # Color mappings: old pattern -> new token
 REPLACEMENTS = [

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info' | 'membership';
@@ -21,7 +21,7 @@ export const TBadge: React.FC<TBadgeProps> = ({
   membershipTier,
   style,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   const getBadgeColors = (): { bg: string; text: string } => {
     if (variant === 'membership' && membershipTier) {

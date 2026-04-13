@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Platform } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight } from '../../theme/spacing';
 
 interface THeaderProps {
@@ -20,7 +20,7 @@ export const THeader: React.FC<THeaderProps> = ({
   rightAction,
   transparent = false,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   return (
     <View

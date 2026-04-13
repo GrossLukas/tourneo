@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { TCard } from '../common/TCard';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, borderRadius, radius } from '../../theme/spacing';
 
 interface MatchData {
@@ -31,7 +31,7 @@ export const BracketView: React.FC<BracketViewProps> = ({
   rounds,
   onMatchPress,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   const matchesByRound = rounds.map((round) => ({
     ...round,

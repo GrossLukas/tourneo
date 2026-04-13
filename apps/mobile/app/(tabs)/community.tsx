@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useAppColors } from '../../src/hooks/useColorScheme';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius, shadow } from '../../src/theme/spacing';
 import { useCommunityStore } from '../../src/store';
@@ -27,7 +26,7 @@ function TabFilter({
 }: {
   active: CommunityTab;
   onSelect: (tab: CommunityTab) => void;
-  colors: ReturnType<typeof useAppColors>;
+  colors: any;
 }) {
   const tabs: { key: CommunityTab; label: string }[] = [
     { key: 'feed', label: 'Feed' },
@@ -84,7 +83,7 @@ function FriendCard({
   status: 'online' | 'offline' | 'playing';
   level: string;
   wins: number;
-  colors: ReturnType<typeof useAppColors>;
+  colors: any;
 }) {
   const statusColor = status === 'online' ? colors.success : status === 'playing' ? colors.warning : colors.textTertiary;
   const statusLabel = status === 'online' ? 'Online' : status === 'playing' ? 'Im Spiel' : 'Offline';
@@ -140,7 +139,7 @@ function TeamCard({
   members: number;
   sport: string;
   wins: number;
-  colors: ReturnType<typeof useAppColors>;
+  colors: any;
 }) {
   const sportIcon = sport === 'padel' ? '🏸' : sport === 'fifa' ? '🎮' : '🎯';
   return (
@@ -186,7 +185,7 @@ function RankingRow({
   points: number;
   wins: number;
   isCurrentUser?: boolean;
-  colors: ReturnType<typeof useAppColors>;
+  colors: any;
 }) {
   const medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -234,7 +233,7 @@ function FeedItem({
   icon: string;
   text: string;
   time: string;
-  colors: ReturnType<typeof useAppColors>;
+  colors: any;
 }) {
   return (
     <View style={[styles.feedItem, { borderBottomColor: colors.divider }]}>
@@ -286,7 +285,7 @@ const MOCK_FEED = [
 
 // ─── Main Community Screen ───────────────────────────────────
 export default function CommunityScreen() {
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const { isDark } = useTheme();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<CommunityTab>('feed');

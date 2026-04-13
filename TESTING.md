@@ -1,4 +1,4 @@
-# 🧪 Turneo – Vollständiger Testleitfaden
+# 🧪 Tourneo – Vollständiger Testleitfaden
 
 ## Inhaltsverzeichnis
 
@@ -34,8 +34,8 @@
 
 ```bash
 # Repository klonen
-git clone https://github.com/BigLisBigger/turneo.git
-cd turneo
+git clone https://github.com/BigLisBigger/tourneo.git
+cd tourneo
 
 # Alle Dependencies installieren (Monorepo)
 npm install
@@ -58,7 +58,7 @@ DB_PORT=3306
 DB_USER=dbu3254635
 DB_PASSWORD=<dein-passwort>
 DB_NAME=dbs15550863
-DB_PREFIX=turneo_
+DB_PREFIX=tourneo_
 
 # JWT
 JWT_SECRET=<sicherer-zufälliger-string-min-64-zeichen>
@@ -67,7 +67,7 @@ JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
 # Apple Sign-In (für Produktion)
-APPLE_CLIENT_ID=de.turneo.app
+APPLE_CLIENT_ID=de.tourneo.app
 APPLE_TEAM_ID=<dein-apple-team-id>
 
 # Stripe (für Zahlungen)
@@ -77,7 +77,7 @@ STRIPE_WEBHOOK_SECRET=whsec_<dein-webhook-secret>
 # Email (SMTP)
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
-SMTP_USER=noreply@turneo.de
+SMTP_USER=noreply@tourneo.de
 SMTP_PASS=<dein-smtp-passwort>
 
 # Rate Limiting
@@ -258,7 +258,7 @@ POST http://localhost:3000/api/v1/auth/register
 Content-Type: application/json
 
 {
-  "email": "test@turneo.de",
+  "email": "test@tourneo.de",
   "password": "TestPasswort123!",
   "first_name": "Max",
   "last_name": "Mustermann",
@@ -278,7 +278,7 @@ POST http://localhost:3000/api/v1/auth/login
 Content-Type: application/json
 
 {
-  "email": "test@turneo.de",
+  "email": "test@tourneo.de",
   "password": "TestPasswort123!"
 }
 ```
@@ -479,10 +479,10 @@ mysql -h db5020220772.hosting-data.io -u dbu3254635 -p dbs15550863
 SHOW TABLES;
 
 # Events auflisten
-SELECT * FROM turneo_events LIMIT 10;
+SELECT * FROM tourneo_events LIMIT 10;
 
 # Benutzer auflisten
-SELECT id, email, first_name, last_name, status FROM turneo_users;
+SELECT id, email, first_name, last_name, status FROM tourneo_users;
 ```
 
 ---
@@ -556,7 +556,7 @@ python3 -c "print('{\"data\":\"' + 'A'*600000 + '\"}')" | \
 
 ```bash
 # Sicherheitslücken in Dependencies prüfen
-cd /path/to/turneo
+cd /path/to/tourneo
 npm audit
 
 # Automatisch fixbare Probleme beheben
@@ -632,7 +632,7 @@ npx tsc --noEmit
 **5. "Tests failing with module not found"**
 ```bash
 # Dependencies neu installieren
-cd /path/to/turneo
+cd /path/to/tourneo
 rm -rf node_modules apps/*/node_modules
 npm install
 ```

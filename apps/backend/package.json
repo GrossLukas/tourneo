@@ -1,7 +1,7 @@
 {
-  "name": "@turneo/backend",
+  "name": "@tourneo/backend",
   "version": "1.0.0",
-  "description": "Turneo Backend API - Node.js + Express + TypeScript",
+  "description": "Tourneo Backend API - Node.js + Express + TypeScript",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

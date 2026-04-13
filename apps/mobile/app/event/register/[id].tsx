@@ -7,7 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useAppColors } from '../../../src/hooks/useColorScheme';
+import { useTheme } from '../../../src/providers/ThemeProvider';
 import {
   TButton, TCard, THeader, TInput, TChip, TDivider, TLoadingScreen,
 } from '../../../src/components/common';
@@ -21,7 +21,7 @@ type RegType = 'solo' | 'duo' | 'team';
 export default function EventRegisterScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const { currentEvent, fetchEventById } = useEventStore();
   const { registerForEvent, loading } = useRegistrationStore();
   const { currentMembership } = useMembershipStore();
@@ -128,7 +128,7 @@ export default function EventRegisterScreen() {
             error={errors.partner}
             keyboardType="email-address"
             autoCapitalize="none"
-            hint="Dein Partner muss bereits bei Turneo registriert sein"
+            hint="Dein Partner muss bereits bei Tourneo registriert sein"
           />
         )}
 

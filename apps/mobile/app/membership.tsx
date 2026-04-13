@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAppColors } from '../src/hooks/useColorScheme';
+import { useTheme } from '../src/providers/ThemeProvider';
 import { THeader, TLoadingScreen } from '../src/components/common';
 import { MembershipCard } from '../src/components/membership';
 import { useMembershipStore } from '../src/store/membershipStore';
@@ -10,7 +10,7 @@ import { spacing, fontSize, fontWeight } from '../src/theme/spacing';
 
 export default function MembershipScreen() {
   const router = useRouter();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const { user } = useAuthStore();
   const { currentMembership, tiers, loading, fetchCurrentMembership, fetchTiers, subscribe } = useMembershipStore();
 

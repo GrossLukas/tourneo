@@ -2,7 +2,7 @@ import { Knex } from 'knex';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
-const PREFIX = 'turneo_';
+const PREFIX = 'tourneo_';
 const t = (name: string) => `${PREFIX}${name}`;
 
 export async function seed(knex: Knex): Promise<void> {
@@ -17,7 +17,7 @@ export async function seed(knex: Knex): Promise<void> {
       version: '1.0.0',
       locale: 'de',
       title: 'Teilnahmebedingungen',
-      content: '# Teilnahmebedingungen\n\n**⚠️ ENTWURF – VOR LIVEGANG DURCH DEUTSCHEN RECHTSANWALT PRÜFEN LASSEN**\n\n## 1. Geltungsbereich\nDiese Teilnahmebedingungen gelten für alle über die Turneo-Plattform organisierten Veranstaltungen.\n\n## 2. Teilnahmevoraussetzungen\n- Mindestalter: 18 Jahre\n- Gültiger Account bei Turneo\n- Erfolgreiche Zahlung der Teilnahmegebühr\n\n## 3. Anmeldung und Zahlung\n- Die Anmeldung ist erst nach vollständiger Bezahlung gültig.\n- Jeder Teilnehmer darf nur einen Account besitzen.\n\n## 4. Stornierung und Rückerstattung\n- Bis 14 Tage vor Turnierbeginn: 75% Rückerstattung\n- Weniger als 14 Tage vor Turnierbeginn: Keine Rückerstattung\n- Bei Absage durch den Veranstalter: 100% Rückerstattung\n\n## 5. Preisgeld\n- Das Preisgeld wird pro Turnier vorab definiert und garantiert.\n- Die Verteilung wird auf der Eventseite transparent dargestellt.\n\n## 6. Haftung\n⚠️ Haftungsklausel durch Rechtsanwalt formulieren lassen.\n\n## 7. Veranstalter\nTurneo / Lukas Gross\nEinzelunternehmen, Deutschland',
+      content: '# Teilnahmebedingungen\n\n**⚠️ ENTWURF – VOR LIVEGANG DURCH DEUTSCHEN RECHTSANWALT PRÜFEN LASSEN**\n\n## 1. Geltungsbereich\nDiese Teilnahmebedingungen gelten für alle über die Tourneo-Plattform organisierten Veranstaltungen.\n\n## 2. Teilnahmevoraussetzungen\n- Mindestalter: 18 Jahre\n- Gültiger Account bei Tourneo\n- Erfolgreiche Zahlung der Teilnahmegebühr\n\n## 3. Anmeldung und Zahlung\n- Die Anmeldung ist erst nach vollständiger Bezahlung gültig.\n- Jeder Teilnehmer darf nur einen Account besitzen.\n\n## 4. Stornierung und Rückerstattung\n- Bis 14 Tage vor Turnierbeginn: 75% Rückerstattung\n- Weniger als 14 Tage vor Turnierbeginn: Keine Rückerstattung\n- Bei Absage durch den Veranstalter: 100% Rückerstattung\n\n## 5. Preisgeld\n- Das Preisgeld wird pro Turnier vorab definiert und garantiert.\n- Die Verteilung wird auf der Eventseite transparent dargestellt.\n\n## 6. Haftung\n⚠️ Haftungsklausel durch Rechtsanwalt formulieren lassen.\n\n## 7. Veranstalter\nTourneo / Lukas Gross\nEinzelunternehmen, Deutschland',
       is_active: true,
       published_at: now,
       created_at: now,
@@ -28,7 +28,7 @@ export async function seed(knex: Knex): Promise<void> {
       version: '1.0.0',
       locale: 'en',
       title: 'Terms of Participation',
-      content: '# Terms of Participation\n\n**⚠️ DRAFT – MUST BE REVIEWED BY A GERMAN ATTORNEY BEFORE LAUNCH**\n\n## 1. Scope\nThese terms apply to all events organized through the Turneo platform.\n\n## 2. Eligibility\n- Minimum age: 18 years\n- Valid Turneo account\n- Successful payment of entry fee\n\n## 3. Registration and Payment\n- Registration is only valid after full payment.\n- Each participant may only have one account.\n\n## 4. Cancellation and Refunds\n- Up to 14 days before event: 75% refund\n- Less than 14 days before event: No refund\n- If organizer cancels: 100% refund\n\n## 5. Prize Money\n- Prize money is defined and guaranteed per tournament.\n- Distribution is transparently shown on the event page.\n\n## 6. Liability\n⚠️ Liability clause to be drafted by attorney.\n\n## 7. Organizer\nTurneo / Lukas Gross\nSole proprietorship, Germany',
+      content: '# Terms of Participation\n\n**⚠️ DRAFT – MUST BE REVIEWED BY A GERMAN ATTORNEY BEFORE LAUNCH**\n\n## 1. Scope\nThese terms apply to all events organized through the Tourneo platform.\n\n## 2. Eligibility\n- Minimum age: 18 years\n- Valid Tourneo account\n- Successful payment of entry fee\n\n## 3. Registration and Payment\n- Registration is only valid after full payment.\n- Each participant may only have one account.\n\n## 4. Cancellation and Refunds\n- Up to 14 days before event: 75% refund\n- Less than 14 days before event: No refund\n- If organizer cancels: 100% refund\n\n## 5. Prize Money\n- Prize money is defined and guaranteed per tournament.\n- Distribution is transparently shown on the event page.\n\n## 6. Liability\n⚠️ Liability clause to be drafted by attorney.\n\n## 7. Organizer\nTourneo / Lukas Gross\nSole proprietorship, Germany',
       is_active: true,
       published_at: now,
       created_at: now,
@@ -39,7 +39,7 @@ export async function seed(knex: Knex): Promise<void> {
       version: '1.0.0',
       locale: 'de',
       title: 'Datenschutzerklärung',
-      content: '# Datenschutzerklärung\n\n**⚠️ ENTWURF – VOR LIVEGANG DURCH DEUTSCHEN RECHTSANWALT UND DATENSCHUTZBEAUFTRAGTEN PRÜFEN LASSEN**\n\n## 1. Verantwortlicher\nLukas Gross\n⚠️ Vollständige Adresse einfügen\nE-Mail: datenschutz@turneo.de\n\n## 2. Erhobene Daten\n- Account-Daten (Name, E-Mail, Geburtsdatum)\n- Profildaten (Stadt, Profilbild)\n- Zahlungsdaten (verarbeitet durch Stripe)\n- Nutzungsdaten (App-Interaktionen)\n- Standortdaten (für Platz-Discovery, nur mit Einwilligung)\n\n## 3. Rechtsgrundlagen\n- Art. 6 Abs. 1 lit. a DSGVO (Einwilligung)\n- Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung)\n- Art. 6 Abs. 1 lit. f DSGVO (Berechtigtes Interesse)\n\n## 4. Ihre Rechte\n- Auskunft (Art. 15 DSGVO)\n- Berichtigung (Art. 16 DSGVO)\n- Löschung (Art. 17 DSGVO)\n- Datenübertragbarkeit (Art. 20 DSGVO)\n- Widerspruch (Art. 21 DSGVO)\n\n## 5. Drittanbieter\n- Stripe (Zahlungsverarbeitung)\n- Apple (In-App-Käufe, Push-Benachrichtigungen)\n- Firebase (Cloud Messaging)\n\n⚠️ Auftragsverarbeitungsverträge müssen vor Livegang abgeschlossen werden.',
+      content: '# Datenschutzerklärung\n\n**⚠️ ENTWURF – VOR LIVEGANG DURCH DEUTSCHEN RECHTSANWALT UND DATENSCHUTZBEAUFTRAGTEN PRÜFEN LASSEN**\n\n## 1. Verantwortlicher\nLukas Gross\n⚠️ Vollständige Adresse einfügen\nE-Mail: datenschutz@tourneo.de\n\n## 2. Erhobene Daten\n- Account-Daten (Name, E-Mail, Geburtsdatum)\n- Profildaten (Stadt, Profilbild)\n- Zahlungsdaten (verarbeitet durch Stripe)\n- Nutzungsdaten (App-Interaktionen)\n- Standortdaten (für Platz-Discovery, nur mit Einwilligung)\n\n## 3. Rechtsgrundlagen\n- Art. 6 Abs. 1 lit. a DSGVO (Einwilligung)\n- Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung)\n- Art. 6 Abs. 1 lit. f DSGVO (Berechtigtes Interesse)\n\n## 4. Ihre Rechte\n- Auskunft (Art. 15 DSGVO)\n- Berichtigung (Art. 16 DSGVO)\n- Löschung (Art. 17 DSGVO)\n- Datenübertragbarkeit (Art. 20 DSGVO)\n- Widerspruch (Art. 21 DSGVO)\n\n## 5. Drittanbieter\n- Stripe (Zahlungsverarbeitung)\n- Apple (In-App-Käufe, Push-Benachrichtigungen)\n- Firebase (Cloud Messaging)\n\n⚠️ Auftragsverarbeitungsverträge müssen vor Livegang abgeschlossen werden.',
       is_active: true,
       published_at: now,
       created_at: now,
@@ -50,7 +50,7 @@ export async function seed(knex: Knex): Promise<void> {
       version: '1.0.0',
       locale: 'en',
       title: 'Privacy Policy',
-      content: '# Privacy Policy\n\n**⚠️ DRAFT – MUST BE REVIEWED BEFORE LAUNCH**\n\nThis privacy policy explains how Turneo collects, uses, and protects your personal data in accordance with the GDPR.\n\n⚠️ Full English privacy policy to be provided by legal counsel.',
+      content: '# Privacy Policy\n\n**⚠️ DRAFT – MUST BE REVIEWED BEFORE LAUNCH**\n\nThis privacy policy explains how Tourneo collects, uses, and protects your personal data in accordance with the GDPR.\n\n⚠️ Full English privacy policy to be provided by legal counsel.',
       is_active: true,
       published_at: now,
       created_at: now,
@@ -61,7 +61,7 @@ export async function seed(knex: Knex): Promise<void> {
       version: '1.0.0',
       locale: 'de',
       title: 'Impressum',
-      content: '# Impressum\n\nAngaben gemäß § 5 DDG:\n\nLukas Gross\n⚠️ Vollständige Adresse einfügen\n\nKontakt:\nE-Mail: kontakt@turneo.de\n\n⚠️ Umsatzsteuer-ID einfügen (sofern vorhanden)\n⚠️ Weitere Pflichtangaben durch Rechtsanwalt prüfen lassen',
+      content: '# Impressum\n\nAngaben gemäß § 5 DDG:\n\nLukas Gross\n⚠️ Vollständige Adresse einfügen\n\nKontakt:\nE-Mail: kontakt@tourneo.de\n\n⚠️ Umsatzsteuer-ID einfügen (sofern vorhanden)\n⚠️ Weitere Pflichtangaben durch Rechtsanwalt prüfen lassen',
       is_active: true,
       published_at: now,
       created_at: now,
@@ -72,7 +72,7 @@ export async function seed(knex: Knex): Promise<void> {
       version: '1.0.0',
       locale: 'en',
       title: 'Legal Notice',
-      content: '# Legal Notice (Impressum)\n\nInformation according to § 5 DDG:\n\nLukas Gross\n⚠️ Insert full address\n\nContact:\nEmail: kontakt@turneo.de',
+      content: '# Legal Notice (Impressum)\n\nInformation according to § 5 DDG:\n\nLukas Gross\n⚠️ Insert full address\n\nContact:\nEmail: kontakt@tourneo.de',
       is_active: true,
       published_at: now,
       created_at: now,
@@ -83,7 +83,7 @@ export async function seed(knex: Knex): Promise<void> {
   // ==========================================
   // SUPERADMIN USER
   // ==========================================
-  const passwordHash = await bcrypt.hash('TurneoAdmin2025!', 12);
+  const passwordHash = await bcrypt.hash('TourneoAdmin2025!', 12);
   const adminUuid = uuidv4();
 
   const [adminId] = await knex(t('users')).insert({
@@ -216,8 +216,8 @@ export async function seed(knex: Knex): Promise<void> {
 
   const [eventId] = await knex(t('events')).insert({
     uuid: uuidv4(),
-    title: 'Turneo Padel Open München',
-    description: 'Das erste offizielle Turneo Padel-Turnier in München! 32 Teams kämpfen um ein garantiertes Preisgeld von 950€. Kommt vorbei, spielt mit und erlebt einen unvergesslichen Tag.',
+    title: 'Tourneo Padel Open München',
+    description: 'Das erste offizielle Tourneo Padel-Turnier in München! 32 Teams kämpfen um ein garantiertes Preisgeld von 950€. Kommt vorbei, spielt mit und erlebt einen unvergesslichen Tag.',
     sport_category: 'padel',
     event_type: 'tournament',
     venue_id: venue1Id,

@@ -174,7 +174,7 @@ describe('createEventSchema', () => {
   it('should accept valid banner URL', () => {
     const result = createEventSchema.safeParse({
       ...validEvent,
-      banner_image_url: 'https://images.turneo.de/events/banner.jpg',
+      banner_image_url: 'https://images.tourneo.de/events/banner.jpg',
     });
     expect(result.success).toBe(true);
   });

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useAppColors } from '../../../src/hooks/useColorScheme';
+import { useTheme } from '../../../src/providers/ThemeProvider';
 import { THeader, TLoadingScreen, TEmptyState } from '../../../src/components/common';
 import { BracketView } from '../../../src/components/brackets';
 import api from '../../../src/api/client';
@@ -10,7 +10,7 @@ import { spacing, fontSize, fontWeight } from '../../../src/theme/spacing';
 export default function BracketScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const [bracket, setBracket] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 

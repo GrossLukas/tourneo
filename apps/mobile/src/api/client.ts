@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const API_BASE_URL = __DEV__
   ? 'http://localhost:3000/api/v1'
-  : 'https://api.turneo.de/api/v1';
+  : 'https://api.tourneo.de/api/v1';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

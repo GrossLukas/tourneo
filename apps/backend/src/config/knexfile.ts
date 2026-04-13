@@ -19,7 +19,7 @@ const config: { [key: string]: Knex.Config } = {
     },
     migrations: {
       directory: '../migrations',
-      tableName: 'turneo_knex_migrations',
+      tableName: 'tourneo_knex_migrations',
       extension: 'ts',
     },
     seeds: {
@@ -45,7 +45,7 @@ const config: { [key: string]: Knex.Config } = {
     },
     migrations: {
       directory: '../migrations',
-      tableName: 'turneo_knex_migrations',
+      tableName: 'tourneo_knex_migrations',
       extension: 'ts',
     },
   },

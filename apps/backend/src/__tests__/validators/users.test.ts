@@ -266,7 +266,7 @@ describe('createVenueSchema', () => {
       partner_booking_url: 'https://padel-berlin.de/book',
       phone: '+49 30 123456',
       email: 'info@padel-berlin.de',
-      image_url: 'https://images.turneo.de/venues/berlin.jpg',
+      image_url: 'https://images.tourneo.de/venues/berlin.jpg',
       operating_hours: { monday: '08:00-22:00', tuesday: '08:00-22:00' },
     });
     expect(result.success).toBe(true);

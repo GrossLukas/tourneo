@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
 interface TModalProps {
@@ -27,7 +27,7 @@ export const TModal: React.FC<TModalProps> = ({
   children,
   showCloseButton = true,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   return (
     <Modal

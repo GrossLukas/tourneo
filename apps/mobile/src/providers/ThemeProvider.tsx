@@ -13,7 +13,7 @@ interface ThemeContextType {
   setPreference: (pref: ThemePreference) => void;
 }
 
-const THEME_STORAGE_KEY = '@turneo_theme_preference';
+const THEME_STORAGE_KEY = '@tourneo_theme_preference';
 
 const ThemeContext = createContext<ThemeContextType>({
   colors: getColors('light'),

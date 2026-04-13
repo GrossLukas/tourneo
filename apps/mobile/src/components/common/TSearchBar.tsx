@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, radius } from '../../theme/spacing';
 
 interface TSearchBarProps {
@@ -18,7 +18,7 @@ export const TSearchBar: React.FC<TSearchBarProps> = ({
   onSubmit,
   onClear,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>

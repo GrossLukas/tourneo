@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Platform, Text, View, StyleSheet } from 'react-native';
-import { useAppColors, useTheme } from '../../src/hooks/useColorScheme';
+import { useTheme } from '../../src/providers/ThemeProvider';
 import { fontSize, fontWeight } from '../../src/theme/spacing';
 
 function TabIcon({ icon, label, focused, color }: { icon: string; label: string; focused: boolean; color: string }) {
@@ -16,14 +16,13 @@ function TabIcon({ icon, label, focused, color }: { icon: string; label: string;
 }
 
 export default function TabLayout() {
-  const colors = useAppColors();
-  const { isDark } = useTheme();
+  const { colors, isDark } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: isDark ? colors.brand.teal[400] : colors.brand.teal[500],
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
           position: 'absolute',

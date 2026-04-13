@@ -13,13 +13,13 @@ export const env = {
   db: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '3306', 10),
-    name: process.env.DB_NAME || 'turneo',
+    name: process.env.DB_NAME || 'tourneo',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     ssl: process.env.DB_SSL === 'true',
     poolMin: parseInt(process.env.DB_POOL_MIN || '2', 10),
     poolMax: parseInt(process.env.DB_POOL_MAX || '10', 10),
-    tablePrefix: process.env.DB_TABLE_PREFIX || 'turneo_',
+    tablePrefix: process.env.DB_TABLE_PREFIX || 'tourneo_',
   },
 
   jwt: {
@@ -37,7 +37,7 @@ export const env = {
 
   apple: {
     sharedSecret: process.env.APPLE_SHARED_SECRET || '',
-    bundleId: process.env.APPLE_BUNDLE_ID || 'com.turneo.app',
+    bundleId: process.env.APPLE_BUNDLE_ID || 'com.tourneo.app',
     iapEnvironment: process.env.APPLE_IAP_ENVIRONMENT || 'sandbox',
   },
 
@@ -53,23 +53,23 @@ export const env = {
     port: parseInt(process.env.SMTP_PORT || '587', 10),
     user: process.env.SMTP_USER || '',
     password: process.env.SMTP_PASSWORD || '',
-    fromName: process.env.SMTP_FROM_NAME || 'Turneo',
-    fromEmail: process.env.SMTP_FROM_EMAIL || 'noreply@turneo.de',
+    fromName: process.env.SMTP_FROM_NAME || 'Tourneo',
+    fromEmail: process.env.SMTP_FROM_EMAIL || 'noreply@tourneo.de',
   },
 
   s3: {
     endpoint: process.env.S3_ENDPOINT || '',
-    bucket: process.env.S3_BUCKET || 'turneo-media',
+    bucket: process.env.S3_BUCKET || 'tourneo-media',
     accessKey: process.env.S3_ACCESS_KEY || '',
     secretKey: process.env.S3_SECRET_KEY || '',
     region: process.env.S3_REGION || 'eu-central-1',
   },
 
   app: {
-    name: process.env.APP_NAME || 'Turneo',
+    name: process.env.APP_NAME || 'Tourneo',
     url: process.env.APP_URL || 'http://localhost:3000',
     adminUrl: process.env.ADMIN_URL || 'http://localhost:3001',
-    supportEmail: process.env.SUPPORT_EMAIL || 'support@turneo.de',
+    supportEmail: process.env.SUPPORT_EMAIL || 'support@tourneo.de',
   },
 
   rateLimit: {

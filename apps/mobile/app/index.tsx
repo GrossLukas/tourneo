@@ -17,5 +17,5 @@ export default function Index() {
     }
   }, [isInitialized, user]);
 
-  return <TLoadingScreen message="Turneo wird geladen..." />;
+  return <TLoadingScreen message="Tourneo wird geladen..." />;
 }

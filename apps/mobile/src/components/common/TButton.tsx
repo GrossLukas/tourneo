@@ -8,7 +8,7 @@ import {
   TextStyle,
   View,
 } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -41,7 +41,7 @@ export const TButton: React.FC<TButtonProps> = ({
   style,
   textStyle,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   const sizeStyles: Record<ButtonSize, { height: number; paddingHorizontal: number; fontSize: number }> = {
     sm: { height: 36, paddingHorizontal: spacing.md, fontSize: fontSize.sm },

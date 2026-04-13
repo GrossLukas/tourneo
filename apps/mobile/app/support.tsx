@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, Alert, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAppColors } from '../src/hooks/useColorScheme';
+import { useTheme } from '../src/providers/ThemeProvider';
 import { THeader, TInput, TButton, TCard, TChip } from '../src/components/common';
 import { useAuthStore } from '../src/store/authStore';
 import api from '../src/api/client';
@@ -13,7 +13,7 @@ type Category = 'general' | 'payment' | 'tournament' | 'technical' | 'account';
 
 export default function SupportScreen() {
   const router = useRouter();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const { user } = useAuthStore();
 
   const [category, setCategory] = useState<Category>('general');

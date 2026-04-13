@@ -1,5 +1,5 @@
 // ============================================
-// TURNEO – Premium Design System 2026
+// TOURNEO – Premium Design System 2026
 // Color Tokens for Light & Dark Mode
 // ============================================
 

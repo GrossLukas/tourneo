@@ -25,7 +25,7 @@ const knexConfig: Knex.Config = {
   },
   migrations: {
     directory: '../migrations',
-    tableName: 'turneo_knex_migrations',
+    tableName: 'tourneo_knex_migrations',
     extension: 'ts',
   },
   seeds: {
