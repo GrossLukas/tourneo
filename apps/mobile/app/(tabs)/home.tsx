@@ -18,6 +18,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useEventStore, type Event } from '../../src/store/eventStore';
 import { useRegistrationStore } from '../../src/store/registrationStore';
 import { useMembershipStore } from '../../src/store/membershipStore';
+import { useNotificationStore } from '../../src/store/notificationStore';
 import { spacing, fontSize, fontWeight, radius, shadow } from '../../src/theme/spacing';
 import { SkeletonHomeScreen, ToastContainer, useToast } from '../../src/components/common';
 import type { Colors } from '../../src/theme/colors';
@@ -220,6 +221,7 @@ export default function HomeScreen() {
   const { events, fetchEvents, loading } = useEventStore();
   const { myRegistrations, fetchMyRegistrations } = useRegistrationStore();
   const { currentMembership, fetchCurrentMembership } = useMembershipStore();
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const toast = useToast();
@@ -313,9 +315,16 @@ export default function HomeScreen() {
             )}
             <TouchableOpacity
               style={[styles.notifBtn, { backgroundColor: colors.surface }]}
-              onPress={() => {}}
+              onPress={() => router.push('/notifications')}
             >
               <Text style={{ fontSize: 18 }}>🔔</Text>
+              {unreadCount > 0 && (
+                <View style={[styles.notifBadge, { backgroundColor: colors.error }]}>
+                  <Text style={styles.notifBadgeText}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push(user ? '/(tabs)/profil' : '/(auth)/login')}>
               <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
@@ -412,7 +421,7 @@ export default function HomeScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, paddingTop: spacing.sm }}>
             <QuickAction icon="🎾" label="Padel" colors={colors} onPress={() => router.push('/(tabs)/spielen')} />
             <QuickAction icon="🎮" label="FIFA" colors={colors} onPress={() => router.push('/(tabs)/spielen')} />
-            <QuickAction icon="📍" label="Platz finden" colors={colors} onPress={() => {}} />
+            <QuickAction icon="📍" label="Platz finden" colors={colors} onPress={() => router.push('/(tabs)/spielen')} />
             <QuickAction icon="👥" label="Team erstellen" colors={colors} onPress={() => router.push('/(tabs)/community')} />
             <QuickAction icon="🏆" label="Turniere" colors={colors} onPress={() => router.push('/(tabs)/turniere')} />
           </ScrollView>
@@ -505,7 +514,9 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
     fontSize: 26, fontWeight: '700', letterSpacing: -0.5,
   },
-  notifBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  notifBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', position: 'relative' as const },
+  notifBadge: { position: 'absolute' as const, top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center' as const, justifyContent: 'center' as const, paddingHorizontal: 4 },
+  notifBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' as const },
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   avatarImg: { width: 40, height: 40, borderRadius: 20 },
   avatarText: { fontSize: 16, fontWeight: '700' },

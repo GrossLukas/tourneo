@@ -1,19 +1,18 @@
+/**
+ * Register Screen – Tourneo
+ * Email registration + Apple Sign-In + consent checkboxes
+ */
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  Switch,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  KeyboardAvoidingView, Platform, Alert, Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useTheme } from '../../src/providers/ThemeProvider';
-import { TButton, TInput, THeader } from '../../src/components/common';
+import { TButton, TInput, THeader, TDivider } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/authStore';
 import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
 
@@ -21,7 +20,7 @@ export default function RegisterScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const { register, isLoading } = useAuthStore();
+  const { register, loginWithApple, isLoading } = useAuthStore();
 
   const [form, setForm] = useState({
     email: '',
@@ -54,37 +53,37 @@ export default function RegisterScreen() {
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!form.email.trim()) newErrors.email = 'E-Mail ist erforderlich';
-    else if (!/\S+@\S+\.\S+/.test(form.email)) newErrors.email = 'Ungültige E-Mail-Adresse';
+    if (!form.email.trim()) newErrors.email = t('auth.emailRequired');
+    else if (!/\S+@\S+\.\S+/.test(form.email)) newErrors.email = t('auth.emailInvalid');
 
-    if (!form.password) newErrors.password = 'Passwort ist erforderlich';
-    else if (form.password.length < 8) newErrors.password = 'Mindestens 8 Zeichen';
+    if (!form.password) newErrors.password = t('auth.passwordRequired');
+    else if (form.password.length < 8) newErrors.password = t('auth.passwordMinLength');
 
-    if (form.password !== form.confirmPassword) newErrors.confirmPassword = 'Passwörter stimmen nicht überein';
+    if (form.password !== form.confirmPassword) newErrors.confirmPassword = t('auth.passwordMismatch');
 
-    if (!form.displayName.trim()) newErrors.displayName = 'Anzeigename ist erforderlich';
-    else if (form.displayName.trim().length < 3) newErrors.displayName = 'Mindestens 3 Zeichen';
+    if (!form.displayName.trim()) newErrors.displayName = t('auth.displayNameRequired');
+    else if (form.displayName.trim().length < 3) newErrors.displayName = t('auth.displayNameMinLength');
 
-    if (!form.firstName.trim()) newErrors.firstName = 'Vorname ist erforderlich';
-    if (!form.lastName.trim()) newErrors.lastName = 'Nachname ist erforderlich';
+    if (!form.firstName.trim()) newErrors.firstName = t('auth.firstNameRequired');
+    if (!form.lastName.trim()) newErrors.lastName = t('auth.lastNameRequired');
 
     if (!form.dateOfBirth.trim()) {
-      newErrors.dateOfBirth = 'Geburtsdatum ist erforderlich';
+      newErrors.dateOfBirth = t('auth.dobRequired');
     } else {
       const dobRegex = /^\d{2}\.\d{2}\.\d{4}$/;
       if (!dobRegex.test(form.dateOfBirth)) {
-        newErrors.dateOfBirth = 'Format: TT.MM.JJJJ';
+        newErrors.dateOfBirth = t('auth.dobFormat');
       } else {
         const parts = form.dateOfBirth.split('.');
         const dob = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
         const age = Math.floor((Date.now() - dob.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-        if (age < 18) newErrors.dateOfBirth = 'Du musst mindestens 18 Jahre alt sein';
+        if (age < 18) newErrors.dateOfBirth = t('auth.dobAge18');
       }
     }
 
-    if (!consents.terms) newErrors.terms = 'AGB müssen akzeptiert werden';
-    if (!consents.privacy) newErrors.privacy = 'Datenschutz muss akzeptiert werden';
-    if (!consents.age18) newErrors.age18 = 'Altersbestätigung erforderlich';
+    if (!consents.terms) newErrors.terms = t('auth.termsRequired');
+    if (!consents.privacy) newErrors.privacy = t('auth.privacyRequired');
+    if (!consents.age18) newErrors.age18 = t('auth.ageRequired');
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -112,11 +111,32 @@ export default function RegisterScreen() {
         consent_privacy: consents.privacy,
         consent_age_verification: consents.age18,
       });
-      router.replace('/(tabs)/home');
-    } catch (error: any) {
-      Alert.alert(t('common.error'), error.message || 'Registrierung fehlgeschlagen', [
-        { text: t('common.ok') },
-      ]);
+      router.replace('/(auth)/consent');
+    } catch (error: unknown) {
+      const msg = (error as Error)?.message || t('auth.registerFailed');
+      Alert.alert(t('common.error'), msg, [{ text: t('common.ok') }]);
+    }
+  };
+
+  /* ── Apple Sign-In ─────────────────────────────────────────── */
+  const handleAppleSignIn = async () => {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (credential.identityToken) {
+        await loginWithApple(credential.identityToken);
+        router.replace('/(auth)/consent');
+      }
+    } catch (error: unknown) {
+      const e = error as { code?: string };
+      if (e.code !== 'ERR_REQUEST_CANCELED') {
+        Alert.alert(t('common.error'), t('auth.appleSignInFailed'));
+      }
     }
   };
 
@@ -139,15 +159,15 @@ export default function RegisterScreen() {
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: colors.border, true: (colors.primary as string) }}
-        thumbColor={value ? (colors.primary as string) : colors.bgTertiary}
+        trackColor={{ false: colors.border, true: colors.primary as string }}
+        thumbColor={value ? '#fff' : colors.bgTertiary}
         ios_backgroundColor={colors.border}
       />
       <View style={styles.consentTextContainer}>
         <Text style={[styles.consentLabel, { color: colors.textSecondary }]}>
           {label}
           {linkText && onLinkPress && (
-            <Text style={{ color: (colors.primary as string) }} onPress={onLinkPress}>
+            <Text style={{ color: colors.primary as string }} onPress={onLinkPress}>
               {' '}{linkText}
             </Text>
           )}
@@ -163,16 +183,37 @@ export default function RegisterScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={[styles.headline, { color: colors.textPrimary }]}>
-            Erstelle dein Konto
+            {t('auth.createAccount')}
           </Text>
           <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
-            Werde Teil der Tourneo-Community
+            {t('auth.joinCommunity')}
           </Text>
 
+          {/* ── Apple Sign-In ─────────────────────────────────── */}
+          {Platform.OS === 'ios' && (
+            <>
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={12}
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+              />
+              <View style={styles.dividerRow}>
+                <TDivider style={{ flex: 1 }} />
+                <Text style={[styles.dividerText, { color: colors.textTertiary }]}>
+                  {t('auth.orRegisterWith')}
+                </Text>
+                <TDivider style={{ flex: 1 }} />
+              </View>
+            </>
+          )}
+
+          {/* ── Email Registration Form ───────────────────────── */}
           <View style={styles.form}>
             <TInput
-              label="Anzeigename"
-              placeholder="z.B. PadelKing92"
+              label={t('auth.displayName')}
+              placeholder={t('auth.displayNamePlaceholder')}
               value={form.displayName}
               onChangeText={(v) => updateForm('displayName', v)}
               error={errors.displayName}
@@ -182,7 +223,7 @@ export default function RegisterScreen() {
             <View style={styles.row}>
               <View style={styles.halfInput}>
                 <TInput
-                  label="Vorname"
+                  label={t('auth.firstName')}
                   placeholder="Max"
                   value={form.firstName}
                   onChangeText={(v) => updateForm('firstName', v)}
@@ -192,7 +233,7 @@ export default function RegisterScreen() {
               </View>
               <View style={styles.halfInput}>
                 <TInput
-                  label="Nachname"
+                  label={t('auth.lastName')}
                   placeholder="Mustermann"
                   value={form.lastName}
                   onChangeText={(v) => updateForm('lastName', v)}
@@ -202,8 +243,8 @@ export default function RegisterScreen() {
               </View>
             </View>
             <TInput
-              label="E-Mail"
-              placeholder="deine@email.de"
+              label={t('auth.email')}
+              placeholder={t('auth.emailPlaceholder')}
               value={form.email}
               onChangeText={(v) => updateForm('email', v)}
               error={errors.email}
@@ -213,33 +254,35 @@ export default function RegisterScreen() {
               required
             />
             <TInput
-              label="Geburtsdatum"
+              label={t('auth.dateOfBirth')}
               placeholder="TT.MM.JJJJ"
               value={form.dateOfBirth}
               onChangeText={(v) => updateForm('dateOfBirth', v)}
               error={errors.dateOfBirth}
               keyboardType="number-pad"
-              hint="Du musst mindestens 18 Jahre alt sein"
+              hint={t('auth.dobAge18Hint')}
               required
             />
             <TInput
-              label="Passwort"
-              placeholder="Mindestens 8 Zeichen"
+              label={t('auth.password')}
+              placeholder={t('auth.passwordPlaceholder')}
               value={form.password}
               onChangeText={(v) => updateForm('password', v)}
               error={errors.password}
               secureTextEntry={!showPassword}
               rightIcon={
-                <Text style={{ color: colors.textTertiary, fontSize: 16 }}>
-                  {showPassword ? '🙈' : '👁'}
-                </Text>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={colors.textTertiary as string}
+                />
               }
               onRightIconPress={() => setShowPassword(!showPassword)}
               required
             />
             <TInput
-              label="Passwort bestätigen"
-              placeholder="Passwort wiederholen"
+              label={t('auth.confirmPassword')}
+              placeholder={t('auth.confirmPasswordPlaceholder')}
               value={form.confirmPassword}
               onChangeText={(v) => updateForm('confirmPassword', v)}
               error={errors.confirmPassword}
@@ -248,28 +291,29 @@ export default function RegisterScreen() {
             />
           </View>
 
+          {/* ── Consents ──────────────────────────────────────── */}
           <View style={[styles.consentsSection, { borderTopColor: colors.border }]}>
             <Text style={[styles.consentsTitle, { color: colors.textPrimary }]}>
-              Einwilligungen
+              {t('auth.consentsTitle')}
             </Text>
             <ConsentRow
-              label="Ich akzeptiere die"
-              linkText="AGB"
-              onLinkPress={() => router.push('/legal/terms')}
+              label={t('auth.acceptTerms')}
+              linkText={t('legal.agb')}
+              onLinkPress={() => router.push('/legal/agb')}
               value={consents.terms}
               onToggle={(v) => setConsents((p) => ({ ...p, terms: v }))}
               error={errors.terms}
             />
             <ConsentRow
-              label="Ich habe die"
-              linkText="Datenschutzerklärung"
-              onLinkPress={() => router.push('/legal/privacy')}
+              label={t('auth.acceptPrivacy')}
+              linkText={t('legal.datenschutz')}
+              onLinkPress={() => router.push('/legal/datenschutz')}
               value={consents.privacy}
               onToggle={(v) => setConsents((p) => ({ ...p, privacy: v }))}
               error={errors.privacy}
             />
             <ConsentRow
-              label="Ich bestätige, dass ich mindestens 18 Jahre alt bin"
+              label={t('auth.confirmAge18')}
               value={consents.age18}
               onToggle={(v) => setConsents((p) => ({ ...p, age18: v }))}
               error={errors.age18}
@@ -277,7 +321,7 @@ export default function RegisterScreen() {
           </View>
 
           <TButton
-            title="Konto erstellen"
+            title={t('auth.createAccountBtn')}
             onPress={handleRegister}
             loading={isLoading}
             size="lg"
@@ -285,11 +329,11 @@ export default function RegisterScreen() {
 
           <View style={styles.loginLink}>
             <Text style={[styles.loginText, { color: colors.textSecondary }]}>
-              Bereits ein Konto?{' '}
+              {t('auth.alreadyHaveAccount')}{' '}
             </Text>
             <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-              <Text style={[styles.loginLinkText, { color: (colors.primary as string) }]}>
-                Jetzt anmelden
+              <Text style={[styles.loginLinkText, { color: colors.primary as string }]}>
+                {t('auth.loginNow')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -305,6 +349,9 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: 60 },
   headline: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold as any, marginBottom: spacing.xs },
   subtitle: { fontSize: fontSize.md, marginBottom: spacing.lg },
+  appleButton: { width: '100%', height: 50, marginBottom: spacing.md },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg, gap: spacing.sm },
+  dividerText: { fontSize: fontSize.sm, paddingHorizontal: spacing.sm },
   form: { marginBottom: spacing.md },
   row: { flexDirection: 'row', gap: spacing.sm },
   halfInput: { flex: 1 },

@@ -14,3 +14,4 @@ export { TSearchBar } from './TSearchBar';
 export { TSkeleton, SkeletonCard, SkeletonEventCard, SkeletonProfileCard, SkeletonListItem, SkeletonHomeScreen } from './TSkeleton';
 export { ToastContainer, useToast } from './TToast';
 export { TErrorState, TNetworkError, TPermissionError } from './TErrorState';
+export { TRatingBadge } from './TRatingBadge';

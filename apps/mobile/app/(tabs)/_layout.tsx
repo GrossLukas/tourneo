@@ -1,22 +1,37 @@
+/**
+ * Tab Layout – Tourneo Main Navigation
+ * Uses Ionicons from @expo/vector-icons for consistent cross-platform rendering.
+ */
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Platform, Text, View, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/providers/ThemeProvider';
+import { useNotificationStore } from '../../src/store/notificationStore';
 import { fontSize, fontWeight } from '../../src/theme/spacing';
 
-function TabIcon({ icon, label, focused, color }: { icon: string; label: string; focused: boolean; color: string }) {
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+function TabBarIcon({ name, focused, color }: { name: IoniconsName; focused: boolean; color: string }) {
+  return <Ionicons name={name} size={24} color={color} style={{ opacity: focused ? 1 : 0.6 }} />;
+}
+
+function TabBarIconWithBadge({ name, focused, color, badge }: { name: IoniconsName; focused: boolean; color: string; badge: number }) {
   return (
-    <View style={styles.tabItem}>
-      <Text style={[styles.tabIcon, { opacity: focused ? 1 : 0.5 }]}>{icon}</Text>
-      <Text style={[styles.tabLabel, { color, opacity: focused ? 1 : 0.6, fontWeight: focused ? '600' : '400' }]}>
-        {label}
-      </Text>
+    <View>
+      <Ionicons name={name} size={24} color={color} style={{ opacity: focused ? 1 : 0.6 }} />
+      {badge > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+        </View>
+      )}
     </View>
   );
 }
 
 export default function TabLayout() {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
 
   return (
     <Tabs
@@ -45,7 +60,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="🏠" label="" focused={focused} color={color} />
+            <TabBarIconWithBadge name={focused ? 'home' : 'home-outline'} focused={focused} color={color} badge={unreadCount} />
           ),
         }}
       />
@@ -54,7 +69,7 @@ export default function TabLayout() {
         options={{
           title: 'Turniere',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="🏆" label="" focused={focused} color={color} />
+            <TabBarIcon name={focused ? 'trophy' : 'trophy-outline'} focused={focused} color={color} />
           ),
         }}
       />
@@ -63,7 +78,7 @@ export default function TabLayout() {
         options={{
           title: 'Spielen',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="🎮" label="" focused={focused} color={color} />
+            <TabBarIcon name={focused ? 'game-controller' : 'game-controller-outline'} focused={focused} color={color} />
           ),
         }}
       />
@@ -72,7 +87,7 @@ export default function TabLayout() {
         options={{
           title: 'Community',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="👥" label="" focused={focused} color={color} />
+            <TabBarIcon name={focused ? 'people' : 'people-outline'} focused={focused} color={color} />
           ),
         }}
       />
@@ -81,28 +96,30 @@ export default function TabLayout() {
         options={{
           title: 'Profil',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon icon="👤" label="" focused={focused} color={color} />
+            <TabBarIcon name={focused ? 'person' : 'person-outline'} focused={focused} color={color} />
           ),
         }}
       />
-      {/* Hide old tabs */}
-      <Tabs.Screen name="padel" options={{ href: null }} />
-      <Tabs.Screen name="bookings" options={{ href: null }} />
-      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  tabItem: {
-    alignItems: 'center',
+  badge: {
+    position: 'absolute',
+    right: -8,
+    top: -4,
+    backgroundColor: '#DC2626',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
   },
-  tabIcon: {
-    fontSize: 22,
-  },
-  tabLabel: {
-    fontSize: fontSize.xxs,
-    marginTop: 2,
+  badgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });
