@@ -15,6 +15,7 @@ import { useAppColors } from '../../src/hooks/useColorScheme';
 import { TButton, TBadge, TCard, THeader, TLoadingScreen } from '../../src/components/common';
 import { useEventStore } from '../../src/store/eventStore';
 import { useAuthStore } from '../../src/store/authStore';
+import { useCalendar } from '../../src/hooks/useCalendar';
 import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -26,6 +27,7 @@ export default function EventDetailScreen() {
   const colors = useAppColors();
   const { currentEvent, fetchEventById, loading } = useEventStore();
   const { user } = useAuthStore();
+  const { addToCalendar, isAdding } = useCalendar();
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -75,10 +77,10 @@ export default function EventDetailScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <THeader title={e.title} showBack onBack={() => router.back()} />
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary[500]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={(colors.primary as string)} />}
         showsVerticalScrollIndicator={false}
       >
         {e.banner_image_url ? (
@@ -94,25 +96,25 @@ export default function EventDetailScreen() {
             {isFull && <TBadge label="Ausgebucht" variant="error" />}
           </View>
 
-          <Text style={[styles.title, { color: colors.neutral[900] }]}>{e.title}</Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>{e.title}</Text>
 
           {/* Key Info Cards */}
           <View style={styles.infoGrid}>
             <TCard variant="outlined" style={styles.infoCard}>
               <Text style={styles.infoIcon}>📅</Text>
-              <Text style={[styles.infoLabel, { color: colors.neutral[500] }]}>Datum</Text>
-              <Text style={[styles.infoValue, { color: colors.neutral[900] }]}>
+              <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Datum</Text>
+              <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
                 {formatDate(e.start_date)}
               </Text>
             </TCard>
 
             <TCard variant="outlined" style={styles.infoCard}>
               <Text style={styles.infoIcon}>📍</Text>
-              <Text style={[styles.infoLabel, { color: colors.neutral[500] }]}>Ort</Text>
-              <Text style={[styles.infoValue, { color: colors.neutral[900] }]}>
+              <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Ort</Text>
+              <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
                 {e.venue?.name || 'TBD'}
               </Text>
-              <Text style={[styles.infoSub, { color: colors.neutral[600] }]}>
+              <Text style={[styles.infoSub, { color: colors.textSecondary }]}>
                 {e.venue?.city || ''}
               </Text>
             </TCard>
@@ -121,22 +123,22 @@ export default function EventDetailScreen() {
           <View style={styles.infoGrid}>
             <TCard variant="outlined" style={styles.infoCard}>
               <Text style={styles.infoIcon}>👥</Text>
-              <Text style={[styles.infoLabel, { color: colors.neutral[500] }]}>Teilnehmer</Text>
-              <Text style={[styles.infoValue, { color: colors.neutral[900] }]}>
+              <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Teilnehmer</Text>
+              <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
                 {e.participant_count}/{e.max_participants}
               </Text>
-              <Text style={[styles.infoSub, { color: spotsLeft <= 4 ? colors.status.warning : colors.neutral[600] }]}>
+              <Text style={[styles.infoSub, { color: spotsLeft <= 4 ? colors.warning : colors.textSecondary }]}>
                 {isFull ? 'Warteliste verfügbar' : `Noch ${spotsLeft} Plätze`}
               </Text>
             </TCard>
 
             <TCard variant="outlined" style={styles.infoCard}>
               <Text style={styles.infoIcon}>💰</Text>
-              <Text style={[styles.infoLabel, { color: colors.neutral[500] }]}>Gebühr</Text>
-              <Text style={[styles.infoValue, { color: colors.primary[600] }]}>
+              <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Gebühr</Text>
+              <Text style={[styles.infoValue, { color: (colors.primary as string) }]}>
                 {feeAmount > 0 ? `${feeAmount.toFixed(2)} €` : 'Kostenlos'}
               </Text>
-              <Text style={[styles.infoSub, { color: colors.neutral[600] }]}>
+              <Text style={[styles.infoSub, { color: colors.textSecondary }]}>
                 pro Person
               </Text>
             </TCard>
@@ -146,7 +148,7 @@ export default function EventDetailScreen() {
           {prizeTotal > 0 && (
             <TCard variant="elevated" style={StyleSheet.flatten([styles.prizeCard, { borderColor: colors.membership.club }])}>
               <Text style={styles.prizeIcon}>🏆</Text>
-              <Text style={[styles.prizeTitle, { color: colors.neutral[900] }]}>
+              <Text style={[styles.prizeTitle, { color: colors.textPrimary }]}>
                 Garantiertes Preisgeld
               </Text>
               <Text style={[styles.prizeAmount, { color: colors.membership.club }]}>
@@ -156,10 +158,10 @@ export default function EventDetailScreen() {
                 <View style={styles.prizeBreakdown}>
                   {e.prize_distribution.map((pd, idx) => (
                     <View key={idx} style={styles.prizeRow}>
-                      <Text style={[styles.prizePlace, { color: colors.neutral[600] }]}>
+                      <Text style={[styles.prizePlace, { color: colors.textSecondary }]}>
                         {pd.place === 1 ? '🥇' : pd.place === 2 ? '🥈' : pd.place === 3 ? '🥉' : `${pd.place}.`} Platz {pd.place}
                       </Text>
-                      <Text style={[styles.prizeValue, { color: colors.neutral[900] }]}>
+                      <Text style={[styles.prizeValue, { color: colors.textPrimary }]}>
                         {(pd.amount_cents / 100).toFixed(0)} €
                       </Text>
                     </View>
@@ -172,16 +174,16 @@ export default function EventDetailScreen() {
           {/* Description */}
           {e.description ? (
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>Beschreibung</Text>
-              <Text style={[styles.description, { color: colors.neutral[700] }]}>{e.description}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Beschreibung</Text>
+              <Text style={[styles.description, { color: colors.textSecondary }]}>{e.description}</Text>
             </View>
           ) : null}
 
           {/* Special Notes */}
           {e.special_notes ? (
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>Hinweise & Regeln</Text>
-              <Text style={[styles.description, { color: colors.neutral[700] }]}>{e.special_notes}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Hinweise & Regeln</Text>
+              <Text style={[styles.description, { color: colors.textSecondary }]}>{e.special_notes}</Text>
             </View>
           ) : null}
 
@@ -196,12 +198,32 @@ export default function EventDetailScreen() {
             />
           ) : null}
 
+          {/* Add to Calendar */}
+          <TButton
+            title={isAdding ? 'Wird hinzugefügt...' : '📅 Zum Kalender hinzufügen'}
+            onPress={() => {
+              if (!e) return;
+              const startDate = new Date(e.start_date);
+              const endDate = e.end_date ? new Date(e.end_date) : new Date(startDate.getTime() + 3 * 60 * 60 * 1000);
+              addToCalendar({
+                title: e.title,
+                startDate,
+                endDate,
+                location: e.venue?.name ? `${e.venue.name}${e.venue.city ? ', ' + e.venue.city : ''}` : undefined,
+                notes: `Turneo Event: ${e.title}\nFormat: ${e.format}\nLevel: ${e.level}`,
+              });
+            }}
+            variant="outline"
+            loading={isAdding}
+            style={{ marginBottom: spacing.md }}
+          />
+
           {/* Cancellation Policy */}
           <TCard variant="outlined" style={styles.policyCard}>
-            <Text style={[styles.policyTitle, { color: colors.neutral[900] }]}>
+            <Text style={[styles.policyTitle, { color: colors.textPrimary }]}>
               ⚠️ Stornierungsrichtlinie
             </Text>
-            <Text style={[styles.policyText, { color: colors.neutral[600] }]}>
+            <Text style={[styles.policyText, { color: colors.textSecondary }]}>
               • 14+ Tage vor Event: 75% Erstattung{'\n'}
               • Weniger als 14 Tage: Keine Erstattung{'\n'}
               • Stornierung durch Veranstalter: 100% Erstattung
@@ -214,12 +236,12 @@ export default function EventDetailScreen() {
 
       {/* Bottom Registration Bar */}
       {e.status === 'published' && (
-        <View style={[styles.bottomBar, { backgroundColor: colors.neutral[50], borderTopColor: colors.neutral[200] }]}>
+        <View style={[styles.bottomBar, { backgroundColor: colors.bgSecondary, borderTopColor: colors.border }]}>
           <View style={styles.bottomBarLeft}>
-            <Text style={[styles.bottomPrice, { color: colors.primary[600] }]}>
+            <Text style={[styles.bottomPrice, { color: (colors.primary as string) }]}>
               {feeAmount > 0 ? `${feeAmount.toFixed(2)} €` : 'Kostenlos'}
             </Text>
-            <Text style={[styles.bottomSpotsText, { color: colors.neutral[500] }]}>
+            <Text style={[styles.bottomSpotsText, { color: colors.textTertiary }]}>
               {isFull ? 'Warteliste' : `${spotsLeft} Plätze frei`}
             </Text>
           </View>

@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { useAppColors } from '../../hooks/useColorScheme';
-import { spacing, fontSize, fontWeight, borderRadius } from '../../theme/spacing';
+import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -50,32 +50,32 @@ export const TButton: React.FC<TButtonProps> = ({
   };
 
   const getBackgroundColor = (): string => {
-    if (disabled) return colors.neutral[300];
+    if (disabled) return colors.surfacePressed;
     switch (variant) {
-      case 'primary': return colors.primary[500];
-      case 'secondary': return colors.secondary[500];
+      case 'primary': return colors.primary as string;
+      case 'secondary': return colors.accent;
       case 'outline': return 'transparent';
       case 'ghost': return 'transparent';
-      case 'danger': return colors.status.error;
-      default: return colors.primary[500];
+      case 'danger': return colors.error;
+      default: return colors.primary as string;
     }
   };
 
   const getTextColor = (): string => {
-    if (disabled) return colors.neutral[500];
+    if (disabled) return colors.textTertiary;
     switch (variant) {
       case 'primary': return '#FFFFFF';
       case 'secondary': return '#FFFFFF';
-      case 'outline': return colors.primary[500];
-      case 'ghost': return colors.primary[500];
+      case 'outline': return colors.primary as string;
+      case 'ghost': return colors.primary as string;
       case 'danger': return '#FFFFFF';
       default: return '#FFFFFF';
     }
   };
 
   const getBorderColor = (): string => {
-    if (disabled) return colors.neutral[300];
-    if (variant === 'outline') return colors.primary[500];
+    if (disabled) return colors.surfacePressed;
+    if (variant === 'outline') return colors.primary as string;
     return 'transparent';
   };
 
@@ -125,7 +125,7 @@ export const TButton: React.FC<TButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: borderRadius.md,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',

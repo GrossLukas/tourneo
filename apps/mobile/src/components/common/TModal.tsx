@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { useAppColors } from '../../hooks/useColorScheme';
-import { spacing, fontSize, fontWeight, borderRadius } from '../../theme/spacing';
+import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
 interface TModalProps {
   visible: boolean;
@@ -37,20 +37,20 @@ export const TModal: React.FC<TModalProps> = ({
       onRequestClose={onClose}
     >
       <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
+        <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
           <TouchableWithoutFeedback>
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
-              <View style={[styles.content, { backgroundColor: colors.neutral[50] }]}>
+              <View style={[styles.content, { backgroundColor: colors.surface }]}>
                 {(title || showCloseButton) && (
                   <View style={styles.header}>
-                    <Text style={[styles.title, { color: colors.neutral[900] }]}>
+                    <Text style={[styles.title, { color: colors.textPrimary }]}>
                       {title || ''}
                     </Text>
                     {showCloseButton && (
                       <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                        <Text style={[styles.closeButton, { color: colors.neutral[500] }]}>✕</Text>
+                        <Text style={[styles.closeButton, { color: colors.textTertiary }]}>✕</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -68,7 +68,6 @@ export const TModal: React.FC<TModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.lg,
@@ -76,7 +75,7 @@ const styles = StyleSheet.create({
   content: {
     width: '100%',
     maxHeight: '80%',
-    borderRadius: borderRadius.xl,
+    borderRadius: radius.xl,
     padding: spacing.lg,
     minWidth: 300,
   },

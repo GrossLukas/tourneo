@@ -1,7 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
 import { useAppColors } from '../../hooks/useColorScheme';
-import { spacing, fontSize, fontWeight, borderRadius } from '../../theme/spacing';
+import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
 interface TChipProps {
   label: string;
@@ -26,8 +26,8 @@ export const TChip: React.FC<TChipProps> = ({
       style={[
         styles.chip,
         {
-          backgroundColor: selected ? colors.primary[500] : colors.neutral[100],
-          borderColor: selected ? colors.primary[500] : colors.neutral[300],
+          backgroundColor: selected ? (colors.primary as string) : colors.surfaceSecondary,
+          borderColor: selected ? (colors.primary as string) : colors.border,
         },
         style,
       ]}
@@ -36,7 +36,7 @@ export const TChip: React.FC<TChipProps> = ({
         style={[
           styles.label,
           {
-            color: selected ? '#FFFFFF' : colors.neutral[700],
+            color: selected ? '#FFFFFF' : colors.textSecondary,
           },
         ]}
       >
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    borderRadius: radius.full,
     borderWidth: 1,
     marginRight: spacing.xs,
     marginBottom: spacing.xs,

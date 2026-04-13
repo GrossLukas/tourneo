@@ -78,7 +78,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[100] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgTertiary }]}>
       <THeader title="Einstellungen" showBack onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Profile Section */}
@@ -86,8 +86,8 @@ export default function SettingsScreen() {
           <View style={styles.profileHeader}>
             <TAvatar uri={user.avatar_url} name={user.display_name} size="lg" />
             <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, { color: colors.neutral[900] }]}>{user.display_name}</Text>
-              <Text style={[styles.profileEmail, { color: colors.neutral[500] }]}>{user.email}</Text>
+              <Text style={[styles.profileName, { color: colors.textPrimary }]}>{user.display_name}</Text>
+              <Text style={[styles.profileEmail, { color: colors.textTertiary }]}>{user.email}</Text>
             </View>
           </View>
 
@@ -116,21 +116,21 @@ export default function SettingsScreen() {
 
         {/* Notifications */}
         <TCard variant="default" style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>Benachrichtigungen</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Benachrichtigungen</Text>
           <View style={styles.switchRow}>
-            <Text style={[styles.switchLabel, { color: colors.neutral[700] }]}>Push-Benachrichtigungen</Text>
+            <Text style={[styles.switchLabel, { color: colors.textSecondary }]}>Push-Benachrichtigungen</Text>
             <Switch
               value={pushEnabled}
               onValueChange={setPushEnabled}
-              trackColor={{ false: colors.neutral[300], true: colors.primary[300] }}
-              thumbColor={pushEnabled ? colors.primary[500] : colors.neutral[100]}
+              trackColor={{ false: colors.border, true: (colors.primary as string) }}
+              thumbColor={pushEnabled ? (colors.primary as string) : colors.bgTertiary}
             />
           </View>
         </TCard>
 
         {/* Account Actions */}
         <TCard variant="default" style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>Konto</Text>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Konto</Text>
           <TListItem
             title="Passwort ändern"
             leftIcon={<Text style={styles.menuIcon}>🔑</Text>}
@@ -149,9 +149,9 @@ export default function SettingsScreen() {
         </TCard>
 
         {/* Danger Zone */}
-        <TCard variant="default" style={StyleSheet.flatten([styles.section, { borderColor: colors.status.error, borderWidth: 1 }])}>
-          <Text style={[styles.sectionTitle, { color: colors.status.error }]}>Gefahrenzone</Text>
-          <Text style={[styles.dangerText, { color: colors.neutral[600] }]}>
+        <TCard variant="default" style={StyleSheet.flatten([styles.section, { borderColor: colors.error, borderWidth: 1 }])}>
+          <Text style={[styles.sectionTitle, { color: colors.error }]}>Gefahrenzone</Text>
+          <Text style={[styles.dangerText, { color: colors.textSecondary }]}>
             Das Löschen deines Kontos ist permanent und kann nicht rückgängig gemacht werden. Alle Daten, Turnierhistorie und Mitgliedschaften gehen verloren.
           </Text>
           <TButton

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { TCard } from '../common/TCard';
 import { TButton } from '../common/TButton';
 import { useAppColors } from '../../hooks/useColorScheme';
-import { spacing, fontSize, fontWeight, borderRadius } from '../../theme/spacing';
+import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 import { MembershipTierInfo } from '../../store/membershipStore';
 
 interface MembershipCardProps {
@@ -23,7 +23,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
     switch (tier.tier) {
       case 'club': return colors.membership.club;
       case 'plus': return colors.membership.plus;
-      default: return colors.neutral[500];
+      default: return colors.textTertiary;
     }
   };
 
@@ -35,7 +35,7 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
       style={StyleSheet.flatten([
         styles.card,
         tier.highlighted ? { borderWidth: 2, borderColor: tierColor } : {},
-        isCurrentTier ? { borderWidth: 2, borderColor: colors.status.success } : {},
+        isCurrentTier ? { borderWidth: 2, borderColor: colors.success } : {},
       ])}
     >
       {tier.highlighted && (
@@ -49,13 +49,13 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
         <View style={styles.priceRow}>
           {tier.price_monthly > 0 ? (
             <>
-              <Text style={[styles.price, { color: colors.neutral[900] }]}>
+              <Text style={[styles.price, { color: colors.textPrimary }]}>
                 {tier.price_monthly.toFixed(2)} €
               </Text>
-              <Text style={[styles.period, { color: colors.neutral[500] }]}>/Monat</Text>
+              <Text style={[styles.period, { color: colors.textTertiary }]}>/Monat</Text>
             </>
           ) : (
-            <Text style={[styles.price, { color: colors.neutral[900] }]}>Kostenlos</Text>
+            <Text style={[styles.price, { color: colors.textPrimary }]}>Kostenlos</Text>
           )}
         </View>
       </View>
@@ -75,14 +75,14 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
         {tier.features.map((feature, index) => (
           <View key={index} style={styles.featureRow}>
             <Text style={[styles.featureCheck, { color: tierColor }]}>✓</Text>
-            <Text style={[styles.featureText, { color: colors.neutral[700] }]}>{feature}</Text>
+            <Text style={[styles.featureText, { color: colors.textSecondary }]}>{feature}</Text>
           </View>
         ))}
       </View>
 
       {isCurrentTier ? (
-        <View style={[styles.currentBadge, { backgroundColor: colors.status.success + '20' }]}>
-          <Text style={[styles.currentText, { color: colors.status.success }]}>
+        <View style={[styles.currentBadge, { backgroundColor: colors.successBg }]}>
+          <Text style={[styles.currentText, { color: colors.success }]}>
             ✓ Aktueller Plan
           </Text>
         </View>
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xxs,
-    borderBottomLeftRadius: borderRadius.md,
+    borderBottomLeftRadius: radius.md,
   },
   popularText: {
     color: '#FFFFFF',
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   },
   highlight: {
     padding: spacing.sm,
-    borderRadius: borderRadius.md,
+    borderRadius: radius.md,
     marginBottom: spacing.md,
   },
   highlightText: {
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   currentBadge: {
     padding: spacing.md,
-    borderRadius: borderRadius.md,
+    borderRadius: radius.md,
     alignItems: 'center',
   },
   currentText: {

@@ -97,22 +97,22 @@ export default function EventRegisterScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <THeader title="Anmeldung" subtitle={e.title} showBack onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Event Summary */}
         <TCard variant="outlined" style={styles.eventSummary}>
-          <Text style={[styles.eventTitle, { color: colors.neutral[900] }]}>{e.title}</Text>
-          <Text style={[styles.eventMeta, { color: colors.neutral[600] }]}>
+          <Text style={[styles.eventTitle, { color: colors.textPrimary }]}>{e.title}</Text>
+          <Text style={[styles.eventMeta, { color: colors.textSecondary }]}>
             📅 {e.start_date}
           </Text>
-          <Text style={[styles.eventMeta, { color: colors.neutral[600] }]}>
+          <Text style={[styles.eventMeta, { color: colors.textSecondary }]}>
             📍 {e.venue?.name || 'TBD'}{e.venue?.city ? `, ${e.venue.city}` : ''}
           </Text>
         </TCard>
 
         {/* Registration Type */}
-        <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>Anmeldeart</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Anmeldeart</Text>
         <View style={styles.regTypeRow}>
           <TChip label="Einzel" selected={regType === 'solo'} onPress={() => setRegType('solo')} />
           <TChip label="Duo" selected={regType === 'duo'} onPress={() => setRegType('duo')} />
@@ -146,28 +146,28 @@ export default function EventRegisterScreen() {
         <TDivider />
 
         {/* Fee Breakdown */}
-        <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>Kostenübersicht</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Kostenübersicht</Text>
         <TCard variant="outlined">
           <View style={styles.feeRow}>
-            <Text style={[styles.feeLabel, { color: colors.neutral[600] }]}>Turniergebühr</Text>
-            <Text style={[styles.feeValue, { color: colors.neutral[900] }]}>
+            <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Turniergebühr</Text>
+            <Text style={[styles.feeValue, { color: colors.textPrimary }]}>
               {feeAmount.toFixed(2)} €
             </Text>
           </View>
           {discount > 0 && (
             <View style={styles.feeRow}>
-              <Text style={[styles.feeLabel, { color: colors.status.success }]}>
+              <Text style={[styles.feeLabel, { color: colors.success }]}>
                 {currentMembership?.tier === 'club' ? 'Club' : 'Plus'}-Rabatt ({discount}%)
               </Text>
-              <Text style={[styles.feeValue, { color: colors.status.success }]}>
+              <Text style={[styles.feeValue, { color: colors.success }]}>
                 -{(feeAmount * discount / 100).toFixed(2)} €
               </Text>
             </View>
           )}
           <TDivider marginVertical={spacing.sm} />
           <View style={styles.feeRow}>
-            <Text style={[styles.feeTotalLabel, { color: colors.neutral[900] }]}>Gesamt</Text>
-            <Text style={[styles.feeTotalValue, { color: colors.primary[600] }]}>
+            <Text style={[styles.feeTotalLabel, { color: colors.textPrimary }]}>Gesamt</Text>
+            <Text style={[styles.feeTotalValue, { color: (colors.primary as string) }]}>
               {finalFee.toFixed(2)} €
             </Text>
           </View>
@@ -175,7 +175,7 @@ export default function EventRegisterScreen() {
 
         {discount === 0 && (
           <TCard variant="outlined" style={StyleSheet.flatten([styles.upsellCard, { borderColor: colors.membership.plus }])}>
-            <Text style={[styles.upsellText, { color: colors.neutral[700] }]}>
+            <Text style={[styles.upsellText, { color: colors.textSecondary }]}>
               💡 Mit Plus (7,99€/Mo) sparst du 10% auf Turniergebühren!
             </Text>
             <TButton
@@ -189,19 +189,19 @@ export default function EventRegisterScreen() {
         )}
 
         {isFull && (
-          <TCard variant="outlined" style={StyleSheet.flatten([styles.waitlistCard, { borderColor: colors.status.warning }])}>
+          <TCard variant="outlined" style={StyleSheet.flatten([styles.waitlistCard, { borderColor: colors.warning }])}>
             <Text style={styles.waitlistIcon}>⏳</Text>
-            <Text style={[styles.waitlistTitle, { color: colors.neutral[900] }]}>
+            <Text style={[styles.waitlistTitle, { color: colors.textPrimary }]}>
               Turnier ist voll
             </Text>
-            <Text style={[styles.waitlistText, { color: colors.neutral[600] }]}>
+            <Text style={[styles.waitlistText, { color: colors.textSecondary }]}>
               Du wirst auf die Warteliste gesetzt. Bei Club/Plus-Mitgliedschaft hast du Priorität beim Nachrücken.
             </Text>
           </TCard>
         )}
 
         {/* Cancellation Info */}
-        <Text style={[styles.policyText, { color: colors.neutral[500] }]}>
+        <Text style={[styles.policyText, { color: colors.textTertiary }]}>
           Mit der Anmeldung akzeptierst du die Stornierungsrichtlinie: 75% Erstattung bei Stornierung 14+ Tage vor dem Event, keine Erstattung danach.
         </Text>
 

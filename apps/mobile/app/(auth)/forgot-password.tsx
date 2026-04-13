@@ -33,17 +33,17 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <THeader title="Passwort vergessen" showBack onBack={() => router.back()} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {sent ? (
             <View style={styles.successContainer}>
               <Text style={styles.successIcon}>✉️</Text>
-              <Text style={[styles.successTitle, { color: colors.neutral[900] }]}>
+              <Text style={[styles.successTitle, { color: colors.textPrimary }]}>
                 E-Mail gesendet!
               </Text>
-              <Text style={[styles.successText, { color: colors.neutral[600] }]}>
+              <Text style={[styles.successText, { color: colors.textSecondary }]}>
                 Falls ein Konto mit dieser E-Mail existiert, haben wir dir einen Link zum Zurücksetzen deines Passworts gesendet. Bitte überprüfe auch deinen Spam-Ordner.
               </Text>
               <TButton
@@ -55,10 +55,10 @@ export default function ForgotPasswordScreen() {
             </View>
           ) : (
             <>
-              <Text style={[styles.title, { color: colors.neutral[900] }]}>
+              <Text style={[styles.title, { color: colors.textPrimary }]}>
                 Passwort zurücksetzen
               </Text>
-              <Text style={[styles.subtitle, { color: colors.neutral[600] }]}>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
                 Gib deine E-Mail-Adresse ein und wir senden dir einen Link zum Zurücksetzen deines Passworts.
               </Text>
               <TInput

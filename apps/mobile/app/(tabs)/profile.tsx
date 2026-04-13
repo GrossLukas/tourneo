@@ -47,16 +47,16 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.neutral[100] }]}>
-        <View style={[styles.header, { backgroundColor: colors.neutral[50], borderBottomColor: colors.neutral[200] }]}>
-          <Text style={[styles.title, { color: colors.neutral[900] }]}>Profil</Text>
+      <View style={[styles.container, { backgroundColor: colors.bgTertiary }]}>
+        <View style={[styles.header, { backgroundColor: colors.bgSecondary, borderBottomColor: colors.border }]}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Profil</Text>
         </View>
         <View style={styles.guestContainer}>
           <Text style={styles.guestIcon}>👤</Text>
-          <Text style={[styles.guestTitle, { color: colors.neutral[900] }]}>
+          <Text style={[styles.guestTitle, { color: colors.textPrimary }]}>
             Willkommen bei Turneo
           </Text>
-          <Text style={[styles.guestText, { color: colors.neutral[600] }]}>
+          <Text style={[styles.guestText, { color: colors.textSecondary }]}>
             Melde dich an, um dein Profil zu verwalten und alle Funktionen zu nutzen.
           </Text>
           <TButton
@@ -81,10 +81,10 @@ export default function ProfileScreen() {
   const tierLabel = currentMembership?.tier === 'club' ? 'Club' : currentMembership?.tier === 'plus' ? 'Plus' : 'Free';
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[100] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgTertiary }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Profile Header */}
-        <View style={[styles.profileHeader, { backgroundColor: colors.primary[500] }]}>
+        <View style={[styles.profileHeader, { backgroundColor: (colors.primary as string) }]}>
           <TAvatar
             uri={user.avatar_url}
             name={user.display_name}
@@ -108,24 +108,24 @@ export default function ProfileScreen() {
         {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.neutral[900] }]}>{totalTournaments}</Text>
-            <Text style={[styles.statLabel, { color: colors.neutral[500] }]}>Turniere</Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>{totalTournaments}</Text>
+            <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Turniere</Text>
           </View>
-          <View style={[styles.statDivider, { backgroundColor: colors.neutral[200] }]} />
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.neutral[900] }]}>0</Text>
-            <Text style={[styles.statLabel, { color: colors.neutral[500] }]}>Siege</Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>0</Text>
+            <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Siege</Text>
           </View>
-          <View style={[styles.statDivider, { backgroundColor: colors.neutral[200] }]} />
+          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.neutral[900] }]}>{tierLabel}</Text>
-            <Text style={[styles.statLabel, { color: colors.neutral[500] }]}>Mitglied</Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>{tierLabel}</Text>
+            <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Mitglied</Text>
           </View>
         </View>
 
         {/* Menu Sections */}
         <TCard variant="default" style={styles.menuCard}>
-          <Text style={[styles.menuTitle, { color: colors.neutral[900] }]}>Konto</Text>
+          <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Konto</Text>
           <TListItem
             title="Profil bearbeiten"
             leftIcon={<Text style={styles.menuIcon}>✏️</Text>}
@@ -152,7 +152,7 @@ export default function ProfileScreen() {
         </TCard>
 
         <TCard variant="default" style={styles.menuCard}>
-          <Text style={[styles.menuTitle, { color: colors.neutral[900] }]}>Support & Rechtliches</Text>
+          <Text style={[styles.menuTitle, { color: colors.textPrimary }]}>Support & Rechtliches</Text>
           <TListItem
             title="Hilfe & Support"
             leftIcon={<Text style={styles.menuIcon}>💬</Text>}
@@ -182,7 +182,7 @@ export default function ProfileScreen() {
             variant="outline"
             size="lg"
           />
-          <Text style={[styles.versionText, { color: colors.neutral[400] }]}>
+          <Text style={[styles.versionText, { color: colors.textTertiary }]}>
             Turneo v1.0.0 (Build 1)
           </Text>
         </View>

@@ -36,13 +36,13 @@ export const TAvatar: React.FC<TAvatarProps> = ({
   const dimension = SIZES[size];
   const fSize = FONT_SIZES[size];
 
-  const getInitials = (name?: string): string => {
-    if (!name) return '?';
-    const parts = name.trim().split(' ');
+  const getInitials = (n?: string): string => {
+    if (!n) return '?';
+    const parts = n.trim().split(' ');
     if (parts.length >= 2) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
-    return name[0].toUpperCase();
+    return n[0].toUpperCase();
   };
 
   const getBorderColor = (): string | undefined => {
@@ -60,7 +60,7 @@ export const TAvatar: React.FC<TAvatarProps> = ({
           width: dimension,
           height: dimension,
           borderRadius: dimension / 2,
-          backgroundColor: colors.primary[100],
+          backgroundColor: colors.primaryLight,
         },
         borderColor
           ? { borderWidth: 2, borderColor }
@@ -82,7 +82,7 @@ export const TAvatar: React.FC<TAvatarProps> = ({
             styles.initials,
             {
               fontSize: fSize,
-              color: colors.primary[700],
+              color: colors.primary as string,
             },
           ]}
         >

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { TCard } from '../common/TCard';
 import { useAppColors } from '../../hooks/useColorScheme';
-import { spacing, fontSize, fontWeight, borderRadius } from '../../theme/spacing';
+import { spacing, fontSize, fontWeight, borderRadius, radius } from '../../theme/spacing';
 
 interface MatchData {
   id: string;
@@ -42,10 +42,10 @@ export const BracketView: React.FC<BracketViewProps> = ({
 
   const getMatchBorderColor = (match: MatchData): string => {
     switch (match.status) {
-      case 'in_progress': return colors.status.warning;
-      case 'completed': return colors.status.success;
-      case 'bye': return colors.neutral[300];
-      default: return colors.neutral[200];
+      case 'in_progress': return colors.warning;
+      case 'completed': return colors.success;
+      case 'bye': return colors.border;
+      default: return colors.border;
     }
   };
 
@@ -68,18 +68,18 @@ export const BracketView: React.FC<BracketViewProps> = ({
     <View
       style={[
         styles.participant,
-        isWinner && { backgroundColor: colors.primary[50] },
+        isWinner && { backgroundColor: colors.primaryLight },
         isBye && { opacity: 0.5 },
       ]}
     >
       {seed !== undefined && seed > 0 && (
-        <Text style={[styles.seed, { color: colors.neutral[400] }]}>#{seed}</Text>
+        <Text style={[styles.seed, { color: colors.textTertiary }]}>#{seed}</Text>
       )}
       <Text
         style={[
           styles.participantName,
-          { color: colors.neutral[900] },
-          isWinner && { fontWeight: fontWeight.bold as any, color: colors.primary[700] },
+          { color: colors.textPrimary },
+          isWinner && { fontWeight: fontWeight.bold as any, color: colors.primaryDark },
         ]}
         numberOfLines={1}
       >
@@ -96,7 +96,7 @@ export const BracketView: React.FC<BracketViewProps> = ({
     return (
       <View style={styles.scoreContainer}>
         {scores.map((s, i) => (
-          <Text key={i} style={[styles.scoreText, { color: colors.neutral[600] }]}>
+          <Text key={i} style={[styles.scoreText, { color: colors.textSecondary }]}>
             {s.score1}-{s.score2}
           </Text>
         ))}
@@ -109,8 +109,8 @@ export const BracketView: React.FC<BracketViewProps> = ({
       <View style={styles.bracketContainer}>
         {matchesByRound.map((round) => (
           <View key={round.number} style={styles.round}>
-            <View style={[styles.roundHeader, { backgroundColor: colors.primary[50] }]}>
-              <Text style={[styles.roundName, { color: colors.primary[700] }]}>
+            <View style={[styles.roundHeader, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[styles.roundName, { color: colors.primaryDark }]}>
                 {round.name}
               </Text>
             </View>
@@ -127,7 +127,7 @@ export const BracketView: React.FC<BracketViewProps> = ({
                   ])}
                 >
                   <View style={styles.matchHeader}>
-                    <Text style={[styles.matchNumber, { color: colors.neutral[400] }]}>
+                    <Text style={[styles.matchNumber, { color: colors.textTertiary }]}>
                       Spiel {match.match_number}
                     </Text>
                     <Text
@@ -136,10 +136,10 @@ export const BracketView: React.FC<BracketViewProps> = ({
                         {
                           color:
                             match.status === 'in_progress'
-                              ? colors.status.warning
+                              ? colors.warning
                               : match.status === 'completed'
-                              ? colors.status.success
-                              : colors.neutral[400],
+                              ? colors.success
+                              : colors.textTertiary,
                         },
                       ]}
                     >
@@ -152,7 +152,7 @@ export const BracketView: React.FC<BracketViewProps> = ({
                     match.winner_id === match.participant1_id && match.status === 'completed',
                     match.status === 'bye'
                   )}
-                  <View style={[styles.divider, { backgroundColor: colors.neutral[200] }]} />
+                  <View style={[styles.divider, { backgroundColor: colors.border }]} />
                   {renderParticipant(
                     match.participant2_name,
                     match.participant2_seed,
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
   },
   roundHeader: {
     padding: spacing.sm,
-    borderRadius: borderRadius.md,
+    borderRadius: radius.md,
     marginBottom: spacing.sm,
     alignItems: 'center',
   },
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.xxs,
     paddingHorizontal: spacing.xs,
-    borderRadius: borderRadius.sm,
+    borderRadius: radius.sm,
   },
   seed: {
     fontSize: fontSize.xxs,

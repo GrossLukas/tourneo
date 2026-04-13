@@ -81,9 +81,9 @@ export default function BookingsScreen() {
 
   if (!user) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.neutral[100] }]}>
-        <View style={[styles.header, { backgroundColor: colors.neutral[50], borderBottomColor: colors.neutral[200] }]}>
-          <Text style={[styles.title, { color: colors.neutral[900] }]}>Meine Buchungen</Text>
+      <View style={[styles.container, { backgroundColor: colors.bgTertiary }]}>
+        <View style={[styles.header, { backgroundColor: colors.bgSecondary, borderBottomColor: colors.border }]}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Meine Buchungen</Text>
         </View>
         <TEmptyState
           icon="🔐"
@@ -97,9 +97,9 @@ export default function BookingsScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[100] }]}>
-      <View style={[styles.header, { backgroundColor: colors.neutral[50], borderBottomColor: colors.neutral[200] }]}>
-        <Text style={[styles.title, { color: colors.neutral[900] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgTertiary }]}>
+      <View style={[styles.header, { backgroundColor: colors.bgSecondary, borderBottomColor: colors.border }]}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
           {t('bookings.myBookings')}
         </Text>
       </View>
@@ -125,44 +125,44 @@ export default function BookingsScreen() {
                 style={styles.bookingCard}
               >
                 <View style={styles.cardHeader}>
-                  <Text style={[styles.eventTitle, { color: colors.neutral[900] }]} numberOfLines={1}>
+                  <Text style={[styles.eventTitle, { color: colors.textPrimary }]} numberOfLines={1}>
                     {item.event_title || 'Turnier'}
                   </Text>
                   <TBadge label={badge.label} variant={badge.variant} />
                 </View>
 
                 <View style={styles.cardDetails}>
-                  <Text style={[styles.detailText, { color: colors.neutral[600] }]}>
+                  <Text style={[styles.detailText, { color: colors.textSecondary }]}>
                     📅 {item.event_date || 'Datum TBD'}
                   </Text>
                   {item.event_location && (
-                    <Text style={[styles.detailText, { color: colors.neutral[600] }]}>
+                    <Text style={[styles.detailText, { color: colors.textSecondary }]}>
                       📍 {item.event_location}
                     </Text>
                   )}
-                  <Text style={[styles.detailText, { color: colors.neutral[600] }]}>
+                  <Text style={[styles.detailText, { color: colors.textSecondary }]}>
                     🎫 {item.registration_type === 'solo' ? 'Einzel' : item.registration_type === 'duo' ? 'Duo' : 'Team'}
                     {item.partner_name ? ` mit ${item.partner_name}` : ''}
                   </Text>
                 </View>
 
                 <View style={styles.cardFooter}>
-                  <Text style={[styles.feeText, { color: colors.primary[600] }]}>
+                  <Text style={[styles.feeText, { color: (colors.primary as string) }]}>
                     {item.fee_final > 0 ? `${item.fee_final.toFixed(2)} €` : 'Kostenlos'}
                     {item.fee_discount_percent > 0 && (
-                      <Text style={{ color: colors.status.success }}> (-{item.fee_discount_percent}%)</Text>
+                      <Text style={{ color: colors.success }}> (-{item.fee_discount_percent}%)</Text>
                     )}
                   </Text>
                   {item.status === 'confirmed' && (
                     <TouchableOpacity onPress={() => handleCancel(item)}>
-                      <Text style={[styles.cancelText, { color: colors.status.error }]}>Stornieren</Text>
+                      <Text style={[styles.cancelText, { color: colors.error }]}>Stornieren</Text>
                     </TouchableOpacity>
                   )}
                 </View>
               </TCard>
             );
           }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary[500]} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={(colors.primary as string)} />}
           ListEmptyComponent={
             <TEmptyState
               icon="📋"

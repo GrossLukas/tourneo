@@ -24,8 +24,8 @@ export const TEmptyState: React.FC<TEmptyStateProps> = ({
   return (
     <View style={styles.container}>
       {icon && <Text style={styles.icon}>{icon}</Text>}
-      <Text style={[styles.title, { color: colors.neutral[900] }]}>{title}</Text>
-      <Text style={[styles.message, { color: colors.neutral[500] }]}>{message}</Text>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
+      <Text style={[styles.message, { color: colors.textTertiary }]}>{message}</Text>
       {actionLabel && onAction && (
         <View style={styles.actionContainer}>
           <TButton

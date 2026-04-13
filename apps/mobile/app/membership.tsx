@@ -50,13 +50,13 @@ export default function MembershipScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[100] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgTertiary }]}>
       <THeader title="Mitgliedschaft" showBack onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.headline, { color: colors.neutral[900] }]}>
+        <Text style={[styles.headline, { color: colors.textPrimary }]}>
           Wähle deinen Plan
         </Text>
-        <Text style={[styles.subtitle, { color: colors.neutral[600] }]}>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Upgraden für Early Access, Rabatte und exklusive Vorteile
         </Text>
 
@@ -70,25 +70,25 @@ export default function MembershipScreen() {
         ))}
 
         <View style={styles.faq}>
-          <Text style={[styles.faqTitle, { color: colors.neutral[900] }]}>Häufige Fragen</Text>
+          <Text style={[styles.faqTitle, { color: colors.textPrimary }]}>Häufige Fragen</Text>
 
-          <Text style={[styles.faqQ, { color: colors.neutral[900] }]}>Kann ich jederzeit kündigen?</Text>
-          <Text style={[styles.faqA, { color: colors.neutral[600] }]}>
+          <Text style={[styles.faqQ, { color: colors.textPrimary }]}>Kann ich jederzeit kündigen?</Text>
+          <Text style={[styles.faqA, { color: colors.textSecondary }]}>
             Ja, du kannst dein Abo jederzeit in den iOS-Einstellungen kündigen. Es läuft dann bis zum Ende der Abrechnungsperiode weiter.
           </Text>
 
-          <Text style={[styles.faqQ, { color: colors.neutral[900] }]}>Was ist Early Access?</Text>
-          <Text style={[styles.faqA, { color: colors.neutral[600] }]}>
+          <Text style={[styles.faqQ, { color: colors.textPrimary }]}>Was ist Early Access?</Text>
+          <Text style={[styles.faqA, { color: colors.textSecondary }]}>
             Plus-Mitglieder können sich 24 Stunden vor der allgemeinen Öffnung für Turniere anmelden. Club-Mitglieder sogar 48 Stunden vorher.
           </Text>
 
-          <Text style={[styles.faqQ, { color: colors.neutral[900] }]}>Wie funktioniert die Wartelisten-Priorität?</Text>
-          <Text style={[styles.faqA, { color: colors.neutral[600] }]}>
+          <Text style={[styles.faqQ, { color: colors.textPrimary }]}>Wie funktioniert die Wartelisten-Priorität?</Text>
+          <Text style={[styles.faqA, { color: colors.textSecondary }]}>
             Bei vollen Turnieren werden Club-Mitglieder bevorzugt nachgerückt, dann Plus-Mitglieder, dann Free-Nutzer.
           </Text>
         </View>
 
-        <Text style={[styles.legalText, { color: colors.neutral[400] }]}>
+        <Text style={[styles.legalText, { color: colors.textTertiary }]}>
           Abos werden über Apple In-App Purchase abgewickelt. Der Betrag wird monatlich über dein Apple-Konto abgerechnet. Das Abo verlängert sich automatisch, sofern nicht mindestens 24 Stunden vor Ende der laufenden Periode gekündigt wird.
         </Text>
 

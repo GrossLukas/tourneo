@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { useAppColors } from '../../hooks/useColorScheme';
-import { spacing, fontSize, fontWeight, borderRadius } from '../../theme/spacing';
+import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info' | 'membership';
 type BadgeSize = 'sm' | 'md';
@@ -23,7 +23,7 @@ export const TBadge: React.FC<TBadgeProps> = ({
 }) => {
   const colors = useAppColors();
 
-  const getColors = (): { bg: string; text: string } => {
+  const getBadgeColors = (): { bg: string; text: string } => {
     if (variant === 'membership' && membershipTier) {
       switch (membershipTier) {
         case 'plus':
@@ -31,25 +31,25 @@ export const TBadge: React.FC<TBadgeProps> = ({
         case 'club':
           return { bg: colors.membership.club + '20', text: colors.membership.club };
         default:
-          return { bg: colors.neutral[200], text: colors.neutral[600] };
+          return { bg: colors.surfaceSecondary, text: colors.textSecondary };
       }
     }
 
     switch (variant) {
       case 'success':
-        return { bg: colors.status.success + '20', text: colors.status.success };
+        return { bg: colors.successBg, text: colors.success };
       case 'warning':
-        return { bg: colors.status.warning + '20', text: colors.status.warning };
+        return { bg: colors.warningBg, text: colors.warning };
       case 'error':
-        return { bg: colors.status.error + '20', text: colors.status.error };
+        return { bg: colors.errorBg, text: colors.error };
       case 'info':
-        return { bg: colors.primary[100], text: colors.primary[700] };
+        return { bg: colors.primaryLight, text: colors.primary as string };
       default:
-        return { bg: colors.neutral[200], text: colors.neutral[700] };
+        return { bg: colors.surfaceSecondary, text: colors.textSecondary };
     }
   };
 
-  const { bg, text } = getColors();
+  const { bg, text } = getBadgeColors();
   const isSmall = size === 'sm';
 
   return (
@@ -81,7 +81,7 @@ export const TBadge: React.FC<TBadgeProps> = ({
 
 const styles = StyleSheet.create({
   badge: {
-    borderRadius: borderRadius.full,
+    borderRadius: radius.full,
     alignSelf: 'flex-start',
   },
   text: {

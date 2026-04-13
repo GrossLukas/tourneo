@@ -56,7 +56,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <THeader
         title={t('auth.login')}
         showBack
@@ -70,10 +70,10 @@ export default function LoginScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={[styles.welcome, { color: colors.neutral[900] }]}>
+          <Text style={[styles.welcome, { color: colors.textPrimary }]}>
             {t('auth.welcomeBack')}
           </Text>
-          <Text style={[styles.subtitle, { color: colors.neutral[500] }]}>
+          <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
             {t('auth.loginSubtitle')}
           </Text>
 
@@ -97,7 +97,7 @@ export default function LoginScreen() {
               error={errors.password}
               secureTextEntry={!showPassword}
               rightIcon={
-                <Text style={{ color: colors.neutral[500], fontSize: 16 }}>
+                <Text style={{ color: colors.textTertiary, fontSize: 16 }}>
                   {showPassword ? '🙈' : '👁'}
                 </Text>
               }
@@ -109,7 +109,7 @@ export default function LoginScreen() {
               onPress={() => router.push('/(auth)/forgot-password')}
               style={styles.forgotPassword}
             >
-              <Text style={[styles.forgotPasswordText, { color: colors.primary[500] }]}>
+              <Text style={[styles.forgotPasswordText, { color: (colors.primary as string) }]}>
                 {t('auth.forgotPassword')}
               </Text>
             </TouchableOpacity>
@@ -123,11 +123,11 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.dividerContainer}>
-            <View style={[styles.dividerLine, { backgroundColor: colors.neutral[300] }]} />
-            <Text style={[styles.dividerText, { color: colors.neutral[500] }]}>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dividerText, { color: colors.textTertiary }]}>
               {t('auth.or')}
             </Text>
-            <View style={[styles.dividerLine, { backgroundColor: colors.neutral[300] }]} />
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           </View>
 
           <TButton
@@ -141,11 +141,11 @@ export default function LoginScreen() {
           />
 
           <View style={styles.registerLink}>
-            <Text style={[styles.registerText, { color: colors.neutral[600] }]}>
+            <Text style={[styles.registerText, { color: colors.textSecondary }]}>
               {t('auth.noAccount')}{' '}
             </Text>
             <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-              <Text style={[styles.registerLinkText, { color: colors.primary[500] }]}>
+              <Text style={[styles.registerLinkText, { color: (colors.primary as string) }]}>
                 {t('auth.registerNow')}
               </Text>
             </TouchableOpacity>

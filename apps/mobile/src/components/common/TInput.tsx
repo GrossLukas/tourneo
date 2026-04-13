@@ -9,7 +9,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useAppColors } from '../../hooks/useColorScheme';
-import { spacing, fontSize, fontWeight, borderRadius } from '../../theme/spacing';
+import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
 interface TInputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
@@ -37,17 +37,17 @@ export const TInput: React.FC<TInputProps> = ({
   const [focused, setFocused] = useState(false);
 
   const getBorderColor = (): string => {
-    if (error) return colors.status.error;
-    if (focused) return colors.primary[500];
-    return colors.neutral[300];
+    if (error) return colors.error;
+    if (focused) return colors.borderFocus;
+    return colors.border;
   };
 
   return (
     <View style={[styles.container, containerStyle]}>
       {label && (
-        <Text style={[styles.label, { color: colors.neutral[700] }]}>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>
           {label}
-          {required && <Text style={{ color: colors.status.error }}> *</Text>}
+          {required && <Text style={{ color: colors.error }}> *</Text>}
         </Text>
       )}
       <View
@@ -55,7 +55,7 @@ export const TInput: React.FC<TInputProps> = ({
           styles.inputContainer,
           {
             borderColor: getBorderColor(),
-            backgroundColor: colors.neutral[50],
+            backgroundColor: colors.surfaceSecondary,
           },
           focused && styles.inputFocused,
           error ? styles.inputError : null,
@@ -67,11 +67,11 @@ export const TInput: React.FC<TInputProps> = ({
           style={[
             styles.input,
             {
-              color: colors.neutral[900],
+              color: colors.textPrimary,
             },
             leftIcon ? { paddingLeft: 0 } : null,
           ]}
-          placeholderTextColor={colors.neutral[400]}
+          placeholderTextColor={colors.textTertiary}
           onFocus={(e) => {
             setFocused(true);
             inputProps.onFocus?.(e);
@@ -92,10 +92,10 @@ export const TInput: React.FC<TInputProps> = ({
         )}
       </View>
       {error && (
-        <Text style={[styles.errorText, { color: colors.status.error }]}>{error}</Text>
+        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
       )}
       {hint && !error && (
-        <Text style={[styles.hintText, { color: colors.neutral[500] }]}>{hint}</Text>
+        <Text style={[styles.hintText, { color: colors.textTertiary }]}>{hint}</Text>
       )}
     </View>
   );
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderRadius: borderRadius.md,
+    borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     height: 48,
   },
