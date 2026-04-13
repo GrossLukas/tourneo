@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight } from '../../theme/spacing';
 
 interface TListItemProps {
@@ -24,7 +24,7 @@ export const TListItem: React.FC<TListItemProps> = ({
   showChevron = true,
   style,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   const content = (
     <View style={[styles.container, { borderBottomColor: colors.divider }, style]}>

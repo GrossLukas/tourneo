@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useAppColors } from '../../src/hooks/useColorScheme';
+import { useTheme } from '../../src/providers/ThemeProvider';
 import { THeader, TCard, TBadge, TButton, TLoadingScreen, TDivider } from '../../src/components/common';
 import { useVenueStore } from '../../src/store/venueStore';
 import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
@@ -11,7 +11,7 @@ import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
 export default function VenueDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const { currentVenue, fetchVenueById, loading } = useVenueStore();
 
   useEffect(() => {

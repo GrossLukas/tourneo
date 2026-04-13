@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { fontSize } from '../../theme/spacing';
 
 interface TLoadingScreenProps {
@@ -8,7 +8,7 @@ interface TLoadingScreenProps {
 }
 
 export const TLoadingScreen: React.FC<TLoadingScreenProps> = ({ message }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>

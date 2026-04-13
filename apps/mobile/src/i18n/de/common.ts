@@ -1,6 +1,6 @@
 export default {
   app: {
-    name: 'Turneo',
+    name: 'Tourneo',
     tagline: 'Dein Sport. Dein Turnier.',
   },
   tabs: {
@@ -31,7 +31,7 @@ export default {
     pullToRefresh: 'Zum Aktualisieren ziehen',
   },
   auth: {
-    welcome: 'Willkommen bei Turneo',
+    welcome: 'Willkommen bei Tourneo',
     login: 'Anmelden',
     register: 'Registrieren',
     logout: 'Abmelden',
@@ -184,8 +184,8 @@ export default {
   membership: {
     currentPlan: 'Aktueller Plan',
     free: 'Free',
-    plus: 'Turneo Plus',
-    club: 'Turneo Club',
+    plus: 'Tourneo Plus',
+    club: 'Tourneo Club',
     perMonth: '/Monat',
     upgrade: 'Upgrade',
     manage: 'Verwalten',
@@ -202,7 +202,7 @@ export default {
     discover: 'Plätze entdecken',
     courts: 'Courts',
     bookExternally: 'Extern buchen',
-    externalDisclaimer: 'Buchung erfolgt beim Anbieter. Turneo ist nicht verantwortlich.',
+    externalDisclaimer: 'Buchung erfolgt beim Anbieter. Tourneo ist nicht verantwortlich.',
     openingHours: 'Öffnungszeiten',
     website: 'Webseite',
     noCourts: 'Keine Plätze in deiner Nähe gefunden',

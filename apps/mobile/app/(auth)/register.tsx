@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useAppColors } from '../../src/hooks/useColorScheme';
+import { useTheme } from '../../src/providers/ThemeProvider';
 import { TButton, TInput, THeader } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/authStore';
 import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
@@ -20,7 +20,7 @@ import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
 export default function RegisterScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const { register, isLoading } = useAuthStore();
 
   const [form, setForm] = useState({
@@ -166,7 +166,7 @@ export default function RegisterScreen() {
             Erstelle dein Konto
           </Text>
           <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
-            Werde Teil der Turneo-Community
+            Werde Teil der Tourneo-Community
           </Text>
 
           <View style={styles.form}>

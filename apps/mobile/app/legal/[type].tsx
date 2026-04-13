@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useAppColors } from '../../src/hooks/useColorScheme';
+import { useTheme } from '../../src/providers/ThemeProvider';
 import { THeader, TLoadingScreen } from '../../src/components/common';
 import api from '../../src/api/client';
 import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
@@ -9,7 +9,7 @@ import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
 export default function LegalScreen() {
   const { type } = useLocalSearchParams<{ type: string }>();
   const router = useRouter();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const [content, setContent] = useState<string>('');
   const [title, setTitle] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -48,10 +48,10 @@ export default function LegalScreen() {
 Stand: 2025
 
 1. Geltungsbereich
-Diese Allgemeinen Geschäftsbedingungen gelten für die Nutzung der Turneo-App und aller damit verbundenen Dienste.
+Diese Allgemeinen Geschäftsbedingungen gelten für die Nutzung der Tourneo-App und aller damit verbundenen Dienste.
 
 2. Anbieter
-Turneo
+Tourneo
 E-Mail: gross.lukas01@web.de
 
 3. Registrierung
@@ -69,7 +69,7 @@ Die Teilnahme an Turnieren erfordert eine vorherige Anmeldung und ggf. die Zahlu
 Mitgliedschaften (Plus, Club) werden als Abonnements über Apple In-App Purchase abgewickelt. Die automatische Verlängerung kann in den iOS-Einstellungen deaktiviert werden.
 
 7. Haftung
-Die Teilnahme an Sportveranstaltungen erfolgt auf eigene Gefahr. Turneo haftet nicht für Verletzungen oder Schäden, die im Rahmen von Turnieren entstehen.
+Die Teilnahme an Sportveranstaltungen erfolgt auf eigene Gefahr. Tourneo haftet nicht für Verletzungen oder Schäden, die im Rahmen von Turnieren entstehen.
 
 ⚠️ HINWEIS: Diese AGB müssen vor Veröffentlichung von einem Rechtsanwalt geprüft werden.`;
 
@@ -79,7 +79,7 @@ Die Teilnahme an Sportveranstaltungen erfolgt auf eigene Gefahr. Turneo haftet n
 Stand: 2025
 
 1. Verantwortlicher
-Turneo
+Tourneo
 E-Mail: gross.lukas01@web.de
 
 2. Erhobene Daten
@@ -113,7 +113,7 @@ Kontodaten werden auf Anfrage gelöscht. Eine Löschung kann in der App oder per
       case 'imprint':
         return `IMPRESSUM
 
-Turneo
+Tourneo
 Verantwortlich: Lukas Gross
 E-Mail: gross.lukas01@web.de
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight } from '../../theme/spacing';
 import { TButton } from './TButton';
 
@@ -19,7 +19,7 @@ export const TEmptyState: React.FC<TEmptyStateProps> = ({
   actionLabel,
   onAction,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   return (
     <View style={styles.container}>

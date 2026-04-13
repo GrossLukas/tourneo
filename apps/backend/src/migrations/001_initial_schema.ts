@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 
-const PREFIX = 'turneo_';
+const PREFIX = 'tourneo_';
 const t = (name: string) => `${PREFIX}${name}`;
 
 export async function up(knex: Knex): Promise<void> {

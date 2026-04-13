@@ -1,5 +1,5 @@
 // ============================================
-// TURNEO – Premium Spacing & Layout System 2026
+// TOURNEO – Premium Spacing & Layout System 2026
 // Based on 4pt grid with refined scale
 // ============================================
 

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useAppColors } from '../../src/hooks/useColorScheme';
+import { useTheme } from '../../src/providers/ThemeProvider';
 import { TButton, TBadge, TCard, THeader, TLoadingScreen } from '../../src/components/common';
 import { useEventStore } from '../../src/store/eventStore';
 import { useAuthStore } from '../../src/store/authStore';
@@ -24,7 +24,7 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { t } = useTranslation();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const { currentEvent, fetchEventById, loading } = useEventStore();
   const { user } = useAuthStore();
   const { addToCalendar, isAdding } = useCalendar();
@@ -210,7 +210,7 @@ export default function EventDetailScreen() {
                 startDate,
                 endDate,
                 location: e.venue?.name ? `${e.venue.name}${e.venue.city ? ', ' + e.venue.city : ''}` : undefined,
-                notes: `Turneo Event: ${e.title}\nFormat: ${e.format}\nLevel: ${e.level}`,
+                notes: `Tourneo Event: ${e.title}\nFormat: ${e.format}\nLevel: ${e.level}`,
               });
             }}
             variant="outline"

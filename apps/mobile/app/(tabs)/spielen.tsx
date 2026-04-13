@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useAppColors } from '../../src/hooks/useColorScheme';
+import { useTheme } from '../../src/providers/ThemeProvider';
+import type { Colors } from '../../src/theme/colors';
 import { spacing, fontSize, fontWeight, radius, shadow } from '../../src/theme/spacing';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -67,7 +68,7 @@ function SportCard({
   onPress,
 }: {
   sport: SportCategory;
-  colors: ReturnType<typeof useAppColors>;
+  colors: Colors;
   onPress: () => void;
 }) {
   return (
@@ -109,7 +110,7 @@ function QuickMatchCard({
   colors,
 }: {
   match: QuickMatch;
-  colors: ReturnType<typeof useAppColors>;
+  colors: Colors;
 }) {
   return (
     <TouchableOpacity
@@ -145,7 +146,7 @@ function VenueCard({
   colors,
 }: {
   venue: NearbyVenue;
-  colors: ReturnType<typeof useAppColors>;
+  colors: Colors;
 }) {
   const router = useRouter();
   return (
@@ -182,7 +183,7 @@ function VenueCard({
 
 // ─── Main Spielen Screen ─────────────────────────────────────
 export default function SpielenScreen() {
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const router = useRouter();
 
   const sportCategories: SportCategory[] = [
@@ -191,7 +192,7 @@ export default function SpielenScreen() {
       title: 'Padel',
       subtitle: 'Turniere, offene Spiele & Plätze buchen',
       icon: '🏸',
-      gradient: [colors.brand.teal[500], colors.brand.teal[700]],
+      gradient: [colors.primary, colors.primaryDark],
       available: true,
     },
     {
@@ -297,7 +298,7 @@ export default function SpielenScreen() {
         <TouchableOpacity
           style={[
             styles.ctaBanner,
-            { backgroundColor: colors.brand.teal[500] },
+            { backgroundColor: colors.primary },
           ]}
           activeOpacity={0.85}
         >

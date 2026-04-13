@@ -12,7 +12,7 @@ import {
 // ─────────────────────────────────────────────────────────────
 describe('registerSchema', () => {
   const validData = {
-    email: 'lukas@turneo.de',
+    email: 'lukas@tourneo.de',
     password: 'SecurePass1',
     first_name: 'Lukas',
     last_name: 'Gross',
@@ -172,7 +172,7 @@ describe('registerSchema', () => {
 describe('loginSchema', () => {
   it('should accept valid login data', () => {
     const result = loginSchema.safeParse({
-      email: 'user@turneo.de',
+      email: 'user@tourneo.de',
       password: 'mypassword',
     });
     expect(result.success).toBe(true);
@@ -264,7 +264,7 @@ describe('refreshTokenSchema', () => {
 // ─────────────────────────────────────────────────────────────
 describe('forgotPasswordSchema', () => {
   it('should accept valid email', () => {
-    const result = forgotPasswordSchema.safeParse({ email: 'user@turneo.de' });
+    const result = forgotPasswordSchema.safeParse({ email: 'user@tourneo.de' });
     expect(result.success).toBe(true);
   });
 

@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useAppColors } from '../../src/hooks/useColorScheme';
 import { useTheme, type ThemePreference } from '../../src/providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius, shadow } from '../../src/theme/spacing';
 import { membership as membershipColors } from '../../src/theme/colors';
@@ -31,7 +30,7 @@ function SectionItem({
   title: string;
   subtitle?: string;
   onPress?: () => void;
-  colors: ReturnType<typeof useAppColors>;
+  colors: any;
   trailing?: React.ReactNode;
   danger?: boolean;
 }) {
@@ -65,7 +64,7 @@ function ThemePicker({
   preference,
   onSelect,
 }: {
-  colors: ReturnType<typeof useAppColors>;
+  colors: any;
   preference: ThemePreference;
   onSelect: (pref: ThemePreference) => void;
 }) {
@@ -116,7 +115,7 @@ function StatPill({
 }: {
   label: string;
   value: string;
-  colors: ReturnType<typeof useAppColors>;
+  colors: any;
 }) {
   return (
     <View style={[styles.statPill, { backgroundColor: colors.surfaceSecondary }]}>
@@ -128,15 +127,15 @@ function StatPill({
 
 // ─── Main Profil Screen ──────────────────────────────────────
 export default function ProfilScreen() {
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const { preference, setPreference, isDark } = useTheme();
   const router = useRouter();
   const { user, logout } = useAuthStore();
 
   const displayName = user?.first_name
     ? `${user.first_name} ${user.last_name || ''}`
-    : 'Turneo Spieler';
-  const email = user?.email || 'spieler@turneo.app';
+    : 'Tourneo Spieler';
+  const email = user?.email || 'spieler@tourneo.app';
   const memberTier = (user as any)?.membership_tier || 'free';
   const initials = displayName
     .split(' ')
@@ -202,7 +201,7 @@ export default function ProfilScreen() {
               <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{email}</Text>
               <View style={[styles.tierBadge, { backgroundColor: tierColor + '18' }]}>
                 <View style={[styles.tierDot, { backgroundColor: tierColor }]} />
-                <Text style={[styles.tierLabel, { color: tierColor }]}>Turneo {tierLabel}</Text>
+                <Text style={[styles.tierLabel, { color: tierColor }]}>Tourneo {tierLabel}</Text>
               </View>
             </View>
           </View>
@@ -227,7 +226,7 @@ export default function ProfilScreen() {
               <Text style={styles.membershipIcon}>⭐</Text>
               <View style={styles.membershipText}>
                 <Text style={[styles.membershipTitle, { color: isDark ? '#DDD6FE' : '#5B21B6' }]}>
-                  {memberTier === 'free' ? 'Upgrade auf Turneo Plus' : 'Upgrade auf Turneo Club'}
+                  {memberTier === 'free' ? 'Upgrade auf Tourneo Plus' : 'Upgrade auf Tourneo Club'}
                 </Text>
                 <Text style={[styles.membershipSubtitle, { color: isDark ? '#C4B5FD' : '#7C3AED' }]}>
                   Mehr Features, exklusive Turniere & Vorteile
@@ -319,7 +318,7 @@ export default function ProfilScreen() {
             <SectionItem
               icon="💳"
               title="Mitgliedschaft"
-              subtitle={`Turneo ${tierLabel}`}
+              subtitle={`Tourneo ${tierLabel}`}
               colors={colors}
               onPress={() => router.push('/membership')}
             />
@@ -370,7 +369,7 @@ export default function ProfilScreen() {
         </View>
 
         {/* App Version */}
-        <Text style={[styles.appVersion, { color: colors.textTertiary }]}>Turneo v1.0.0 · Made with ❤️</Text>
+        <Text style={[styles.appVersion, { color: colors.textTertiary }]}>Tourneo v1.0.0 · Made with ❤️</Text>
 
         {/* Bottom spacer for tab bar */}
         <View style={{ height: 100 }} />

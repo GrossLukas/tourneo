@@ -104,7 +104,7 @@ describe('validate', () => {
 describe('validateBody', () => {
   it('should validate body with correct schema', () => {
     const schema = z.object({ email: z.string().email() });
-    const req = mockReq({ body: { email: 'test@turneo.de' } });
+    const req = mockReq({ body: { email: 'test@tourneo.de' } });
     const res = mockRes();
     const next = jest.fn();
 
@@ -112,7 +112,7 @@ describe('validateBody', () => {
     middleware(req, res, next);
 
     expect(next).toHaveBeenCalledWith();
-    expect(req.body.email).toBe('test@turneo.de');
+    expect(req.body.email).toBe('test@tourneo.de');
   });
 
   it('should pass ZodError to next on invalid body', () => {

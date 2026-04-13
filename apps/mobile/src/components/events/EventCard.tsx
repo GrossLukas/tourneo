@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { TCard } from '../common/TCard';
 import { TBadge } from '../common/TBadge';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight } from '../../theme/spacing';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -14,7 +14,7 @@ interface EventCardProps {
 }
 
 export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   const spotsLeft = event.spots_remaining ?? (event.max_participants - event.participant_count);
   const isFull = spotsLeft <= 0;

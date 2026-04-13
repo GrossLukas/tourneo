@@ -44,8 +44,8 @@ export class PaymentService {
         user_id: userId.toString(),
         event_title: event.title,
       },
-      description: `Turneo: ${event.title}`,
-      statement_descriptor_suffix: 'TURNEO',
+      description: `Tourneo: ${event.title}`,
+      statement_descriptor_suffix: 'TOURNEO',
     });
 
     // Create payment record

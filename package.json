@@ -1,7 +1,7 @@
 {
-  "name": "turneo",
+  "name": "tourneo",
   "version": "1.0.0",
-  "description": "Turneo - Premium Sports Event Platform for Padel Tournaments, Community & Discovery",
+  "description": "Tourneo - Premium Sports Event Platform for Padel Tournaments, Community & Discovery",
   "private": true,
   "workspaces": [
     "apps/mobile",

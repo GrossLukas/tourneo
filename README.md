@@ -1,4 +1,4 @@
-# 🎾 Turneo – Sport Events & Tournament Platform
+# 🎾 Tourneo – Sport Events & Tournament Platform
 
 <div align="center">
 
@@ -34,7 +34,7 @@
 
 ## 🏆 Overview
 
-Turneo is a comprehensive iOS-first mobile platform for discovering, organizing, and participating in Padel tournaments and sport events. Built with a "Padel first, FIFA architecture" approach, the platform is designed to expand to additional sports in the future.
+Tourneo is a comprehensive iOS-first mobile platform for discovering, organizing, and participating in Padel tournaments and sport events. Built with a "Padel first, FIFA architecture" approach, the platform is designed to expand to additional sports in the future.
 
 ### Key Highlights
 
@@ -81,11 +81,11 @@ Turneo is a comprehensive iOS-first mobile platform for discovering, organizing,
 ## 📁 Project Structure
 
 ```
-turneo/
+tourneo/
 ├── package.json                    # Root monorepo config
 ├── README.md                       # This file
 ├── docs/
-│   └── TURNEO_PRD.md              # Product Requirements Document
+│   └── TOURNEO_PRD.md              # Product Requirements Document
 ├── apps/
 │   ├── backend/                    # Node.js/Express API
 │   │   ├── package.json
@@ -155,8 +155,8 @@ Ensure you have the following installed:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/BigLisBigger/turneo.git
-cd turneo
+git clone https://github.com/BigLisBigger/tourneo.git
+cd tourneo
 
 # 2. Install dependencies
 npm install
@@ -202,7 +202,7 @@ DB_PORT=3306
 DB_USER=your_db_user
 DB_PASSWORD=your_db_password
 DB_NAME=dbs15550863
-DB_TABLE_PREFIX=turneo_
+DB_TABLE_PREFIX=tourneo_
 
 # Auth
 JWT_SECRET=your-super-secret-jwt-key-min-32-chars
@@ -222,7 +222,7 @@ NODE_ENV=development
 ### 3. Database Setup
 
 ```bash
-# Run all migrations (creates 28+ tables with turneo_ prefix)
+# Run all migrations (creates 28+ tables with tourneo_ prefix)
 npm run migrate
 
 # Seed initial data (legal docs, admin user, sample venues/events)
@@ -313,7 +313,7 @@ This will:
 1. Start the Metro bundler
 2. Automatically open the iOS Simulator
 3. Install Expo Go on the Simulator
-4. Load the Turneo app
+4. Load the Tourneo app
 
 #### 4. Testing Workflow
 
@@ -368,7 +368,7 @@ After seeding, the following admin account is available:
 | Field | Value |
 |---|---|
 | Email | gross.lukas01@web.de |
-| Password | TurneoAdmin2025! |
+| Password | TourneoAdmin2025! |
 | Role | superadmin |
 
 #### 6. Common Simulator Commands
@@ -401,7 +401,7 @@ After seeding, the following admin account is available:
 
 ```
 Development: http://localhost:3000/api/v1
-Production:  https://api.turneo.de/api/v1
+Production:  https://api.tourneo.de/api/v1
 ```
 
 ### Authentication
@@ -467,27 +467,27 @@ curl -X POST http://localhost:3000/api/v1/registrations \
 
 ## 🗃 Database Schema
 
-The database uses 28+ tables with the `turneo_` prefix. Key entities:
+The database uses 28+ tables with the `tourneo_` prefix. Key entities:
 
 | Table | Purpose |
 |---|---|
-| `turneo_users` | User accounts with roles |
-| `turneo_profiles` | Extended user profiles |
-| `turneo_memberships` | Subscription tracking |
-| `turneo_events` | Tournament/event definitions |
-| `turneo_registrations` | Event sign-ups with status tracking |
-| `turneo_payments` | Payment records (Stripe) |
-| `turneo_brackets` | Tournament bracket structure |
-| `turneo_matches` | Individual match records |
-| `turneo_match_scores` | Set-by-set scoring |
-| `turneo_venues` | Venue information |
-| `turneo_courts` | Court details per venue |
-| `turneo_teams` | Player teams |
-| `turneo_friendships` | Social connections |
-| `turneo_notifications` | In-app notifications |
-| `turneo_consents` | DSGVO consent log |
-| `turneo_audit_log` | Action audit trail |
-| `turneo_legal_document_versions` | Versioned legal texts |
+| `tourneo_users` | User accounts with roles |
+| `tourneo_profiles` | Extended user profiles |
+| `tourneo_memberships` | Subscription tracking |
+| `tourneo_events` | Tournament/event definitions |
+| `tourneo_registrations` | Event sign-ups with status tracking |
+| `tourneo_payments` | Payment records (Stripe) |
+| `tourneo_brackets` | Tournament bracket structure |
+| `tourneo_matches` | Individual match records |
+| `tourneo_match_scores` | Set-by-set scoring |
+| `tourneo_venues` | Venue information |
+| `tourneo_courts` | Court details per venue |
+| `tourneo_teams` | Player teams |
+| `tourneo_friendships` | Social connections |
+| `tourneo_notifications` | In-app notifications |
+| `tourneo_consents` | DSGVO consent log |
+| `tourneo_audit_log` | Action audit trail |
+| `tourneo_legal_document_versions` | Versioned legal texts |
 
 ---
 
@@ -565,7 +565,7 @@ See `apps/backend/.env.example` for all available variables:
 | `DB_USER` | Database username | ✅ |
 | `DB_PASSWORD` | Database password | ✅ |
 | `DB_NAME` | Database name | ✅ |
-| `DB_TABLE_PREFIX` | Table prefix (default: turneo_) | ✅ |
+| `DB_TABLE_PREFIX` | Table prefix (default: tourneo_) | ✅ |
 | `JWT_SECRET` | JWT signing secret (32+ chars) | ✅ |
 | `JWT_REFRESH_SECRET` | Refresh token secret | ✅ |
 | `STRIPE_SECRET_KEY` | Stripe API key | ✅ |
@@ -662,6 +662,6 @@ npx eas build --profile production:android --platform android
 
 Built with ❤️ for the Padel community
 
-**Turneo** – Dein Turnier. Dein Spiel. Deine Community.
+**Tourneo** – Dein Turnier. Dein Spiel. Deine Community.
 
 </div>

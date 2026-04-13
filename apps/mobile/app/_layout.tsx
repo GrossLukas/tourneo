@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { useAuthStore } from '../src/store/authStore';
-import { useAppColors } from '../src/hooks/useColorScheme';
+import { useTheme } from '../src/providers/ThemeProvider';
 
 export default function RootLayout() {
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const initialize = useAuthStore((s) => s.initialize);
 
   useEffect(() => {

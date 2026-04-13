@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Generate Turneo app icons - Direction B (Dynamic/Sportlich/Modern) using Pillow"""
+"""Generate Tourneo app icons - Direction B (Dynamic/Sportlich/Modern) using Pillow"""
 from PIL import Image, ImageDraw
 import math
 import os
 
 def draw_icon(size):
-    """Draw the Turneo icon at given size."""
+    """Draw the Tourneo icon at given size."""
     img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useAppColors } from '../../src/hooks/useColorScheme';
+import { useTheme } from '../../src/providers/ThemeProvider';
 import { TButton, TInput, THeader } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/authStore';
 import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
@@ -19,7 +19,7 @@ import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
 export default function LoginScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const { login, isLoading } = useAuthStore();
 
   const [email, setEmail] = useState('');

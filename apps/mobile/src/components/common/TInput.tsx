@@ -8,7 +8,7 @@ import {
   TextInputProps,
   ViewStyle,
 } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
 interface TInputProps extends Omit<TextInputProps, 'style'> {
@@ -33,7 +33,7 @@ export const TInput: React.FC<TInputProps> = ({
   containerStyle,
   ...inputProps
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const [focused, setFocused] = useState(false);
 
   const getBorderColor = (): string => {

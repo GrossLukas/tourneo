@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
 interface TChipProps {
@@ -16,7 +16,7 @@ export const TChip: React.FC<TChipProps> = ({
   onPress,
   style,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   return (
     <TouchableOpacity

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Turneo",
-    "slug": "turneo",
+    "name": "Tourneo",
+    "slug": "tourneo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,24 +9,25 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A7E8C"
+      "backgroundColor": "#065B66"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "de.turneo.app",
-      "buildNumber": "1",
+      "bundleIdentifier": "de.tourneo.app",
+      "buildNumber": "2",
       "infoPlist": {
-        "NSCameraUsageDescription": "Turneo benötigt Zugriff auf die Kamera für dein Profilbild.",
-        "NSPhotoLibraryUsageDescription": "Turneo benötigt Zugriff auf deine Fotos für dein Profilbild."
+        "NSCameraUsageDescription": "Tourneo benötigt Zugriff auf die Kamera für dein Profilbild.",
+        "NSPhotoLibraryUsageDescription": "Tourneo benötigt Zugriff auf deine Fotos für dein Profilbild.",
+        "NSCalendarsUsageDescription": "Tourneo benötigt Zugriff auf deinen Kalender, um Turniertermine hinzuzufügen."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0A7E8C"
+        "backgroundColor": "#065B66"
       },
-      "package": "de.turneo.app",
+      "package": "de.tourneo.app",
       "versionCode": 1,
       "permissions": [
         "CAMERA",
@@ -41,10 +42,10 @@
       "allowBackup": false,
       "enableDangerousExperimentalLeanBuilds": false
     },
-    "plugins": ["expo-router", "expo-localization", "expo-secure-store"],
+    "plugins": ["expo-router", "expo-localization", "expo-secure-store", "expo-calendar"],
     "experiments": {
       "typedRoutes": true
     },
-    "scheme": "turneo"
+    "scheme": "tourneo"
   }
 }

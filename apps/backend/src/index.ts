@@ -82,7 +82,7 @@ app.use(`/api/${env.apiVersion}`, apiRouter);
 // Root route
 app.get('/', (_req, res) => {
   res.json({
-    name: 'Turneo API',
+    name: 'Tourneo API',
     version: '1.0.0',
     status: 'running',
     docs: `/api/${env.apiVersion}/health`,
@@ -105,7 +105,7 @@ async function start() {
   app.listen(env.port, () => {
     console.log(`
 ╔══════════════════════════════════════════╗
-║          🏆 TURNEO API SERVER 🏆         ║
+║          🏆 TOURNEO API SERVER 🏆         ║
 ╠══════════════════════════════════════════╣
 ║  Status:     RUNNING                     ║
 ║  Port:       ${String(env.port).padEnd(29)}║

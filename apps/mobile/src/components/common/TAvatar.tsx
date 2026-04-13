@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Image, Text, StyleSheet } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { fontWeight } from '../../theme/spacing';
 
 type AvatarSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -32,7 +32,7 @@ export const TAvatar: React.FC<TAvatarProps> = ({
   size = 'md',
   membershipTier,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const dimension = SIZES[size];
   const fSize = FONT_SIZES[size];
 

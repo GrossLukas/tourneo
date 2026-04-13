@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, Alert, Switch, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAppColors } from '../src/hooks/useColorScheme';
+import { useTheme } from '../src/providers/ThemeProvider';
 import { THeader, TListItem, TCard, TButton, TDivider, TInput, TAvatar } from '../src/components/common';
 import { useAuthStore } from '../src/store/authStore';
 import { spacing, fontSize, fontWeight } from '../src/theme/spacing';
@@ -11,7 +11,7 @@ import api from '../src/api/client';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const { user, logout, updateUser } = useAuthStore();
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user?.display_name || '');

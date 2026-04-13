@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useAppColors } from '../../src/hooks/useColorScheme';
+import { useTheme } from '../../src/providers/ThemeProvider';
 import { useEventStore, type Event } from '../../src/store/eventStore';
 import { spacing, fontSize, fontWeight, borderRadius, radius, shadows } from '../../src/theme/spacing';
 
@@ -17,7 +17,7 @@ function FilterChip({ label, active, colors, onPress }: { label: string; active:
       style={[
         styles.chip,
         active
-          ? { backgroundColor: colors.brand.teal[500] }
+          ? { backgroundColor: colors.primary }
           : { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
       ]}
     >
@@ -61,7 +61,7 @@ function TournamentCard({ event, colors, onPress }: { event: Event; colors: any;
 
       <View style={[styles.tourBottom, { borderTopColor: colors.divider }]}>
         <View>
-          <Text style={[styles.tourPrice, { color: colors.brand.teal[500] }]}>
+          <Text style={[styles.tourPrice, { color: colors.primary }]}>
             {fee > 0 ? `${fee.toFixed(0)}€` : 'Kostenlos'}
           </Text>
           {event.total_prize_pool_cents > 0 && (
@@ -72,7 +72,7 @@ function TournamentCard({ event, colors, onPress }: { event: Event; colors: any;
         </View>
         <View style={styles.tourBottomRight}>
           <View style={[styles.spotsMeter]}>
-            <View style={[styles.spotsFill, { width: `${Math.min(100, (event.participant_count / event.max_participants) * 100)}%`, backgroundColor: spotsLeft <= 4 ? colors.warning : colors.brand.teal[400] }]} />
+            <View style={[styles.spotsFill, { width: `${Math.min(100, (event.participant_count / event.max_participants) * 100)}%`, backgroundColor: spotsLeft <= 4 ? colors.warning : colors.primary }]} />
           </View>
           <Text style={[styles.spotsText, { color: colors.textTertiary }]}>
             {event.participant_count}/{event.max_participants}
@@ -86,7 +86,7 @@ function TournamentCard({ event, colors, onPress }: { event: Event; colors: any;
 export default function TurniereScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const { events, loading, fetchEvents } = useEventStore();
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -130,7 +130,7 @@ export default function TurniereScreen() {
         renderItem={({ item }) => (
           <TournamentCard event={item} colors={colors} onPress={() => router.push(`/event/${item.id}`)} />
         )}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand.teal[400]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         ListEmptyComponent={

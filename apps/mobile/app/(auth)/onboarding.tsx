@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { useAppColors } from '../../src/hooks/useColorScheme';
+import { useTheme } from '../../src/providers/ThemeProvider';
 import { TButton } from '../../src/components/common';
 import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
 
@@ -48,7 +48,7 @@ const SLIDES: Slide[] = [
 export default function OnboardingScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const colors = useAppColors();
+  const { colors } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -107,7 +107,7 @@ export default function OnboardingScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <View style={styles.header}>
-        <Text style={[styles.logo, { color: (colors.primary as string) }]}>TURNEO</Text>
+        <Text style={[styles.logo, { color: (colors.primary as string) }]}>TOURNEO</Text>
       </View>
 
       <FlatList

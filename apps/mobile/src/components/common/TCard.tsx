@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
-import { useAppColors } from '../../hooks/useColorScheme';
+import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, radius, shadow } from '../../theme/spacing';
 
 interface TCardProps {
@@ -18,7 +18,7 @@ export const TCard: React.FC<TCardProps> = ({
   padding = 'md',
   style,
 }) => {
-  const colors = useAppColors();
+  const { colors } = useTheme();
 
   const getCardStyle = (): ViewStyle => {
     const base: ViewStyle = {

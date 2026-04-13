@@ -18,7 +18,7 @@ export function useCalendar() {
     if (status !== 'granted') {
       Alert.alert(
         'Kalender-Zugriff',
-        'Turneo benötigt Zugriff auf deinen Kalender, um Termine hinzuzufügen. Du kannst dies in den Einstellungen aktivieren.',
+        'Tourneo benötigt Zugriff auf deinen Kalender, um Termine hinzuzufügen. Du kannst dies in den Einstellungen aktivieren.',
         [
           { text: 'Abbrechen', style: 'cancel' },
           { text: 'Einstellungen', onPress: () => Linking.openSettings() },
@@ -45,16 +45,16 @@ export function useCalendar() {
     // Create a new calendar on Android if none exist
     if (Platform.OS === 'android') {
       const newCalId = await Calendar.createCalendarAsync({
-        title: 'Turneo Events',
+        title: 'Tourneo Events',
         color: '#0A7E8C',
         entityType: Calendar.EntityTypes.EVENT,
         source: {
           isLocalAccount: true,
-          name: 'Turneo',
+          name: 'Tourneo',
           type: Calendar.CalendarType.LOCAL,
         },
-        name: 'turneo-events',
-        ownerAccount: 'turneo',
+        name: 'tourneo-events',
+        ownerAccount: 'tourneo',
         accessLevel: Calendar.CalendarAccessLevel.OWNER,
       });
       return newCalId;
