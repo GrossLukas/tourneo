@@ -121,10 +121,10 @@ export const BracketView: React.FC<BracketViewProps> = ({
                   onPress={onMatchPress ? () => onMatchPress(match) : undefined}
                   variant="outlined"
                   padding="sm"
-                  style={[
+                  style={StyleSheet.flatten([
                     styles.matchCard,
                     { borderLeftColor: getMatchBorderColor(match), borderLeftWidth: 3 },
-                  ]}
+                  ])}
                 >
                   <View style={styles.matchHeader}>
                     <Text style={[styles.matchNumber, { color: colors.neutral[400] }]}>

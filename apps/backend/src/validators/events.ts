@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const createEventSchema = z.object({
+const eventBaseFields = {
   title: z.string().min(3, 'Title must be at least 3 characters').max(255),
   description: z.string().max(10000).optional(),
   sport_category: z.enum(['padel', 'fifa', 'other']).default('padel'),
@@ -33,7 +33,11 @@ export const createEventSchema = z.object({
       label: z.string().max(50).optional(),
     })
   ).optional(),
-}).refine(
+};
+
+const eventBaseSchema = z.object(eventBaseFields);
+
+export const createEventSchema = eventBaseSchema.refine(
   (data) => new Date(data.end_date) > new Date(data.start_date),
   { message: 'End date must be after start date', path: ['end_date'] }
 ).refine(
@@ -44,7 +48,7 @@ export const createEventSchema = z.object({
   { message: 'Registration must open before it closes', path: ['registration_opens_at'] }
 );
 
-export const updateEventSchema = createEventSchema.partial().extend({
+export const updateEventSchema = eventBaseSchema.partial().extend({
   status: z.enum(['draft', 'published', 'registration_open', 'registration_closed', 'in_progress', 'completed', 'cancelled']).optional(),
 });
 

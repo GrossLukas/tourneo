@@ -630,6 +630,34 @@ npx eas submit --platform ios
 
 ---
 
+## 🌿 Branch Strategy
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | iOS-first primary branch (production-ready) |
+| `android` | Android-specific configurations and adjustments |
+
+### iOS Build (main branch)
+```bash
+git checkout main
+cd apps/mobile
+npx eas build --profile production:ios --platform ios
+```
+
+### Android Build (android branch)
+```bash
+git checkout android
+cd apps/mobile
+npx eas build --profile production:android --platform android
+```
+
+### Test Results
+- **Backend**: 7 test suites, 235 tests — 100% passing
+- **TypeScript**: Zero errors across both backend and mobile codebases
+- **Security**: Input sanitization, prototype pollution prevention, CSP headers, brute force protection, parameter pollution prevention
+
+---
+
 <div align="center">
 
 Built with ❤️ for the Padel community

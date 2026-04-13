@@ -12,10 +12,10 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useAppColors } from '../../src/hooks/useColorScheme';
-import { TButton, TBadge, TCard, THeader, TLoadingScreen, TDivider } from '../../src/components/common';
+import { TButton, TBadge, TCard, THeader, TLoadingScreen } from '../../src/components/common';
 import { useEventStore } from '../../src/store/eventStore';
 import { useAuthStore } from '../../src/store/authStore';
-import { spacing, fontSize, fontWeight, borderRadius } from '../../src/theme/spacing';
+import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 
@@ -29,12 +29,12 @@ export default function EventDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (id) fetchEventById(id);
+    if (id) fetchEventById(Number(id));
   }, [id]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (id) await fetchEventById(id);
+    if (id) await fetchEventById(Number(id));
     setRefreshing(false);
   };
 
@@ -43,8 +43,10 @@ export default function EventDetailScreen() {
   }
 
   const e = currentEvent;
-  const spotsLeft = e.max_participants - (e.current_participants || 0);
+  const spotsLeft = e.spots_remaining ?? (e.max_participants - e.participant_count);
   const isFull = spotsLeft <= 0;
+  const feeAmount = e.entry_fee_cents / 100;
+  const prizeTotal = e.total_prize_pool_cents / 100;
 
   const formatDate = (dateStr: string): string => {
     try { return format(new Date(dateStr), 'EEEE, dd. MMMM yyyy', { locale: de }); }
@@ -52,12 +54,12 @@ export default function EventDetailScreen() {
   };
 
   const getSkillLabel = (s: string): string => {
-    const map: Record<string, string> = { beginner: 'Anfänger', intermediate: 'Mittel', advanced: 'Fortgeschritten', pro: 'Profi', mixed: 'Alle Level' };
+    const map: Record<string, string> = { beginner: 'Anfänger', intermediate: 'Mittel', advanced: 'Fortgeschritten', open: 'Alle Level' };
     return map[s] || s;
   };
 
   const getFormatLabel = (f: string): string => {
-    const map: Record<string, string> = { single_elimination: 'K.O.-System', double_elimination: 'Doppel-K.O.', round_robin: 'Gruppenphase', swiss: 'Schweizer System' };
+    const map: Record<string, string> = { singles: 'Einzel', doubles: 'Doppel' };
     return map[f] || f;
   };
 
@@ -79,14 +81,14 @@ export default function EventDetailScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary[500]} />}
         showsVerticalScrollIndicator={false}
       >
-        {e.image_url && (
-          <Image source={{ uri: e.image_url }} style={styles.heroImage} />
-        )}
+        {e.banner_image_url ? (
+          <Image source={{ uri: e.banner_image_url }} style={styles.heroImage} />
+        ) : null}
 
         <View style={styles.content}>
           {/* Badges */}
           <View style={styles.badges}>
-            <TBadge label={getSkillLabel(e.skill_level)} variant="info" />
+            <TBadge label={getSkillLabel(e.level)} variant="info" />
             <TBadge label={getFormatLabel(e.format)} variant="default" />
             <TBadge label={e.status === 'published' ? 'Offen' : e.status} variant={e.status === 'published' ? 'success' : 'default'} />
             {isFull && <TBadge label="Ausgebucht" variant="error" />}
@@ -100,10 +102,7 @@ export default function EventDetailScreen() {
               <Text style={styles.infoIcon}>📅</Text>
               <Text style={[styles.infoLabel, { color: colors.neutral[500] }]}>Datum</Text>
               <Text style={[styles.infoValue, { color: colors.neutral[900] }]}>
-                {formatDate(e.event_date)}
-              </Text>
-              <Text style={[styles.infoSub, { color: colors.neutral[600] }]}>
-                {e.event_time_start?.substring(0, 5)} - {e.event_time_end?.substring(0, 5)} Uhr
+                {formatDate(e.start_date)}
               </Text>
             </TCard>
 
@@ -111,10 +110,10 @@ export default function EventDetailScreen() {
               <Text style={styles.infoIcon}>📍</Text>
               <Text style={[styles.infoLabel, { color: colors.neutral[500] }]}>Ort</Text>
               <Text style={[styles.infoValue, { color: colors.neutral[900] }]}>
-                {e.venue_name || 'TBD'}
+                {e.venue?.name || 'TBD'}
               </Text>
               <Text style={[styles.infoSub, { color: colors.neutral[600] }]}>
-                {e.address_city || ''}
+                {e.venue?.city || ''}
               </Text>
             </TCard>
           </View>
@@ -124,7 +123,7 @@ export default function EventDetailScreen() {
               <Text style={styles.infoIcon}>👥</Text>
               <Text style={[styles.infoLabel, { color: colors.neutral[500] }]}>Teilnehmer</Text>
               <Text style={[styles.infoValue, { color: colors.neutral[900] }]}>
-                {e.current_participants || 0}/{e.max_participants}
+                {e.participant_count}/{e.max_participants}
               </Text>
               <Text style={[styles.infoSub, { color: spotsLeft <= 4 ? colors.status.warning : colors.neutral[600] }]}>
                 {isFull ? 'Warteliste verfügbar' : `Noch ${spotsLeft} Plätze`}
@@ -135,7 +134,7 @@ export default function EventDetailScreen() {
               <Text style={styles.infoIcon}>💰</Text>
               <Text style={[styles.infoLabel, { color: colors.neutral[500] }]}>Gebühr</Text>
               <Text style={[styles.infoValue, { color: colors.primary[600] }]}>
-                {e.fee_amount > 0 ? `${e.fee_amount.toFixed(2)} €` : 'Kostenlos'}
+                {feeAmount > 0 ? `${feeAmount.toFixed(2)} €` : 'Kostenlos'}
               </Text>
               <Text style={[styles.infoSub, { color: colors.neutral[600] }]}>
                 pro Person
@@ -144,24 +143,24 @@ export default function EventDetailScreen() {
           </View>
 
           {/* Prize Pool */}
-          {e.prize_pool_total && e.prize_pool_total > 0 && (
-            <TCard variant="elevated" style={[styles.prizeCard, { borderColor: colors.membership.club }]}>
+          {prizeTotal > 0 && (
+            <TCard variant="elevated" style={StyleSheet.flatten([styles.prizeCard, { borderColor: colors.membership.club }])}>
               <Text style={styles.prizeIcon}>🏆</Text>
               <Text style={[styles.prizeTitle, { color: colors.neutral[900] }]}>
                 Garantiertes Preisgeld
               </Text>
               <Text style={[styles.prizeAmount, { color: colors.membership.club }]}>
-                {e.prize_pool_total.toFixed(0)} €
+                {prizeTotal.toFixed(0)} €
               </Text>
-              {e.prize_distributions && e.prize_distributions.length > 0 && (
+              {e.prize_distribution && e.prize_distribution.length > 0 && (
                 <View style={styles.prizeBreakdown}>
-                  {e.prize_distributions.map((pd: any, idx: number) => (
+                  {e.prize_distribution.map((pd, idx) => (
                     <View key={idx} style={styles.prizeRow}>
                       <Text style={[styles.prizePlace, { color: colors.neutral[600] }]}>
                         {pd.place === 1 ? '🥇' : pd.place === 2 ? '🥈' : pd.place === 3 ? '🥉' : `${pd.place}.`} Platz {pd.place}
                       </Text>
                       <Text style={[styles.prizeValue, { color: colors.neutral[900] }]}>
-                        {pd.amount.toFixed(0)} € ({pd.percentage}%)
+                        {(pd.amount_cents / 100).toFixed(0)} €
                       </Text>
                     </View>
                   ))}
@@ -171,20 +170,20 @@ export default function EventDetailScreen() {
           )}
 
           {/* Description */}
-          {e.description && (
+          {e.description ? (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>Beschreibung</Text>
               <Text style={[styles.description, { color: colors.neutral[700] }]}>{e.description}</Text>
             </View>
-          )}
+          ) : null}
 
-          {/* Rules */}
-          {e.rules && (
+          {/* Special Notes */}
+          {e.special_notes ? (
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>Regeln</Text>
-              <Text style={[styles.description, { color: colors.neutral[700] }]}>{e.rules}</Text>
+              <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>Hinweise & Regeln</Text>
+              <Text style={[styles.description, { color: colors.neutral[700] }]}>{e.special_notes}</Text>
             </View>
-          )}
+          ) : null}
 
           {/* Bracket Link */}
           {e.status === 'in_progress' || e.status === 'completed' ? (
@@ -218,7 +217,7 @@ export default function EventDetailScreen() {
         <View style={[styles.bottomBar, { backgroundColor: colors.neutral[50], borderTopColor: colors.neutral[200] }]}>
           <View style={styles.bottomBarLeft}>
             <Text style={[styles.bottomPrice, { color: colors.primary[600] }]}>
-              {e.fee_amount > 0 ? `${e.fee_amount.toFixed(2)} €` : 'Kostenlos'}
+              {feeAmount > 0 ? `${feeAmount.toFixed(2)} €` : 'Kostenlos'}
             </Text>
             <Text style={[styles.bottomSpotsText, { color: colors.neutral[500] }]}>
               {isFull ? 'Warteliste' : `${spotsLeft} Plätze frei`}

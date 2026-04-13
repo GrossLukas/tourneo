@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"],
+    "typeRoots": ["./node_modules/@types", "../../node_modules/@types"],
+    "rootDir": "./src",
+    "baseUrl": "./src"
+  },
+  "include": ["src/**/*"]
+}

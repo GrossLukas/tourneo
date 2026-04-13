@@ -69,7 +69,7 @@ export default function CommunityScreen() {
         { text: 'Abbrechen', style: 'cancel' },
         {
           text: 'Erstellen',
-          onPress: async (name) => {
+          onPress: async (name?: string) => {
             if (name && name.trim()) {
               try {
                 await createTeam({ name: name.trim() });

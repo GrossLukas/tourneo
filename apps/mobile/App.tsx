@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -9,10 +9,11 @@ import { ExpoRoot } from 'expo-router';
 // Initialize i18n
 import './src/i18n';
 
+// Expo Router context for app directory
+const ctx = (require as any).context('./app');
+
 export default function App() {
   const colorScheme = useColorScheme();
-
-  const ctx = require.context('./app');
 
   return (
     <GestureHandlerRootView style={styles.container}>

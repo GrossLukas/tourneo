@@ -51,4 +51,6 @@ coverage/
 # Misc
 *.log
 *.tgz
-.cache/
+.cache/test-results.txt
+generate_assets.py
+todo.md

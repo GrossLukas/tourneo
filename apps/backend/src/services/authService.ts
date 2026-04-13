@@ -224,12 +224,12 @@ export class AuthService {
 
   static generateTokens(payload: AuthTokenPayload) {
     const accessToken = jwt.sign(payload, env.jwt.accessSecret, {
-      expiresIn: env.jwt.accessExpiry as string,
-    });
+      expiresIn: env.jwt.accessExpiry,
+    } as jwt.SignOptions);
 
     const refreshToken = jwt.sign(payload, env.jwt.refreshSecret, {
-      expiresIn: env.jwt.refreshExpiry as string,
-    });
+      expiresIn: env.jwt.refreshExpiry,
+    } as jwt.SignOptions);
 
     return { access_token: accessToken, refresh_token: refreshToken };
   }

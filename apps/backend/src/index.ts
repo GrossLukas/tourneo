@@ -8,20 +8,53 @@ import { testConnection } from './config/database';
 import { apiRouter } from './routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { generalLimiter } from './middleware/rateLimiter';
+import {
+  sanitizeInput,
+  additionalSecurityHeaders,
+  requestSizeLimiter,
+  preventParamPollution,
+} from './middleware/security';
 
 const app = express();
 
-// Security
-app.use(helmet());
+// Trust proxy (for rate limiting behind reverse proxies)
+app.set('trust proxy', 1);
+
+// Disable X-Powered-By header
+app.disable('x-powered-by');
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+app.use(additionalSecurityHeaders);
+
+// CORS
 app.use(cors({
   origin: env.isDevelopment ? '*' : [env.app.url, env.app.adminUrl],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language'],
   credentials: true,
+  maxAge: 86400, // Cache preflight for 24 hours
 }));
 
 // Rate limiting
 app.use(generalLimiter);
+
+// Request size limiter (before body parsing)
+app.use(requestSizeLimiter(512));
 
 // Logging
 app.use(morgan(env.isDevelopment ? 'dev' : 'combined'));
@@ -31,10 +64,14 @@ app.use((req, res, next) => {
   if (req.originalUrl === `/api/${env.apiVersion}/payments/webhook`) {
     next();
   } else {
-    express.json({ limit: '10mb' })(req, res, next);
+    express.json({ limit: '1mb' })(req, res, next);
   }
 });
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Input sanitization & parameter pollution prevention
+app.use(sanitizeInput);
+app.use(preventParamPollution);
 
 // Compression
 app.use(compression());

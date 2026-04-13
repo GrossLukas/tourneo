@@ -1,5 +1,5 @@
 import { useColorScheme as useRNColorScheme } from 'react-native';
-import { getColors, Colors } from '../theme/colors';
+import { getColors, type Colors } from '../theme/colors';
 
 export function useAppColors(): Colors {
   const scheme = useRNColorScheme() ?? 'light';

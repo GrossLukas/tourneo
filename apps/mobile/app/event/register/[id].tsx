@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppColors } from '../../../src/hooks/useColorScheme';
@@ -33,15 +32,17 @@ export default function EventRegisterScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (id) fetchEventById(id);
+    if (id) fetchEventById(Number(id));
   }, [id]);
 
   if (!currentEvent) return <TLoadingScreen message="Wird geladen..." />;
 
   const e = currentEvent;
+  const feeAmount = e.entry_fee_cents / 100;
   const discount = currentMembership?.tier === 'club' ? 20 : currentMembership?.tier === 'plus' ? 10 : 0;
-  const finalFee = e.fee_amount * (1 - discount / 100);
-  const isFull = (e.current_participants || 0) >= e.max_participants;
+  const finalFee = feeAmount * (1 - discount / 100);
+  const spotsLeft = e.spots_remaining ?? (e.max_participants - e.participant_count);
+  const isFull = spotsLeft <= 0;
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -103,10 +104,10 @@ export default function EventRegisterScreen() {
         <TCard variant="outlined" style={styles.eventSummary}>
           <Text style={[styles.eventTitle, { color: colors.neutral[900] }]}>{e.title}</Text>
           <Text style={[styles.eventMeta, { color: colors.neutral[600] }]}>
-            📅 {e.event_date} · {e.event_time_start?.substring(0, 5)} Uhr
+            📅 {e.start_date}
           </Text>
           <Text style={[styles.eventMeta, { color: colors.neutral[600] }]}>
-            📍 {e.venue_name || 'TBD'}{e.address_city ? `, ${e.address_city}` : ''}
+            📍 {e.venue?.name || 'TBD'}{e.venue?.city ? `, ${e.venue.city}` : ''}
           </Text>
         </TCard>
 
@@ -150,7 +151,7 @@ export default function EventRegisterScreen() {
           <View style={styles.feeRow}>
             <Text style={[styles.feeLabel, { color: colors.neutral[600] }]}>Turniergebühr</Text>
             <Text style={[styles.feeValue, { color: colors.neutral[900] }]}>
-              {e.fee_amount.toFixed(2)} €
+              {feeAmount.toFixed(2)} €
             </Text>
           </View>
           {discount > 0 && (
@@ -159,7 +160,7 @@ export default function EventRegisterScreen() {
                 {currentMembership?.tier === 'club' ? 'Club' : 'Plus'}-Rabatt ({discount}%)
               </Text>
               <Text style={[styles.feeValue, { color: colors.status.success }]}>
-                -{(e.fee_amount * discount / 100).toFixed(2)} €
+                -{(feeAmount * discount / 100).toFixed(2)} €
               </Text>
             </View>
           )}
@@ -173,7 +174,7 @@ export default function EventRegisterScreen() {
         </TCard>
 
         {discount === 0 && (
-          <TCard variant="outlined" style={[styles.upsellCard, { borderColor: colors.membership.plus }]}>
+          <TCard variant="outlined" style={StyleSheet.flatten([styles.upsellCard, { borderColor: colors.membership.plus }])}>
             <Text style={[styles.upsellText, { color: colors.neutral[700] }]}>
               💡 Mit Plus (7,99€/Mo) sparst du 10% auf Turniergebühren!
             </Text>
@@ -188,7 +189,7 @@ export default function EventRegisterScreen() {
         )}
 
         {isFull && (
-          <TCard variant="outlined" style={[styles.waitlistCard, { borderColor: colors.status.warning }]}>
+          <TCard variant="outlined" style={StyleSheet.flatten([styles.waitlistCard, { borderColor: colors.status.warning }])}>
             <Text style={styles.waitlistIcon}>⏳</Text>
             <Text style={[styles.waitlistTitle, { color: colors.neutral[900] }]}>
               Turnier ist voll

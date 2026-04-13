@@ -149,7 +149,7 @@ export default function SettingsScreen() {
         </TCard>
 
         {/* Danger Zone */}
-        <TCard variant="default" style={[styles.section, { borderColor: colors.status.error, borderWidth: 1 }]}>
+        <TCard variant="default" style={StyleSheet.flatten([styles.section, { borderColor: colors.status.error, borderWidth: 1 }])}>
           <Text style={[styles.sectionTitle, { color: colors.status.error }]}>Gefahrenzone</Text>
           <Text style={[styles.dangerText, { color: colors.neutral[600] }]}>
             Das Löschen deines Kontos ist permanent und kann nicht rückgängig gemacht werden. Alle Daten, Turnierhistorie und Mitgliedschaften gehen verloren.

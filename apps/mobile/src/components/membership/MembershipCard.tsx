@@ -32,11 +32,11 @@ export const MembershipCard: React.FC<MembershipCardProps> = ({
   return (
     <TCard
       variant={tier.highlighted ? 'elevated' : 'outlined'}
-      style={[
+      style={StyleSheet.flatten([
         styles.card,
-        tier.highlighted && { borderWidth: 2, borderColor: tierColor },
-        isCurrentTier && { borderWidth: 2, borderColor: colors.status.success },
-      ]}
+        tier.highlighted ? { borderWidth: 2, borderColor: tierColor } : {},
+        isCurrentTier ? { borderWidth: 2, borderColor: colors.status.success } : {},
+      ])}
     >
       {tier.highlighted && (
         <View style={[styles.popularBadge, { backgroundColor: tierColor }]}>

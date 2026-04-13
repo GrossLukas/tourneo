@@ -6,32 +6,17 @@ import { useAppColors } from '../../hooks/useColorScheme';
 import { spacing, fontSize, fontWeight } from '../../theme/spacing';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
+import type { Event } from '../../store/eventStore';
 
 interface EventCardProps {
-  event: {
-    id: string;
-    title: string;
-    sport_type: string;
-    format: string;
-    skill_level: string;
-    event_date: string;
-    event_time_start: string;
-    venue_name?: string;
-    address_city?: string;
-    image_url?: string;
-    fee_amount: number;
-    max_participants: number;
-    current_participants: number;
-    status: string;
-    prize_pool_total?: number;
-  };
+  event: Event;
   onPress: () => void;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
   const colors = useAppColors();
 
-  const spotsLeft = event.max_participants - event.current_participants;
+  const spotsLeft = event.spots_remaining ?? (event.max_participants - event.participant_count);
   const isFull = spotsLeft <= 0;
   const isAlmostFull = spotsLeft > 0 && spotsLeft <= 4;
 
@@ -43,46 +28,41 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
     }
   };
 
-  const formatTime = (timeStr: string): string => {
-    return timeStr?.substring(0, 5) || '';
-  };
-
   const getSkillBadgeVariant = (): 'success' | 'warning' | 'error' | 'info' => {
-    switch (event.skill_level) {
+    switch (event.level) {
       case 'beginner': return 'success';
       case 'intermediate': return 'info';
       case 'advanced': return 'warning';
-      case 'pro': return 'error';
       default: return 'info';
     }
   };
 
   const getSkillLabel = (): string => {
-    switch (event.skill_level) {
+    switch (event.level) {
       case 'beginner': return 'Anfänger';
       case 'intermediate': return 'Mittel';
       case 'advanced': return 'Fortgeschritten';
-      case 'pro': return 'Profi';
-      case 'mixed': return 'Alle Level';
-      default: return event.skill_level;
+      case 'open': return 'Alle Level';
+      default: return event.level;
     }
   };
 
   const getFormatLabel = (): string => {
     switch (event.format) {
-      case 'single_elimination': return 'K.O.-System';
-      case 'double_elimination': return 'Doppel-K.O.';
-      case 'round_robin': return 'Gruppenphase';
-      case 'swiss': return 'Schweizer System';
+      case 'singles': return 'Einzel';
+      case 'doubles': return 'Doppel';
       default: return event.format;
     }
   };
 
+  const feeAmount = event.entry_fee_cents / 100;
+  const prizeTotal = event.total_prize_pool_cents / 100;
+
   return (
     <TCard onPress={onPress} variant="elevated" style={styles.card}>
-      {event.image_url && (
-        <Image source={{ uri: event.image_url }} style={styles.image} />
-      )}
+      {event.banner_image_url ? (
+        <Image source={{ uri: event.banner_image_url }} style={styles.image} />
+      ) : null}
       <View style={styles.content}>
         <View style={styles.badges}>
           <TBadge label={getSkillLabel()} variant={getSkillBadgeVariant()} />
@@ -97,14 +77,14 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
 
         <View style={styles.infoRow}>
           <Text style={[styles.infoText, { color: colors.neutral[600] }]}>
-            📅 {formatDate(event.event_date)} · {formatTime(event.event_time_start)}
+            📅 {formatDate(event.start_date)}
           </Text>
         </View>
 
-        {(event.venue_name || event.address_city) && (
+        {(event.venue?.name || event.venue?.city) && (
           <View style={styles.infoRow}>
             <Text style={[styles.infoText, { color: colors.neutral[600] }]} numberOfLines={1}>
-              📍 {event.venue_name}{event.address_city ? `, ${event.address_city}` : ''}
+              📍 {event.venue.name}{event.venue.city ? `, ${event.venue.city}` : ''}
             </Text>
           </View>
         )}
@@ -112,16 +92,16 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
         <View style={styles.footer}>
           <View style={styles.feeContainer}>
             <Text style={[styles.fee, { color: colors.primary[600] }]}>
-              {event.fee_amount > 0 ? `${event.fee_amount.toFixed(2)} €` : 'Kostenlos'}
+              {feeAmount > 0 ? `${feeAmount.toFixed(2)} €` : 'Kostenlos'}
             </Text>
-            {event.prize_pool_total && event.prize_pool_total > 0 && (
+            {prizeTotal > 0 && (
               <Text style={[styles.prize, { color: colors.status.success }]}>
-                🏆 {event.prize_pool_total.toFixed(0)} € Preisgeld
+                🏆 {prizeTotal.toFixed(0)} € Preisgeld
               </Text>
             )}
           </View>
           <Text style={[styles.participants, { color: colors.neutral[500] }]}>
-            {event.current_participants}/{event.max_participants} Spieler
+            {event.participant_count}/{event.max_participants} Spieler
           </Text>
         </View>
       </View>

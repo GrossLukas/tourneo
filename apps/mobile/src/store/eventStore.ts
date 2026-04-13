@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import apiClient from '../api/client';
 
-interface Event {
+export interface Event {
   id: number;
   uuid: string;
   title: string;
@@ -45,7 +45,7 @@ interface Event {
 interface EventState {
   events: Event[];
   currentEvent: Event | null;
-  isLoading: boolean;
+  loading: boolean;
   filters: Record<string, any>;
   meta: { page: number; total: number; total_pages: number };
 
@@ -58,33 +58,33 @@ interface EventState {
 export const useEventStore = create<EventState>((set, get) => ({
   events: [],
   currentEvent: null,
-  isLoading: false,
+  loading: false,
   filters: {},
   meta: { page: 1, total: 0, total_pages: 0 },
 
   fetchEvents: async (filters?: Record<string, any>) => {
-    set({ isLoading: true });
+    set({ loading: true });
     try {
       const params = { ...get().filters, ...filters };
       const response = await apiClient.get('/events', { params });
       set({
         events: response.data.data,
         meta: response.data.meta,
-        isLoading: false,
+        loading: false,
       });
     } catch (error) {
-      set({ isLoading: false });
+      set({ loading: false });
       console.error('Failed to fetch events:', error);
     }
   },
 
   fetchEventById: async (id: number) => {
-    set({ isLoading: true });
+    set({ loading: true });
     try {
       const response = await apiClient.get(`/events/${id}`);
-      set({ currentEvent: response.data.data, isLoading: false });
+      set({ currentEvent: response.data.data, loading: false });
     } catch (error) {
-      set({ isLoading: false });
+      set({ loading: false });
       console.error('Failed to fetch event:', error);
     }
   },

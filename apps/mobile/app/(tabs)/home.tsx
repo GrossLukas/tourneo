@@ -24,7 +24,8 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const colors = useAppColors();
   const { user } = useAuthStore();
-  const { events, fetchEvents, loading: eventsLoading } = useEventStore();
+  const { events, fetchEvents, loading } = useEventStore();
+  const eventsLoading = loading;
   const { myRegistrations, fetchMyRegistrations } = useRegistrationStore();
   const { currentMembership, fetchCurrentMembership } = useMembershipStore();
   const [refreshing, setRefreshing] = useState(false);

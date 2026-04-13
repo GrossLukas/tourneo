@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppColors } from '../../src/hooks/useColorScheme';
 import { TSearchBar, TLoadingScreen, TEmptyState } from '../../src/components/common';
 import { EventCard, EventFilters } from '../../src/components/events';
-import { useEventStore } from '../../src/store/eventStore';
+import { useEventStore, type Event } from '../../src/store/eventStore';
 import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
 
 export default function PadelScreen() {
@@ -37,8 +37,8 @@ export default function PadelScreen() {
     ? events.filter(
         (e) =>
           e.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          e.venue_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          e.address_city?.toLowerCase().includes(searchQuery.toLowerCase())
+          e.venue?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          e.venue?.city?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : events;
 
@@ -66,18 +66,18 @@ export default function PadelScreen() {
         selectedSkill={filters.skill_level}
         selectedFormat={filters.format}
         selectedCity={filters.city}
-        onSkillChange={(v) => setFilters({ skill_level: v })}
-        onFormatChange={(v) => setFilters({ format: v })}
-        onCityChange={(v) => setFilters({ city: v })}
+        onSkillChange={(v: string | undefined) => setFilters({ skill_level: v })}
+        onFormatChange={(v: string | undefined) => setFilters({ format: v })}
+        onCityChange={(v: string | undefined) => setFilters({ city: v })}
       />
 
       {/* Event List */}
       {loading && events.length === 0 ? (
         <TLoadingScreen message={t('events.loading')} />
       ) : (
-        <FlatList
+        <FlatList<Event>
           data={filteredEvents}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
             <EventCard
               event={item}

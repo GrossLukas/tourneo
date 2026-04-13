@@ -107,10 +107,40 @@ export const colors = {
 
 export type ColorScheme = 'light' | 'dark';
 
+// Neutral palette for indexed access (colors.neutral[100], etc.)
+export const neutral = {
+  50: '#F9FAFB',
+  100: '#F3F4F6',
+  200: '#E5E7EB',
+  300: '#D1D5DB',
+  400: '#9CA3AF',
+  500: '#6B7280',
+  600: '#4B5563',
+  700: '#374151',
+  800: '#1F2937',
+  900: '#111827',
+} as const;
+
+// Status colors for indexed access
+export const status = {
+  success: colors.success[500],
+  warning: colors.warning[500],
+  error: colors.error[500],
+  info: colors.info[500],
+};
+
 export const getColors = (scheme: ColorScheme) => ({
-  primary: colors.primary[500],
+  // Indexed access palettes
+  primary: colors.primary,
+  secondary: colors.secondary,
+  neutral,
+  membership: colors.membership,
+  status,
+
+  // Flat convenience accessors
+  primaryColor: colors.primary[500],
   primaryLight: colors.primary[100],
-  secondary: colors.secondary[500],
+  secondaryColor: colors.secondary[500],
   secondaryLight: colors.secondary[100],
   background: scheme === 'light' ? colors.light.background : colors.dark.background,
   surface: scheme === 'light' ? colors.light.surface : colors.dark.surface,
@@ -134,3 +164,5 @@ export const getColors = (scheme: ColorScheme) => ({
   white: colors.white,
   black: colors.black,
 });
+
+export type Colors = ReturnType<typeof getColors>;

@@ -10,6 +10,7 @@ export const spacing = {
   md: 12,
   lg: 16,
   xl: 20,
+  xxl: 28,
   '2xl': 24,
   '3xl': 32,
   '4xl': 40,
@@ -29,17 +30,20 @@ export const borderRadius = {
 } as const;
 
 export const fontSize = {
+  xxs: 9,
   xs: 11,
   sm: 13,
   base: 15,
   md: 17,
   lg: 20,
   xl: 22,
+  xxl: 26,
   '2xl': 28,
   '3xl': 34,
 } as const;
 
 export const fontWeight = {
+  light: '300' as const,
   regular: '400' as const,
   medium: '500' as const,
   semibold: '600' as const,
