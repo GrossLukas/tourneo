@@ -35,7 +35,7 @@ export default function BracketScreen() {
   if (loading) return <TLoadingScreen message="Spielplan wird geladen..." />;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <THeader title="Spielplan" showBack onBack={() => router.back()} />
       {!bracket || !bracket.matches || bracket.matches.length === 0 ? (
         <TEmptyState
@@ -46,11 +46,11 @@ export default function BracketScreen() {
       ) : (
         <View style={styles.bracketContainer}>
           <View style={styles.info}>
-            <Text style={[styles.bracketType, { color: colors.neutral[600] }]}>
+            <Text style={[styles.bracketType, { color: colors.textSecondary }]}>
               {bracket.bracket_type === 'single_elimination' ? 'K.O.-System' : bracket.bracket_type}
               {bracket.third_place_match ? ' (mit Spiel um Platz 3)' : ''}
             </Text>
-            <Text style={[styles.totalMatches, { color: colors.neutral[500] }]}>
+            <Text style={[styles.totalMatches, { color: colors.textTertiary }]}>
               {bracket.matches.length} Spiele · {bracket.total_participants} Teilnehmer
             </Text>
           </View>

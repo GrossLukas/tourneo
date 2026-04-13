@@ -129,10 +129,10 @@ Angaben gemäß § 5 TMG
   if (loading) return <TLoadingScreen message="Wird geladen..." />;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <THeader title={title} showBack onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.text, { color: colors.neutral[700] }]}>{content}</Text>
+        <Text style={[styles.text, { color: colors.textSecondary }]}>{content}</Text>
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>

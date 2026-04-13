@@ -1,72 +1,109 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Text, Platform } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useAppColors } from '../../src/hooks/useColorScheme';
-import { useNotificationStore } from '../../src/store/notificationStore';
+import { Platform, Text, View, StyleSheet } from 'react-native';
+import { useAppColors, useTheme } from '../../src/hooks/useColorScheme';
 import { fontSize, fontWeight } from '../../src/theme/spacing';
 
+function TabIcon({ icon, label, focused, color }: { icon: string; label: string; focused: boolean; color: string }) {
+  return (
+    <View style={styles.tabItem}>
+      <Text style={[styles.tabIcon, { opacity: focused ? 1 : 0.5 }]}>{icon}</Text>
+      <Text style={[styles.tabLabel, { color, opacity: focused ? 1 : 0.6, fontWeight: focused ? '600' : '400' }]}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 export default function TabLayout() {
-  const { t } = useTranslation();
   const colors = useAppColors();
-  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const { isDark } = useTheme();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary[500],
-        tabBarInactiveTintColor: colors.neutral[400],
+        tabBarActiveTintColor: isDark ? colors.brand.teal[400] : colors.brand.teal[500],
+        tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
-          backgroundColor: colors.neutral[50],
-          borderTopColor: colors.neutral[200],
-          borderTopWidth: 1,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          position: 'absolute',
+          backgroundColor: colors.tabBar,
+          borderTopColor: colors.tabBarBorder,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          height: Platform.OS === 'ios' ? 88 : 68,
           paddingTop: 8,
-          height: Platform.OS === 'ios' ? 88 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
         },
         tabBarLabelStyle: {
           fontSize: fontSize.xxs,
-          fontWeight: fontWeight.medium as any,
+          fontWeight: fontWeight.medium,
+          marginTop: 2,
         },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          title: t('tabs.home'),
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>🏠</Text>,
+          title: 'Home',
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon icon="🏠" label="" focused={focused} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="padel"
+        name="turniere"
         options={{
-          title: t('tabs.padel'),
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>🎾</Text>,
+          title: 'Turniere',
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon icon="🏆" label="" focused={focused} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="bookings"
+        name="spielen"
         options={{
-          title: t('tabs.bookings'),
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>📋</Text>,
+          title: 'Spielen',
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon icon="🎮" label="" focused={focused} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="community"
         options={{
-          title: t('tabs.community'),
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>👥</Text>,
-          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          title: 'Community',
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon icon="👥" label="" focused={focused} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="profil"
         options={{
-          title: t('tabs.profile'),
-          tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>👤</Text>,
+          title: 'Profil',
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon icon="👤" label="" focused={focused} color={color} />
+          ),
         }}
       />
+      {/* Hide old tabs */}
+      <Tabs.Screen name="padel" options={{ href: null }} />
+      <Tabs.Screen name="bookings" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabIcon: {
+    fontSize: 22,
+  },
+  tabLabel: {
+    fontSize: fontSize.xxs,
+    marginTop: 2,
+  },
+});

@@ -64,10 +64,10 @@ export default function OnboardingScreen() {
   const renderSlide = ({ item }: { item: Slide }) => (
     <View style={[styles.slide, { width }]}>
       <Text style={styles.emoji}>{item.emoji}</Text>
-      <Text style={[styles.title, { color: colors.neutral[900] }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>
         {t(item.titleKey)}
       </Text>
-      <Text style={[styles.subtitle, { color: colors.neutral[600] }]}>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         {t(item.subtitleKey)}
       </Text>
     </View>
@@ -95,7 +95,7 @@ export default function OnboardingScreen() {
               {
                 width: dotWidth,
                 opacity,
-                backgroundColor: colors.primary[500],
+                backgroundColor: (colors.primary as string),
               },
             ]}
           />
@@ -105,9 +105,9 @@ export default function OnboardingScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <View style={styles.header}>
-        <Text style={[styles.logo, { color: colors.primary[500] }]}>TURNEO</Text>
+        <Text style={[styles.logo, { color: (colors.primary as string) }]}>TURNEO</Text>
       </View>
 
       <FlatList
@@ -146,7 +146,7 @@ export default function OnboardingScreen() {
           onPress={() => router.replace('/(tabs)/home')}
           style={styles.skipButton}
         >
-          <Text style={[styles.skipText, { color: colors.neutral[500] }]}>
+          <Text style={[styles.skipText, { color: colors.textTertiary }]}>
             {t('common.skip')}
           </Text>
         </TouchableOpacity>

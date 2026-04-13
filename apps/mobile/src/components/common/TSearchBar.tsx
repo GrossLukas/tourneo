@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useAppColors } from '../../hooks/useColorScheme';
-import { spacing, fontSize, borderRadius } from '../../theme/spacing';
+import { spacing, fontSize, radius } from '../../theme/spacing';
 
 interface TSearchBarProps {
   placeholder?: string;
@@ -21,12 +21,12 @@ export const TSearchBar: React.FC<TSearchBarProps> = ({
   const colors = useAppColors();
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[100], borderColor: colors.neutral[300] }]}>
-      <Text style={[styles.icon, { color: colors.neutral[400] }]}>🔍</Text>
+    <View style={[styles.container, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+      <Text style={[styles.icon, { color: colors.textTertiary }]}>🔍</Text>
       <TextInput
-        style={[styles.input, { color: colors.neutral[900] }]}
+        style={[styles.input, { color: colors.textPrimary }]}
         placeholder={placeholder}
-        placeholderTextColor={colors.neutral[400]}
+        placeholderTextColor={colors.textTertiary}
         value={value}
         onChangeText={onChangeText}
         onSubmitEditing={onSubmit}
@@ -42,7 +42,7 @@ export const TSearchBar: React.FC<TSearchBarProps> = ({
           }}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Text style={[styles.clearIcon, { color: colors.neutral[400] }]}>✕</Text>
+          <Text style={[styles.clearIcon, { color: colors.textTertiary }]}>✕</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: borderRadius.lg,
+    borderRadius: radius.lg,
     borderWidth: 1,
     paddingHorizontal: spacing.md,
     height: 44,

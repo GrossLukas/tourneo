@@ -71,36 +71,36 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
           {isAlmostFull && <TBadge label={`Noch ${spotsLeft} Plätze`} variant="warning" />}
         </View>
 
-        <Text style={[styles.title, { color: colors.neutral[900] }]} numberOfLines={2}>
+        <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={2}>
           {event.title}
         </Text>
 
         <View style={styles.infoRow}>
-          <Text style={[styles.infoText, { color: colors.neutral[600] }]}>
+          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
             📅 {formatDate(event.start_date)}
           </Text>
         </View>
 
         {(event.venue?.name || event.venue?.city) && (
           <View style={styles.infoRow}>
-            <Text style={[styles.infoText, { color: colors.neutral[600] }]} numberOfLines={1}>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]} numberOfLines={1}>
               📍 {event.venue.name}{event.venue.city ? `, ${event.venue.city}` : ''}
             </Text>
           </View>
         )}
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { borderTopColor: colors.divider }]}>
           <View style={styles.feeContainer}>
-            <Text style={[styles.fee, { color: colors.primary[600] }]}>
+            <Text style={[styles.fee, { color: colors.primary as string }]}>
               {feeAmount > 0 ? `${feeAmount.toFixed(2)} €` : 'Kostenlos'}
             </Text>
             {prizeTotal > 0 && (
-              <Text style={[styles.prize, { color: colors.status.success }]}>
+              <Text style={[styles.prize, { color: colors.success }]}>
                 🏆 {prizeTotal.toFixed(0)} € Preisgeld
               </Text>
             )}
           </View>
-          <Text style={[styles.participants, { color: colors.neutral[500] }]}>
+          <Text style={[styles.participants, { color: colors.textTertiary }]}>
             {event.participant_count}/{event.max_participants} Spieler
           </Text>
         </View>
@@ -150,7 +150,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E7EB',
   },
   feeContainer: {
     flex: 1,

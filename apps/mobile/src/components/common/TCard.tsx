@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { useAppColors } from '../../hooks/useColorScheme';
-import { spacing, borderRadius, shadows } from '../../theme/spacing';
+import { spacing, radius, shadow } from '../../theme/spacing';
 
 interface TCardProps {
   children: React.ReactNode;
@@ -22,18 +22,18 @@ export const TCard: React.FC<TCardProps> = ({
 
   const getCardStyle = (): ViewStyle => {
     const base: ViewStyle = {
-      backgroundColor: colors.neutral[50],
-      borderRadius: borderRadius.lg,
+      backgroundColor: colors.cardBg,
+      borderRadius: radius.lg,
       padding: spacing[padding],
     };
 
     switch (variant) {
       case 'elevated':
-        return { ...base, ...shadows.md };
+        return { ...base, ...shadow.md, shadowColor: colors.shadowColor, shadowOpacity: colors.cardShadowOpacity };
       case 'outlined':
-        return { ...base, borderWidth: 1, borderColor: colors.neutral[200] };
+        return { ...base, borderWidth: 1, borderColor: colors.cardBorder };
       default:
-        return { ...base, ...shadows.sm };
+        return { ...base, ...shadow.sm, shadowColor: colors.shadowColor, shadowOpacity: colors.cardShadowOpacity };
     }
   };
 
@@ -51,5 +51,3 @@ export const TCard: React.FC<TCardProps> = ({
 
   return <View style={[getCardStyle(), style]}>{children}</View>;
 };
-
-const styles = StyleSheet.create({});

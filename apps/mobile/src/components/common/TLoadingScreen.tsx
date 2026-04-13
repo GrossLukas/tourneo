@@ -11,10 +11,10 @@ export const TLoadingScreen: React.FC<TLoadingScreenProps> = ({ message }) => {
   const colors = useAppColors();
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
-      <ActivityIndicator size="large" color={colors.primary[500]} />
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <ActivityIndicator size="large" color={colors.primary as string} />
       {message && (
-        <Text style={[styles.message, { color: colors.neutral[600] }]}>{message}</Text>
+        <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
       )}
     </View>
   );

@@ -18,7 +18,7 @@ export const TDivider: React.FC<TDividerProps> = ({
     <View
       style={[
         styles.divider,
-        { backgroundColor: colors.neutral[200], marginVertical },
+        { backgroundColor: colors.divider, marginVertical },
         style,
       ]}
     />

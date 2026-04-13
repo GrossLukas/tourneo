@@ -43,13 +43,13 @@ export default function PadelScreen() {
     : events;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[100] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgTertiary }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.neutral[50], borderBottomColor: colors.neutral[200] }]}>
-        <Text style={[styles.title, { color: colors.neutral[900] }]}>
+      <View style={[styles.header, { backgroundColor: colors.bgSecondary, borderBottomColor: colors.border }]}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
           {t('events.padelTournaments')}
         </Text>
-        <Text style={[styles.subtitle, { color: colors.neutral[500] }]}>
+        <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
           {events.length} {t('events.tournamentsAvailable')}
         </Text>
       </View>
@@ -88,7 +88,7 @@ export default function PadelScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={colors.primary[500]}
+              tintColor={(colors.primary as string)}
             />
           }
           ListEmptyComponent={

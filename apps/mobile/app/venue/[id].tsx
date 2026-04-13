@@ -31,23 +31,23 @@ export default function VenueDetailScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <THeader title={v.name} showBack onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.name, { color: colors.neutral[900] }]}>{v.name}</Text>
+        <Text style={[styles.name, { color: colors.textPrimary }]}>{v.name}</Text>
 
         {v.description && (
-          <Text style={[styles.description, { color: colors.neutral[600] }]}>{v.description}</Text>
+          <Text style={[styles.description, { color: colors.textSecondary }]}>{v.description}</Text>
         )}
 
         {/* Address */}
         <TCard variant="outlined" style={styles.infoCard}>
           <Text style={styles.infoIcon}>📍</Text>
-          <Text style={[styles.infoLabel, { color: colors.neutral[500] }]}>Adresse</Text>
-          <Text style={[styles.infoValue, { color: colors.neutral[900] }]}>
+          <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Adresse</Text>
+          <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
             {v.address_street}
           </Text>
-          <Text style={[styles.infoValue, { color: colors.neutral[900] }]}>
+          <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
             {v.address_zip} {v.address_city}
           </Text>
           <TButton title="In Karten öffnen" onPress={openMaps} variant="ghost" size="sm" fullWidth={false} style={{ marginTop: spacing.sm }} />
@@ -56,20 +56,20 @@ export default function VenueDetailScreen() {
         {/* Contact */}
         <TCard variant="outlined" style={styles.infoCard}>
           <Text style={styles.infoIcon}>📞</Text>
-          <Text style={[styles.infoLabel, { color: colors.neutral[500] }]}>Kontakt</Text>
+          <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Kontakt</Text>
           {v.phone && (
             <TouchableOpacity onPress={() => Linking.openURL(`tel:${v.phone}`)}>
-              <Text style={[styles.linkText, { color: colors.primary[500] }]}>📱 {v.phone}</Text>
+              <Text style={[styles.linkText, { color: (colors.primary as string) }]}>📱 {v.phone}</Text>
             </TouchableOpacity>
           )}
           {v.email && (
             <TouchableOpacity onPress={() => Linking.openURL(`mailto:${v.email}`)}>
-              <Text style={[styles.linkText, { color: colors.primary[500] }]}>✉️ {v.email}</Text>
+              <Text style={[styles.linkText, { color: (colors.primary as string) }]}>✉️ {v.email}</Text>
             </TouchableOpacity>
           )}
           {v.website && (
             <TouchableOpacity onPress={() => Linking.openURL(v.website!)}>
-              <Text style={[styles.linkText, { color: colors.primary[500] }]}>🌐 Website öffnen</Text>
+              <Text style={[styles.linkText, { color: (colors.primary as string) }]}>🌐 Website öffnen</Text>
             </TouchableOpacity>
           )}
         </TCard>
@@ -77,13 +77,13 @@ export default function VenueDetailScreen() {
         {/* Courts */}
         {v.courts && v.courts.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
               Courts ({v.courts.length})
             </Text>
             {v.courts.map((court) => (
               <TCard key={court.id} variant="outlined" style={styles.courtCard}>
                 <View style={styles.courtRow}>
-                  <Text style={[styles.courtName, { color: colors.neutral[900] }]}>{court.name}</Text>
+                  <Text style={[styles.courtName, { color: colors.textPrimary }]}>{court.name}</Text>
                   <View style={styles.courtBadges}>
                     <TBadge
                       label={court.court_type === 'indoor' ? 'Indoor' : court.court_type === 'outdoor' ? 'Outdoor' : 'Überdacht'}
@@ -100,7 +100,7 @@ export default function VenueDetailScreen() {
         {/* Booking Links */}
         {v.booking_links && v.booking_links.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
               Online Buchen
             </Text>
             {v.booking_links.map((link) => (

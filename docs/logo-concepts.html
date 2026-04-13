@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Turneo – Logo Concepts 2026</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: #0a0a0a; color: #f0f0f0; }
+
+  .page { max-width: 1200px; margin: 0 auto; padding: 60px 40px; }
+  .page-title { font-family: 'Space Grotesk', sans-serif; font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: #666; margin-bottom: 8px; }
+  .page-heading { font-family: 'Space Grotesk', sans-serif; font-size: 48px; font-weight: 700; margin-bottom: 60px; background: linear-gradient(135deg, #0A7E8C, #26BEC9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+  .direction { margin-bottom: 80px; border: 1px solid #1a1a1a; border-radius: 24px; overflow: hidden; }
+  .direction-header { padding: 32px 40px; border-bottom: 1px solid #1a1a1a; display: flex; justify-content: space-between; align-items: center; }
+  .direction-label { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: #0A7E8C; font-weight: 600; }
+  .direction-name { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 600; color: #fff; }
+  .direction-desc { font-size: 14px; color: #888; max-width: 400px; }
+
+  .logo-showcase { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .logo-panel { padding: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; }
+  .logo-panel.dark { background: #0d0d0d; }
+  .logo-panel.light { background: #f5f6f8; }
+  .panel-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 30px; }
+  .panel-label.on-dark { color: #555; }
+  .panel-label.on-light { color: #999; }
+
+  /* === DIRECTION A: Minimal / Elegant / Tech === */
+  .logo-a { display: flex; align-items: center; gap: 14px; }
+  .logo-a .mark {
+    width: 52px; height: 52px;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-a .mark svg { width: 52px; height: 52px; }
+  .logo-a .wordmark {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+  }
+  .logo-a.dark-ver .wordmark { color: #ffffff; }
+  .logo-a.light-ver .wordmark { color: #111827; }
+
+  /* === DIRECTION B: Dynamic / Sportlich / Modern === */
+  .logo-b { display: flex; align-items: center; gap: 12px; }
+  .logo-b .mark { width: 56px; height: 56px; position: relative; }
+  .logo-b .mark svg { width: 56px; height: 56px; }
+  .logo-b .wordmark {
+    font-family: 'Outfit', sans-serif;
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -1px;
+  }
+  .logo-b.dark-ver .wordmark { color: #ffffff; }
+  .logo-b.light-ver .wordmark { color: #111827; }
+
+  /* === DIRECTION C: Premium / Event / Markenstark === */
+  .logo-c { display: flex; align-items: center; gap: 14px; }
+  .logo-c .mark { width: 54px; height: 54px; position: relative; }
+  .logo-c .mark svg { width: 54px; height: 54px; }
+  .logo-c .wordmark {
+    font-family: 'Inter', sans-serif;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .logo-c.dark-ver .wordmark { color: #ffffff; }
+  .logo-c.light-ver .wordmark { color: #111827; }
+
+  /* App Icon Preview */
+  .icon-row { display: flex; gap: 24px; padding: 40px; border-top: 1px solid #1a1a1a; align-items: flex-end; justify-content: center; }
+  .icon-preview { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .icon-preview .label { font-size: 10px; color: #666; letter-spacing: 1px; text-transform: uppercase; }
+  .app-icon {
+    border-radius: 22.37%;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .app-icon.size-lg { width: 120px; height: 120px; }
+  .app-icon.size-md { width: 80px; height: 80px; border-radius: 22.37%; }
+  .app-icon.size-sm { width: 52px; height: 52px; border-radius: 22.37%; }
+  .app-icon.size-xs { width: 32px; height: 32px; border-radius: 22.37%; }
+
+  /* Recommendation */
+  .recommendation {
+    margin-top: 60px;
+    padding: 40px;
+    background: linear-gradient(135deg, rgba(10,126,140,0.1), rgba(38,190,201,0.05));
+    border: 1px solid rgba(10,126,140,0.3);
+    border-radius: 20px;
+  }
+  .rec-badge { display: inline-block; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #0A7E8C; font-weight: 700; background: rgba(10,126,140,0.15); padding: 6px 14px; border-radius: 6px; margin-bottom: 16px; }
+  .rec-title { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+  .rec-text { font-size: 16px; line-height: 1.7; color: #aaa; max-width: 700px; }
+
+  /* Color palette */
+  .palette { display: flex; gap: 0; margin-top: 40px; border-radius: 16px; overflow: hidden; }
+  .swatch { flex: 1; height: 80px; display: flex; align-items: flex-end; padding: 8px 12px; }
+  .swatch span { font-size: 10px; font-weight: 600; letter-spacing: 1px; }
+
+  .typo-section { margin-top: 40px; }
+  .typo-sample { margin-bottom: 16px; }
+  .typo-label { font-size: 11px; color: #666; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+</style>
+<script src="https://sites.super.myninja.ai/_assets/ninja-daytona-script.js"></script>
+</head>
+<body>
+<div class="page">
+  <p class="page-title">Brand Identity</p>
+  <h1 class="page-heading">Turneo Logo Concepts</h1>
+
+  <!-- ========== DIRECTION A ========== -->
+  <div class="direction">
+    <div class="direction-header">
+      <div>
+        <p class="direction-label">Richtung A</p>
+        <h2 class="direction-name">Minimal · Elegant · Tech</h2>
+      </div>
+      <p class="direction-desc">Stilisiertes „T" als geometrische Form mit subtiler Turnierbaum-Andeutung. Clean, modern, tech-orientiert.</p>
+    </div>
+    <div class="logo-showcase">
+      <div class="logo-panel dark">
+        <p class="panel-label on-dark">Dark Mode</p>
+        <div class="logo-a dark-ver">
+          <div class="mark">
+            <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Geometric T with bracket tree hint -->
+              <rect x="4" y="4" width="44" height="44" rx="12" fill="none" stroke="url(#gradA1)" stroke-width="2"/>
+              <path d="M14 16h24M26 16v22" stroke="url(#gradA1)" stroke-width="3.5" stroke-linecap="round"/>
+              <path d="M18 38h6M28 38h6" stroke="#26BEC9" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+              <circle cx="15" cy="38" r="2" fill="#0A7E8C" opacity="0.5"/>
+              <circle cx="37" cy="38" r="2" fill="#0A7E8C" opacity="0.5"/>
+              <defs>
+                <linearGradient id="gradA1" x1="4" y1="4" x2="48" y2="48">
+                  <stop stop-color="#0A7E8C"/>
+                  <stop offset="1" stop-color="#26BEC9"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="wordmark">turneo</span>
+        </div>
+      </div>
+      <div class="logo-panel light">
+        <p class="panel-label on-light">Light Mode</p>
+        <div class="logo-a light-ver">
+          <div class="mark">
+            <svg viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="4" width="44" height="44" rx="12" fill="none" stroke="url(#gradA2)" stroke-width="2"/>
+              <path d="M14 16h24M26 16v22" stroke="url(#gradA2)" stroke-width="3.5" stroke-linecap="round"/>
+              <path d="M18 38h6M28 38h6" stroke="#086E7A" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+              <circle cx="15" cy="38" r="2" fill="#0A7E8C" opacity="0.4"/>
+              <circle cx="37" cy="38" r="2" fill="#0A7E8C" opacity="0.4"/>
+              <defs>
+                <linearGradient id="gradA2" x1="4" y1="4" x2="48" y2="48">
+                  <stop stop-color="#065B66"/>
+                  <stop offset="1" stop-color="#0A7E8C"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="wordmark">turneo</span>
+        </div>
+      </div>
+    </div>
+    <div class="icon-row">
+      <div class="icon-preview">
+        <div class="app-icon size-lg" style="background: linear-gradient(145deg, #0A7E8C, #065B66);">
+          <svg width="64" height="64" viewBox="0 0 52 52" fill="none">
+            <path d="M12 14h28M26 14v24" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+            <path d="M17 38h7M28 38h7" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="label">1024px</span>
+      </div>
+      <div class="icon-preview">
+        <div class="app-icon size-md" style="background: linear-gradient(145deg, #0A7E8C, #065B66);">
+          <svg width="44" height="44" viewBox="0 0 52 52" fill="none">
+            <path d="M12 14h28M26 14v24" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+            <path d="M17 38h7M28 38h7" stroke="rgba(255,255,255,0.5)" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="label">60pt</span>
+      </div>
+      <div class="icon-preview">
+        <div class="app-icon size-sm" style="background: linear-gradient(145deg, #0A7E8C, #065B66);">
+          <svg width="28" height="28" viewBox="0 0 52 52" fill="none">
+            <path d="M12 14h28M26 14v24" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="label">40pt</span>
+      </div>
+      <div class="icon-preview">
+        <div class="app-icon size-xs" style="background: linear-gradient(145deg, #0A7E8C, #065B66);">
+          <svg width="18" height="18" viewBox="0 0 52 52" fill="none">
+            <path d="M12 14h28M26 14v24" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="label">29pt</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DIRECTION B ========== -->
+  <div class="direction">
+    <div class="direction-header">
+      <div>
+        <p class="direction-label">Richtung B</p>
+        <h2 class="direction-name">Dynamisch · Sportlich · Modern</h2>
+      </div>
+      <p class="direction-desc">Dynamisches „T" mit Bewegungsspur – inspiriert von Ballflugbahn und Arena-Schwung. Energie und Speed.</p>
+    </div>
+    <div class="logo-showcase">
+      <div class="logo-panel dark">
+        <p class="panel-label on-dark">Dark Mode</p>
+        <div class="logo-b dark-ver">
+          <div class="mark">
+            <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Dynamic T with motion arc -->
+              <path d="M10 14h36" stroke="url(#gradB1)" stroke-width="4.5" stroke-linecap="round"/>
+              <path d="M28 14v28" stroke="url(#gradB1)" stroke-width="4.5" stroke-linecap="round"/>
+              <!-- Motion arc -->
+              <path d="M8 46 Q28 30, 48 10" stroke="#E8654A" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.8"/>
+              <circle cx="48" cy="10" r="3.5" fill="#E8654A"/>
+              <defs>
+                <linearGradient id="gradB1" x1="10" y1="10" x2="46" y2="46">
+                  <stop stop-color="#26BEC9"/>
+                  <stop offset="1" stop-color="#0A7E8C"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="wordmark">Turneo</span>
+        </div>
+      </div>
+      <div class="logo-panel light">
+        <p class="panel-label on-light">Light Mode</p>
+        <div class="logo-b light-ver">
+          <div class="mark">
+            <svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10 14h36" stroke="url(#gradB2)" stroke-width="4.5" stroke-linecap="round"/>
+              <path d="M28 14v28" stroke="url(#gradB2)" stroke-width="4.5" stroke-linecap="round"/>
+              <path d="M8 46 Q28 30, 48 10" stroke="#D5533A" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+              <circle cx="48" cy="10" r="3.5" fill="#D5533A"/>
+              <defs>
+                <linearGradient id="gradB2" x1="10" y1="10" x2="46" y2="46">
+                  <stop stop-color="#0A7E8C"/>
+                  <stop offset="1" stop-color="#065B66"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="wordmark">Turneo</span>
+        </div>
+      </div>
+    </div>
+    <div class="icon-row">
+      <div class="icon-preview">
+        <div class="app-icon size-lg" style="background: linear-gradient(145deg, #0D1117, #161B22);">
+          <svg width="68" height="68" viewBox="0 0 56 56" fill="none">
+            <path d="M10 14h36" stroke="url(#gradBI1)" stroke-width="5" stroke-linecap="round"/>
+            <path d="M28 14v28" stroke="url(#gradBI1)" stroke-width="5" stroke-linecap="round"/>
+            <path d="M8 46 Q28 30, 48 10" stroke="#E8654A" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <circle cx="48" cy="10" r="4" fill="#E8654A"/>
+            <defs>
+              <linearGradient id="gradBI1" x1="10" y1="10" x2="46" y2="46">
+                <stop stop-color="#26BEC9"/>
+                <stop offset="1" stop-color="#0A7E8C"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="label">1024px</span>
+      </div>
+      <div class="icon-preview">
+        <div class="app-icon size-md" style="background: linear-gradient(145deg, #0D1117, #161B22);">
+          <svg width="46" height="46" viewBox="0 0 56 56" fill="none">
+            <path d="M10 14h36M28 14v28" stroke="#26BEC9" stroke-width="5" stroke-linecap="round"/>
+            <path d="M8 46 Q28 30, 48 10" stroke="#E8654A" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <circle cx="48" cy="10" r="4" fill="#E8654A"/>
+          </svg>
+        </div>
+        <span class="label">60pt</span>
+      </div>
+      <div class="icon-preview">
+        <div class="app-icon size-sm" style="background: linear-gradient(145deg, #0D1117, #161B22);">
+          <svg width="30" height="30" viewBox="0 0 56 56" fill="none">
+            <path d="M10 14h36M28 14v28" stroke="#26BEC9" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="46" cy="12" r="5" fill="#E8654A"/>
+          </svg>
+        </div>
+        <span class="label">40pt</span>
+      </div>
+      <div class="icon-preview">
+        <div class="app-icon size-xs" style="background: linear-gradient(145deg, #0D1117, #161B22);">
+          <svg width="18" height="18" viewBox="0 0 56 56" fill="none">
+            <path d="M12 14h32M28 14v28" stroke="#26BEC9" stroke-width="7" stroke-linecap="round"/>
+            <circle cx="44" cy="14" r="5" fill="#E8654A"/>
+          </svg>
+        </div>
+        <span class="label">29pt</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== DIRECTION C ========== -->
+  <div class="direction">
+    <div class="direction-header">
+      <div>
+        <p class="direction-label">Richtung C</p>
+        <h2 class="direction-name">Premium · Event · Markenstark</h2>
+      </div>
+      <p class="direction-desc">Arena-inspirierte Form um ein kühnes „T". Shield-Andeutung, Turnier-Würde, starke Markenidentität.</p>
+    </div>
+    <div class="logo-showcase">
+      <div class="logo-panel dark">
+        <p class="panel-label on-dark">Dark Mode</p>
+        <div class="logo-c dark-ver">
+          <div class="mark">
+            <svg viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Arena shield shape -->
+              <path d="M27 3 L49 14 L49 32 Q49 46, 27 51 Q5 46, 5 32 L5 14 Z" fill="none" stroke="url(#gradC1)" stroke-width="2"/>
+              <path d="M15 18h24M27 18v22" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+              <!-- Crown/trophy hint at top -->
+              <path d="M21 11 L27 7 L33 11" stroke="#E8654A" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+              <defs>
+                <linearGradient id="gradC1" x1="5" y1="3" x2="49" y2="51">
+                  <stop stop-color="#0A7E8C"/>
+                  <stop offset="0.5" stop-color="#26BEC9"/>
+                  <stop offset="1" stop-color="#0A7E8C"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="wordmark">Turneo</span>
+        </div>
+      </div>
+      <div class="logo-panel light">
+        <p class="panel-label on-light">Light Mode</p>
+        <div class="logo-c light-ver">
+          <div class="mark">
+            <svg viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M27 3 L49 14 L49 32 Q49 46, 27 51 Q5 46, 5 32 L5 14 Z" fill="none" stroke="url(#gradC2)" stroke-width="2"/>
+              <path d="M15 18h24M27 18v22" stroke="#065B66" stroke-width="3.5" stroke-linecap="round"/>
+              <path d="M21 11 L27 7 L33 11" stroke="#D5533A" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+              <defs>
+                <linearGradient id="gradC2" x1="5" y1="3" x2="49" y2="51">
+                  <stop stop-color="#065B66"/>
+                  <stop offset="0.5" stop-color="#0A7E8C"/>
+                  <stop offset="1" stop-color="#065B66"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span class="wordmark">Turneo</span>
+        </div>
+      </div>
+    </div>
+    <div class="icon-row">
+      <div class="icon-preview">
+        <div class="app-icon size-lg" style="background: linear-gradient(160deg, #0A7E8C, #044952);">
+          <svg width="70" height="70" viewBox="0 0 54 54" fill="none">
+            <path d="M27 5 L47 15 L47 31 Q47 44, 27 49 Q7 44, 7 31 L7 15 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
+            <path d="M16 19h22M27 19v20" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+            <path d="M22 12 L27 8 L32 12" stroke="#E8654A" stroke-width="2" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <span class="label">1024px</span>
+      </div>
+      <div class="icon-preview">
+        <div class="app-icon size-md" style="background: linear-gradient(160deg, #0A7E8C, #044952);">
+          <svg width="48" height="48" viewBox="0 0 54 54" fill="none">
+            <path d="M27 5 L47 15 L47 31 Q47 44, 27 49 Q7 44, 7 31 L7 15 Z" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+            <path d="M16 19h22M27 19v20" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="label">60pt</span>
+      </div>
+      <div class="icon-preview">
+        <div class="app-icon size-sm" style="background: linear-gradient(160deg, #0A7E8C, #044952);">
+          <svg width="30" height="30" viewBox="0 0 54 54" fill="none">
+            <path d="M27 6 L46 15 L46 31 Q46 43, 27 48 Q8 43, 8 31 L8 15 Z" fill="rgba(255,255,255,0.08)"/>
+            <path d="M17 20h20M27 20v18" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="label">40pt</span>
+      </div>
+      <div class="icon-preview">
+        <div class="app-icon size-xs" style="background: linear-gradient(160deg, #0A7E8C, #044952);">
+          <svg width="18" height="18" viewBox="0 0 54 54" fill="none">
+            <path d="M18 20h18M27 20v18" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="label">29pt</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== RECOMMENDATION ========== -->
+  <div class="recommendation">
+    <span class="rec-badge">★ Empfehlung</span>
+    <h3 class="rec-title">Richtung B – Dynamisch · Sportlich · Modern</h3>
+    <p class="rec-text">
+      Richtung B vereint alle Kernwerte von Turneo am besten: Das dynamische „T" vermittelt Bewegung und Sport,
+      die Flugbahn (Coral-Akzent) bringt Energie und Wiedererkennbarkeit. Die Form funktioniert hervorragend als
+      App-Icon auf allen Größen – von 29pt bis 1024px. Der dunkle Hintergrund im Icon hebt sich im App Store und
+      auf dem Homescreen stark ab und wirkt premium. Die Kombination aus Teal (Markenfarbe) und Coral (Akzent)
+      schafft eine einzigartige Identität, die sich klar von generischen Sport-Apps abhebt.
+      Der Stil passt perfekt zu einer Premium Sports Tech App 2026.
+    </p>
+
+    <div class="typo-section">
+      <div class="typo-sample">
+        <p class="typo-label">Wortmarke – Outfit 700</p>
+        <p style="font-family: 'Outfit', sans-serif; font-size: 36px; font-weight: 700; letter-spacing: -1px;">Turneo</p>
+      </div>
+      <div class="typo-sample">
+        <p class="typo-label">UI-Schrift – Inter 400/500/600/700</p>
+        <p style="font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 400;">Regular – Fließtext und Beschreibungen</p>
+        <p style="font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 600;">Semibold – Labels und Navigationselemente</p>
+        <p style="font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 700;">Bold – Überschriften und CTAs</p>
+      </div>
+    </div>
+
+    <p class="typo-label" style="margin-top: 30px;">Farbpalette</p>
+    <div class="palette">
+      <div class="swatch" style="background: #02333A;"><span style="color: #4DCAD4;">Teal 900</span></div>
+      <div class="swatch" style="background: #065B66;"><span style="color: #80D9E0;">Teal 700</span></div>
+      <div class="swatch" style="background: #0A7E8C;"><span style="color: #ffffff;">Teal 500</span></div>
+      <div class="swatch" style="background: #26BEC9;"><span style="color: #02333A;">Teal 400</span></div>
+      <div class="swatch" style="background: #80D9E0;"><span style="color: #02333A;">Teal 200</span></div>
+      <div class="swatch" style="background: #E8654A;"><span style="color: #ffffff;">Coral 500</span></div>
+      <div class="swatch" style="background: #D5533A;"><span style="color: #ffffff;">Coral 600</span></div>
+      <div class="swatch" style="background: #0D1117;"><span style="color: #8B949E;">Dark BG</span></div>
+      <div class="swatch" style="background: #F7F8FA;"><span style="color: #374151;">Light BG</span></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

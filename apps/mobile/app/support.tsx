@@ -57,12 +57,12 @@ export default function SupportScreen() {
 
   if (submitted) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
+      <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
         <THeader title="Support" showBack onBack={() => router.back()} />
         <View style={styles.successContainer}>
           <Text style={styles.successIcon}>✅</Text>
-          <Text style={[styles.successTitle, { color: colors.neutral[900] }]}>Ticket erstellt!</Text>
-          <Text style={[styles.successText, { color: colors.neutral[600] }]}>
+          <Text style={[styles.successTitle, { color: colors.textPrimary }]}>Ticket erstellt!</Text>
+          <Text style={[styles.successText, { color: colors.textSecondary }]}>
             Wir haben dein Anliegen erhalten und werden uns schnellstmöglich bei dir melden. Du erhältst eine Bestätigung per E-Mail.
           </Text>
           <TButton
@@ -77,31 +77,31 @@ export default function SupportScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <THeader title="Hilfe & Support" showBack onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={[styles.headline, { color: colors.neutral[900] }]}>Wie können wir helfen?</Text>
-        <Text style={[styles.subtitle, { color: colors.neutral[600] }]}>
+        <Text style={[styles.headline, { color: colors.textPrimary }]}>Wie können wir helfen?</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Beschreibe dein Anliegen und wir kümmern uns darum.
         </Text>
 
         {/* FAQ Quick Links */}
         <TCard variant="outlined" style={styles.faqCard}>
-          <Text style={[styles.faqTitle, { color: colors.neutral[900] }]}>Häufige Themen</Text>
-          <Text style={[styles.faqItem, { color: colors.primary[500] }]} onPress={() => router.push('/legal/terms')}>
+          <Text style={[styles.faqTitle, { color: colors.textPrimary }]}>Häufige Themen</Text>
+          <Text style={[styles.faqItem, { color: (colors.primary as string) }]} onPress={() => router.push('/legal/terms')}>
             📄 Stornierungsrichtlinie
           </Text>
-          <Text style={[styles.faqItem, { color: colors.primary[500] }]} onPress={() => router.push('/membership')}>
+          <Text style={[styles.faqItem, { color: (colors.primary as string) }]} onPress={() => router.push('/membership')}>
             ⭐ Mitgliedschaft & Abos
           </Text>
-          <Text style={[styles.faqItem, { color: colors.primary[500] }]} onPress={() => router.push('/legal/privacy')}>
+          <Text style={[styles.faqItem, { color: (colors.primary as string) }]} onPress={() => router.push('/legal/privacy')}>
             🔒 Datenschutz
           </Text>
         </TCard>
 
-        <Text style={[styles.sectionTitle, { color: colors.neutral[900] }]}>Neues Ticket erstellen</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Neues Ticket erstellen</Text>
 
-        <Text style={[styles.label, { color: colors.neutral[700] }]}>Kategorie</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>Kategorie</Text>
         <View style={styles.categoryRow}>
           {categories.map((c) => (
             <TChip
@@ -141,7 +141,7 @@ export default function SupportScreen() {
         />
 
         {!user && (
-          <Text style={[styles.loginHint, { color: colors.status.warning }]}>
+          <Text style={[styles.loginHint, { color: colors.warning }]}>
             Du musst angemeldet sein, um ein Support-Ticket zu erstellen.
           </Text>
         )}

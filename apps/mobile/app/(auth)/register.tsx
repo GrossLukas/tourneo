@@ -139,33 +139,33 @@ export default function RegisterScreen() {
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: colors.neutral[300], true: colors.primary[300] }}
-        thumbColor={value ? colors.primary[500] : colors.neutral[100]}
-        ios_backgroundColor={colors.neutral[300]}
+        trackColor={{ false: colors.border, true: (colors.primary as string) }}
+        thumbColor={value ? (colors.primary as string) : colors.bgTertiary}
+        ios_backgroundColor={colors.border}
       />
       <View style={styles.consentTextContainer}>
-        <Text style={[styles.consentLabel, { color: colors.neutral[700] }]}>
+        <Text style={[styles.consentLabel, { color: colors.textSecondary }]}>
           {label}
           {linkText && onLinkPress && (
-            <Text style={{ color: colors.primary[500] }} onPress={onLinkPress}>
+            <Text style={{ color: (colors.primary as string) }} onPress={onLinkPress}>
               {' '}{linkText}
             </Text>
           )}
         </Text>
-        {error && <Text style={[styles.consentError, { color: colors.status.error }]}>{error}</Text>}
+        {error && <Text style={[styles.consentError, { color: colors.error }]}>{error}</Text>}
       </View>
     </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.neutral[50] }]}>
+    <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
       <THeader title={t('auth.register')} showBack onBack={() => router.back()} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={[styles.headline, { color: colors.neutral[900] }]}>
+          <Text style={[styles.headline, { color: colors.textPrimary }]}>
             Erstelle dein Konto
           </Text>
-          <Text style={[styles.subtitle, { color: colors.neutral[500] }]}>
+          <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
             Werde Teil der Turneo-Community
           </Text>
 
@@ -230,7 +230,7 @@ export default function RegisterScreen() {
               error={errors.password}
               secureTextEntry={!showPassword}
               rightIcon={
-                <Text style={{ color: colors.neutral[500], fontSize: 16 }}>
+                <Text style={{ color: colors.textTertiary, fontSize: 16 }}>
                   {showPassword ? '🙈' : '👁'}
                 </Text>
               }
@@ -248,8 +248,8 @@ export default function RegisterScreen() {
             />
           </View>
 
-          <View style={[styles.consentsSection, { borderTopColor: colors.neutral[200] }]}>
-            <Text style={[styles.consentsTitle, { color: colors.neutral[900] }]}>
+          <View style={[styles.consentsSection, { borderTopColor: colors.border }]}>
+            <Text style={[styles.consentsTitle, { color: colors.textPrimary }]}>
               Einwilligungen
             </Text>
             <ConsentRow
@@ -284,11 +284,11 @@ export default function RegisterScreen() {
           />
 
           <View style={styles.loginLink}>
-            <Text style={[styles.loginText, { color: colors.neutral[600] }]}>
+            <Text style={[styles.loginText, { color: colors.textSecondary }]}>
               Bereits ein Konto?{' '}
             </Text>
             <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-              <Text style={[styles.loginLinkText, { color: colors.primary[500] }]}>
+              <Text style={[styles.loginLinkText, { color: (colors.primary as string) }]}>
                 Jetzt anmelden
               </Text>
             </TouchableOpacity>
