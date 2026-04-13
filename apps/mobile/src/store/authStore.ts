@@ -1,8 +1,12 @@
+/**
+ * authStore – Central authentication state management.
+ * Handles email login, registration, Apple Sign-In, and biometric prompts.
+ */
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import apiClient from '../api/client';
 
-interface User {
+export interface User {
   id: number;
   uuid: string;
   email: string;
@@ -12,6 +16,25 @@ interface User {
   avatar_url?: string;
   role: 'user' | 'admin' | 'superadmin';
   membership_tier: 'free' | 'plus' | 'club';
+  auth_provider?: 'email' | 'apple';
+  apple_user_id?: string;
+}
+
+export interface RegisterData {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  display_name?: string;
+  date_of_birth?: string;
+  city?: string;
+  age_verified?: boolean;
+  accept_terms?: boolean;
+  accept_privacy?: boolean;
+  media_consent?: boolean;
+  consent_terms?: boolean;
+  consent_privacy?: boolean;
+  consent_age_verification?: boolean;
 }
 
 interface AuthState {
@@ -19,13 +42,16 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   isInitialized: boolean;
+  showBiometricPrompt: boolean;
 
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: any) => Promise<void>;
+  loginWithApple: (identityToken: string, fullName?: { firstName?: string; lastName?: string }) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
   refreshProfile: () => Promise<void>;
+  setShowBiometricPrompt: (show: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -33,6 +59,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   isLoading: false,
   isInitialized: false,
+  showBiometricPrompt: false,
 
   initialize: async () => {
     try {
@@ -61,34 +88,63 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { user, access_token, refresh_token } = response.data.data;
       await SecureStore.setItemAsync('access_token', access_token);
       await SecureStore.setItemAsync('refresh_token', refresh_token);
-      set({ user, isAuthenticated: true, isLoading: false });
-    } catch (error: any) {
+      set({ user, isAuthenticated: true, isLoading: false, showBiometricPrompt: true });
+    } catch (error: unknown) {
       set({ isLoading: false });
-      throw new Error(error.response?.data?.error?.message || 'Login failed');
+      const msg = (error as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message || 'Login failed';
+      throw new Error(msg);
     }
   },
 
-  register: async (data: any) => {
+  loginWithApple: async (identityToken: string, fullName?: { firstName?: string; lastName?: string }) => {
+    set({ isLoading: true });
+    try {
+      const response = await apiClient.post('/auth/apple', {
+        identity_token: identityToken,
+        first_name: fullName?.firstName,
+        last_name: fullName?.lastName,
+      });
+      const { user, access_token, refresh_token } = response.data.data;
+      await SecureStore.setItemAsync('access_token', access_token);
+      await SecureStore.setItemAsync('refresh_token', refresh_token);
+      set({ user, isAuthenticated: true, isLoading: false, showBiometricPrompt: true });
+    } catch (error: unknown) {
+      set({ isLoading: false });
+      const msg = (error as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message || 'Apple Sign-In failed';
+      throw new Error(msg);
+    }
+  },
+
+  register: async (data: RegisterData) => {
     set({ isLoading: true });
     try {
       const response = await apiClient.post('/auth/register', data);
       const { user, access_token, refresh_token } = response.data.data;
       await SecureStore.setItemAsync('access_token', access_token);
       await SecureStore.setItemAsync('refresh_token', refresh_token);
-      set({ user, isAuthenticated: true, isLoading: false });
-    } catch (error: any) {
+      set({ user, isAuthenticated: true, isLoading: false, showBiometricPrompt: true });
+    } catch (error: unknown) {
       set({ isLoading: false });
-      throw new Error(error.response?.data?.error?.message || 'Registration failed');
+      const msg = (error as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message || 'Registration failed';
+      throw new Error(msg);
     }
   },
 
   logout: async () => {
     try {
       await apiClient.post('/auth/logout');
-    } catch {}
+    } catch { /* best effort */ }
     await SecureStore.deleteItemAsync('access_token');
     await SecureStore.deleteItemAsync('refresh_token');
-    set({ user: null, isAuthenticated: false });
+    // Also disable biometrics on logout
+    try {
+      const { useBiometricStore } = require('./biometricStore');
+      await useBiometricStore.getState().disable();
+    } catch { /* ignore if store not available */ }
+    set({ user: null, isAuthenticated: false, showBiometricPrompt: false });
   },
 
   updateUser: (data: Partial<User>) => {
@@ -102,6 +158,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const response = await apiClient.get('/auth/me');
       set({ user: response.data.data });
-    } catch {}
+    } catch { /* silent */ }
   },
+
+  setShowBiometricPrompt: (show: boolean) => set({ showBiometricPrompt: show }),
 }));

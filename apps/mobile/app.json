@@ -19,8 +19,10 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Tourneo benötigt Zugriff auf die Kamera für dein Profilbild.",
         "NSPhotoLibraryUsageDescription": "Tourneo benötigt Zugriff auf deine Fotos für dein Profilbild.",
-        "NSCalendarsUsageDescription": "Tourneo benötigt Zugriff auf deinen Kalender, um Turniertermine hinzuzufügen."
-      }
+        "NSCalendarsUsageDescription": "Tourneo benötigt Zugriff auf deinen Kalender, um Turniertermine hinzuzufügen.",
+        "NSFaceIDUsageDescription": "Tourneo nutzt Face ID für schnelles und sicheres Anmelden."
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -36,13 +38,24 @@
         "INTERNET",
         "ACCESS_NETWORK_STATE",
         "VIBRATE",
-        "RECEIVE_BOOT_COMPLETED"
+        "RECEIVE_BOOT_COMPLETED",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
       ],
       "softwareKeyboardLayoutMode": "pan",
       "allowBackup": false,
       "enableDangerousExperimentalLeanBuilds": false
     },
-    "plugins": ["expo-router", "expo-localization", "expo-secure-store", "expo-calendar"],
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "expo-secure-store",
+      "expo-calendar",
+      "expo-notifications",
+      "expo-image-picker",
+      "expo-apple-authentication",
+      "expo-local-authentication"
+    ],
     "experiments": {
       "typedRoutes": true
     },

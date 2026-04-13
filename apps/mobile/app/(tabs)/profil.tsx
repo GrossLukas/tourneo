@@ -15,6 +15,8 @@ import { useTheme, type ThemePreference } from '../../src/providers/ThemeProvide
 import { spacing, fontSize, fontWeight, radius, shadow } from '../../src/theme/spacing';
 import { membership as membershipColors } from '../../src/theme/colors';
 import { useAuthStore } from '../../src/store';
+import { useRatingStore } from '../../src/store/ratingStore';
+import { TRatingBadge } from '../../src/components/common';
 
 // ─── Section Item ────────────────────────────────────────────
 function SectionItem({
@@ -30,7 +32,7 @@ function SectionItem({
   title: string;
   subtitle?: string;
   onPress?: () => void;
-  colors: any;
+  colors: Record<string, any>;
   trailing?: React.ReactNode;
   danger?: boolean;
 }) {
@@ -131,6 +133,11 @@ export default function ProfilScreen() {
   const { preference, setPreference, isDark } = useTheme();
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { myRating, fetchMyRating } = useRatingStore();
+
+  React.useEffect(() => {
+    fetchMyRating();
+  }, []);
 
   const displayName = user?.first_name
     ? `${user.first_name} ${user.last_name || ''}`
@@ -199,9 +206,14 @@ export default function ProfilScreen() {
             <View style={styles.profileInfo}>
               <Text style={[styles.profileName, { color: colors.textPrimary }]}>{displayName}</Text>
               <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{email}</Text>
-              <View style={[styles.tierBadge, { backgroundColor: tierColor + '18' }]}>
-                <View style={[styles.tierDot, { backgroundColor: tierColor }]} />
-                <Text style={[styles.tierLabel, { color: tierColor }]}>Tourneo {tierLabel}</Text>
+              <View style={styles.badgeRow}>
+                <View style={[styles.tierBadge, { backgroundColor: tierColor + '18' }]}>
+                  <View style={[styles.tierDot, { backgroundColor: tierColor }]} />
+                  <Text style={[styles.tierLabel, { color: tierColor }]}>Tourneo {tierLabel}</Text>
+                </View>
+                {myRating && (
+                  <TRatingBadge elo={myRating.elo} tier={myRating.tier} size="sm" />
+                )}
               </View>
             </View>
           </View>
@@ -437,6 +449,7 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     marginTop: 2,
   },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
   tierBadge: {
     flexDirection: 'row',
     alignItems: 'center',
