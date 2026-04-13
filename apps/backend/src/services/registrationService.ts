@@ -1,0 +1,310 @@
+import { v4 as uuidv4 } from 'uuid';
+import { db, t } from '../config/database';
+import { AppError } from '../middleware/errorHandler';
+import { EventService } from './eventService';
+import { CreateRegistrationInput } from '../validators/registrations';
+import { MembershipTier } from '../types';
+import dayjs from 'dayjs';
+
+export class RegistrationService {
+  static async createRegistration(input: CreateRegistrationInput, userId: number) {
+    const event = await db(t('events')).where('id', input.event_id).first();
+    if (!event) throw AppError.notFound('Event');
+
+    // Get user's membership
+    const membership = await db(t('memberships'))
+      .where('user_id', userId)
+      .where('status', 'active')
+      .first();
+    const membershipTier: MembershipTier = membership?.tier || 'free';
+
+    // Check if user can register
+    const accessCheck = EventService.canUserRegister(event, membershipTier);
+    if (!accessCheck.canRegister) {
+      throw AppError.badRequest(accessCheck.reason || 'Cannot register for this event');
+    }
+
+    // Check for existing registration
+    const existingReg = await db(t('registrations'))
+      .where('event_id', input.event_id)
+      .where('user_id', userId)
+      .whereNotIn('status', ['cancelled', 'refunded'])
+      .first();
+
+    if (existingReg) {
+      throw AppError.conflict('You are already registered for this event');
+    }
+
+    // Check capacity
+    const [{ count: currentCount }] = await db(t('registrations'))
+      .where('event_id', input.event_id)
+      .whereIn('status', ['confirmed', 'pending_payment'])
+      .count('* as count');
+
+    const isFull = Number(currentCount) >= event.max_participants;
+
+    // Calculate discounted fee
+    const { fee: netFee, discount } = EventService.calculateDiscountedFee(
+      event.entry_fee_cents,
+      membershipTier
+    );
+
+    const regUuid = uuidv4();
+    const now = new Date();
+
+    const result = await db.transaction(async (trx) => {
+      let status: string;
+      let waitlistPosition: number | null = null;
+
+      if (isFull) {
+        // Add to waitlist
+        const [{ maxPos }] = await trx(t('registrations'))
+          .where('event_id', input.event_id)
+          .where('status', 'waitlisted')
+          .max('waitlist_position as maxPos');
+
+        waitlistPosition = (maxPos || 0) + 1;
+        status = 'waitlisted';
+      } else {
+        status = 'pending_payment';
+      }
+
+      const [registrationId] = await trx(t('registrations')).insert({
+        uuid: regUuid,
+        event_id: input.event_id,
+        user_id: userId,
+        team_id: input.team_id || null,
+        registration_type: input.registration_type,
+        partner_user_id: input.partner_user_id || null,
+        status,
+        membership_tier_at_registration: membershipTier,
+        discount_applied_cents: discount,
+        consent_tournament_terms: input.consent_tournament_terms,
+        consent_age_verified: input.consent_age_verified,
+        consent_media: input.consent_media,
+        waitlist_position: waitlistPosition,
+        created_at: now,
+        updated_at: now,
+      });
+
+      // Audit log
+      await trx(t('audit_log')).insert({
+        user_id: userId,
+        action: isFull ? 'registration.waitlisted' : 'registration.created',
+        entity_type: 'registration',
+        entity_id: registrationId,
+        new_values: JSON.stringify({
+          event_id: input.event_id,
+          type: input.registration_type,
+          status,
+          fee: netFee,
+          discount,
+        }),
+        created_at: now,
+      });
+
+      return {
+        registrationId,
+        status,
+        waitlistPosition,
+      };
+    });
+
+    return {
+      id: result.registrationId,
+      uuid: regUuid,
+      event_id: input.event_id,
+      status: result.status,
+      waitlist_position: result.waitlistPosition,
+      entry_fee_cents: event.entry_fee_cents,
+      discount_cents: discount,
+      net_fee_cents: netFee,
+      membership_tier: membershipTier,
+      requires_payment: result.status === 'pending_payment' && netFee > 0,
+    };
+  }
+
+  static async cancelRegistration(registrationId: number, userId: number, reason?: string) {
+    const registration = await db(t('registrations'))
+      .where('id', registrationId)
+      .where('user_id', userId)
+      .first();
+
+    if (!registration) throw AppError.notFound('Registration');
+
+    if (!['confirmed', 'pending_payment', 'waitlisted'].includes(registration.status)) {
+      throw AppError.badRequest('This registration cannot be cancelled');
+    }
+
+    const event = await db(t('events')).where('id', registration.event_id).first();
+    if (!event) throw AppError.notFound('Event');
+
+    const now = new Date();
+    const eventStart = new Date(event.start_date);
+    const daysUntilEvent = dayjs(eventStart).diff(dayjs(now), 'day');
+
+    let refundPercentage = 0;
+    let refundReason = 'user_cancellation_14d';
+
+    if (registration.status === 'waitlisted') {
+      // Waitlisted users get full refund if they paid
+      refundPercentage = 100;
+    } else if (daysUntilEvent >= 14) {
+      refundPercentage = 75;
+      refundReason = 'user_cancellation_14d';
+    } else {
+      refundPercentage = 0;
+    }
+
+    await db.transaction(async (trx) => {
+      await trx(t('registrations')).where('id', registrationId).update({
+        status: 'cancelled',
+        updated_at: now,
+      });
+
+      // If there's a confirmed payment and refund is due
+      if (refundPercentage > 0 && registration.status === 'confirmed') {
+        const payment = await trx(t('payments'))
+          .where('registration_id', registrationId)
+          .where('status', 'succeeded')
+          .first();
+
+        if (payment) {
+          const refundAmount = Math.round(payment.net_amount_cents * (refundPercentage / 100));
+
+          await trx(t('refunds')).insert({
+            uuid: uuidv4(),
+            payment_id: payment.id,
+            user_id: userId,
+            amount_cents: refundAmount,
+            reason: refundReason,
+            reason_detail: reason || null,
+            status: 'pending',
+            created_at: now,
+          });
+        }
+      }
+
+      // If confirmed registration was cancelled, check waitlist
+      if (registration.status === 'confirmed') {
+        await this.promoteFromWaitlist(registration.event_id, trx);
+      }
+
+      // Audit log
+      await trx(t('audit_log')).insert({
+        user_id: userId,
+        action: 'registration.cancelled',
+        entity_type: 'registration',
+        entity_id: registrationId,
+        new_values: JSON.stringify({
+          refund_percentage: refundPercentage,
+          days_until_event: daysUntilEvent,
+        }),
+        created_at: now,
+      });
+    });
+
+    return {
+      id: registrationId,
+      status: 'cancelled',
+      refund_percentage: refundPercentage,
+      refund_eligible: refundPercentage > 0,
+    };
+  }
+
+  static async promoteFromWaitlist(eventId: number, trx?: any) {
+    const executor = trx || db;
+
+    // Find next waitlisted registration by priority: Club > Plus > Free, then by time
+    const nextInLine = await executor(t('registrations'))
+      .where('event_id', eventId)
+      .where('status', 'waitlisted')
+      .orderByRaw(`
+        CASE membership_tier_at_registration
+          WHEN 'club' THEN 1
+          WHEN 'plus' THEN 2
+          WHEN 'free' THEN 3
+        END ASC,
+        created_at ASC
+      `)
+      .first();
+
+    if (nextInLine) {
+      await executor(t('registrations')).where('id', nextInLine.id).update({
+        status: 'pending_payment',
+        waitlist_position: null,
+        waitlist_promoted_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      // Create notification
+      await executor(t('notifications')).insert({
+        user_id: nextInLine.user_id,
+        type: 'waitlist_promoted',
+        title: 'Du bist dabei!',
+        body: 'Ein Platz ist frei geworden. Bitte schließe deine Zahlung ab.',
+        data: JSON.stringify({ event_id: eventId, registration_id: nextInLine.id }),
+        created_at: new Date(),
+      });
+    }
+  }
+
+  static async checkIn(registrationId: number, userId: number) {
+    const registration = await db(t('registrations'))
+      .where('id', registrationId)
+      .where('user_id', userId)
+      .first();
+
+    if (!registration) throw AppError.notFound('Registration');
+    if (registration.status !== 'confirmed') {
+      throw AppError.badRequest('Only confirmed registrations can check in');
+    }
+    if (registration.checked_in) {
+      throw AppError.badRequest('Already checked in');
+    }
+
+    const event = await db(t('events')).where('id', registration.event_id).first();
+    if (!event) throw AppError.notFound('Event');
+
+    // Check if check-in window is open (1 hour before event)
+    const now = new Date();
+    const eventStart = new Date(event.start_date);
+    const checkInOpens = new Date(eventStart.getTime() - 60 * 60 * 1000);
+
+    if (now < checkInOpens) {
+      throw AppError.badRequest('Check-in is not yet available');
+    }
+
+    await db(t('registrations')).where('id', registrationId).update({
+      checked_in: true,
+      checked_in_at: now,
+      updated_at: now,
+    });
+
+    return { checked_in: true, checked_in_at: now };
+  }
+
+  static async getUserRegistrations(userId: number, status?: string) {
+    let query = db(t('registrations'))
+      .where(`${t('registrations')}.user_id`, userId)
+      .leftJoin(t('events'), `${t('registrations')}.event_id`, `${t('events')}.id`)
+      .leftJoin(t('venues'), `${t('events')}.venue_id`, `${t('venues')}.id`)
+      .select(
+        `${t('registrations')}.*`,
+        `${t('events')}.title as event_title`,
+        `${t('events')}.start_date as event_start_date`,
+        `${t('events')}.end_date as event_end_date`,
+        `${t('events')}.status as event_status`,
+        `${t('events')}.banner_image_url as event_banner`,
+        `${t('venues')}.name as venue_name`,
+        `${t('venues')}.address_city as venue_city`
+      )
+      .orderBy(`${t('events')}.start_date`, 'desc');
+
+    if (status) {
+      query = query.where(`${t('registrations')}.status`, status);
+    }
+
+    return query;
+  }
+}

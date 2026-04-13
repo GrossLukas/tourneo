@@ -1,0 +1,22 @@
+{
+  "name": "turneo",
+  "version": "1.0.0",
+  "description": "Turneo - Premium Sports Event Platform for Padel Tournaments, Community & Discovery",
+  "private": true,
+  "workspaces": [
+    "apps/mobile",
+    "apps/backend"
+  ],
+  "scripts": {
+    "mobile": "npm run --workspace=apps/mobile",
+    "backend": "npm run --workspace=apps/backend",
+    "mobile:start": "npm run start --workspace=apps/mobile",
+    "mobile:ios": "npm run ios --workspace=apps/mobile",
+    "backend:dev": "npm run dev --workspace=apps/backend",
+    "backend:build": "npm run build --workspace=apps/backend",
+    "backend:migrate": "npm run migrate --workspace=apps/backend",
+    "install:all": "npm install"
+  },
+  "author": "Lukas Gross <gross.lukas01@web.de>",
+  "license": "UNLICENSED"
+}

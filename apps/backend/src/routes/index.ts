@@ -1,0 +1,36 @@
+import { Router } from 'express';
+import { authRouter } from './auth';
+import { eventRouter } from './events';
+import { registrationRouter } from './registrations';
+import { bracketRouter } from './brackets';
+import { paymentRouter } from './payments';
+import { venueRouter } from './venues';
+import { communityRouter } from './community';
+import { supportRouter } from './support';
+import { legalRouter } from './legal';
+import { notificationRouter } from './notifications';
+import { adminRouter } from './admin';
+
+const router = Router();
+
+router.use('/auth', authRouter);
+router.use('/events', eventRouter);
+router.use('/registrations', registrationRouter);
+router.use('/matches', bracketRouter);
+router.use('/payments', paymentRouter);
+router.use('/venues', venueRouter);
+router.use('/friends', communityRouter.friendRouter);
+router.use('/teams', communityRouter.teamRouter);
+router.use('/support', supportRouter);
+router.use('/legal', legalRouter);
+router.use('/notifications', notificationRouter);
+router.use('/admin', adminRouter);
+router.use('/membership', require('./membership').membershipRouter);
+router.use('/hall-of-fame', require('./hallOfFame').hallOfFameRouter);
+
+// Health check
+router.get('/health', (_req, res) => {
+  res.json({ success: true, data: { status: 'healthy', version: '1.0.0' } });
+});
+
+export { router as apiRouter };

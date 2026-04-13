@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Turneo",
+    "slug": "turneo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A7E8C"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "de.turneo.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Turneo benötigt Zugriff auf die Kamera für dein Profilbild.",
+        "NSPhotoLibraryUsageDescription": "Turneo benötigt Zugriff auf deine Fotos für dein Profilbild."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A7E8C"
+      },
+      "package": "de.turneo.app"
+    },
+    "plugins": ["expo-router", "expo-localization", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "scheme": "turneo"
+  }
+}
