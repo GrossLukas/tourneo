@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { db, t } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
+import { EloService } from './eloService';
+import { AchievementService } from './achievementService';
+import { NotificationService } from './notificationService';
 
 interface BracketMatch {
   round: number;
@@ -349,7 +352,225 @@ export class BracketService {
       });
     });
 
+    // Post-result hooks: ELO, achievements, finals → tournament completion
+    try {
+      const event = await db(t('events')).where('id', match.event_id).first();
+      const sport = event?.sport_category === 'fifa' ? 'fifa' : 'padel';
+      if (sport === 'padel' || sport === 'fifa') {
+        await EloService.updateAfterMatch(matchId, sport);
+      }
+
+      // Achievement evaluation for the winning side
+      const winnerReg = await db(t('registrations')).where('id', winnerId).first();
+      const winnerUserIds = [winnerReg?.user_id, winnerReg?.partner_user_id].filter(Boolean) as number[];
+      for (const uid of winnerUserIds) {
+        await AchievementService.evaluateAfterMatchWin(uid, matchId);
+        await AchievementService.evaluateVeteran(uid);
+      }
+
+      // Tournament completion (final match concluded)
+      const refreshed = await db(t('matches')).where('id', matchId).first();
+      if (refreshed?.is_final) {
+        await this.completeTournament(match.event_id, winnerId);
+      }
+    } catch (err) {
+      console.error('[brackets] post-result hook failed:', err);
+    }
+
     return this.getBracket(match.event_id);
+  }
+
+  /**
+   * Player-facing score entry. Auto-determines the winner from set wins,
+   * authorises the caller against the match participants, and delegates to
+   * `enterMatchResult` (which also runs ELO + achievement hooks).
+   */
+  static async enterScoresAsPlayer(
+    matchId: number,
+    sets: Array<{ set_number: number; p1_score: number; p2_score: number; is_tiebreak?: boolean }>,
+    userId: number
+  ) {
+    const match = await db(t('matches')).where('id', matchId).first();
+    if (!match) throw AppError.notFound('Match');
+    if (match.status === 'completed') {
+      throw AppError.badRequest('Match result has already been entered');
+    }
+
+    // Authorise: admin OR a participant of the match
+    const user = await db(t('users')).where('id', userId).first();
+    const isAdmin = user && (user.role === 'admin' || user.role === 'superadmin');
+    if (!isAdmin) {
+      const allowed = await this.isParticipant(match, userId);
+      if (!allowed) throw AppError.forbidden('Only participants or admins can score this match');
+    }
+
+    if (!Array.isArray(sets) || sets.length === 0) {
+      throw AppError.badRequest('At least one set is required');
+    }
+
+    let p1Wins = 0;
+    let p2Wins = 0;
+    for (const s of sets) {
+      if (s.p1_score > s.p2_score) p1Wins++;
+      else if (s.p2_score > s.p1_score) p2Wins++;
+    }
+    if (p1Wins === p2Wins) {
+      throw AppError.badRequest('Cannot determine winner — sets are tied');
+    }
+    const winnerRegId = p1Wins > p2Wins
+      ? match.participant_1_registration_id
+      : match.participant_2_registration_id;
+
+    return this.enterMatchResult(matchId, sets, winnerRegId, userId);
+  }
+
+  /**
+   * Returns the next upcoming match for a user (across all events).
+   * Used by GET /api/me/next-match for the home-screen alert banner.
+   */
+  static async getNextMatchForUser(userId: number) {
+    const now = new Date();
+    const row = await db(t('matches') + ' as m')
+      .join(t('registrations') + ' as r', function () {
+        this.on('r.id', '=', 'm.participant_1_registration_id').orOn(
+          'r.id',
+          '=',
+          'm.participant_2_registration_id'
+        );
+      })
+      .leftJoin(t('events') + ' as e', 'e.id', 'm.event_id')
+      .leftJoin(t('courts') + ' as c', 'c.id', 'm.court_id')
+      .where(function () {
+        this.where('r.user_id', userId).orWhere('r.partner_user_id', userId);
+      })
+      .where('m.status', 'upcoming')
+      .where('m.scheduled_at', '>=', now)
+      .orderBy('m.scheduled_at', 'asc')
+      .first(
+        'm.id as match_id',
+        'm.uuid as match_uuid',
+        'm.scheduled_at',
+        'm.round_name',
+        'm.event_id',
+        'e.title as event_title',
+        'c.name as court_name'
+      );
+    return row || null;
+  }
+
+  /**
+   * Returns the waitlist position info for a registration.
+   */
+  static async getWaitlistStatus(registrationId: number) {
+    const reg = await db(t('registrations')).where('id', registrationId).first();
+    if (!reg) throw AppError.notFound('Registration');
+    if (reg.status !== 'waitlisted') {
+      return {
+        position: 0,
+        total_waitlisted: 0,
+        ahead_of_you: 0,
+        estimated_chance: 'none' as const,
+      };
+    }
+    const all = await db(t('registrations'))
+      .where({ event_id: reg.event_id, status: 'waitlisted' })
+      .orderByRaw('waitlist_position IS NULL, waitlist_position ASC, created_at ASC')
+      .select('id', 'waitlist_position');
+    const idx = all.findIndex((r: any) => r.id === reg.id);
+    const position = idx >= 0 ? idx + 1 : all.length;
+    const total = all.length;
+    let chance: 'high' | 'medium' | 'low' = 'low';
+    if (position <= 2) chance = 'high';
+    else if (position <= 5) chance = 'medium';
+    return {
+      position,
+      total_waitlisted: total,
+      ahead_of_you: Math.max(0, position - 1),
+      estimated_chance: chance,
+    };
+  }
+
+  /**
+   * Internal — checks if a user is one of the registrations of a match.
+   */
+  private static async isParticipant(match: any, userId: number): Promise<boolean> {
+    const regIds = [
+      match.participant_1_registration_id,
+      match.participant_2_registration_id,
+    ].filter(Boolean);
+    if (!regIds.length) return false;
+    const row = await db(t('registrations'))
+      .whereIn('id', regIds)
+      .andWhere(function () {
+        this.where('user_id', userId).orWhere('partner_user_id', userId);
+      })
+      .first();
+    return !!row;
+  }
+
+  /**
+   * Marks the event completed, sets final_placement on podium registrations,
+   * fires the winner push notification.
+   */
+  private static async completeTournament(eventId: number, finalWinnerRegId: number) {
+    const now = new Date();
+    const event = await db(t('events')).where('id', eventId).first();
+    if (!event) return;
+
+    // Determine 1st/2nd from final, 3rd from third-place match (if any)
+    const finalMatch = await db(t('matches'))
+      .where({ event_id: eventId, is_final: true })
+      .first();
+    const thirdMatch = await db(t('matches'))
+      .where({ event_id: eventId, is_third_place_match: true })
+      .first();
+
+    if (finalMatch?.winner_registration_id) {
+      const loserId =
+        finalMatch.winner_registration_id === finalMatch.participant_1_registration_id
+          ? finalMatch.participant_2_registration_id
+          : finalMatch.participant_1_registration_id;
+      await db(t('registrations')).where('id', finalMatch.winner_registration_id).update({
+        final_placement: 1,
+        updated_at: now,
+      });
+      if (loserId) {
+        await db(t('registrations')).where('id', loserId).update({
+          final_placement: 2,
+          updated_at: now,
+        });
+      }
+    }
+    if (thirdMatch?.winner_registration_id) {
+      await db(t('registrations')).where('id', thirdMatch.winner_registration_id).update({
+        final_placement: 3,
+        updated_at: now,
+      });
+    }
+
+    await db(t('events')).where('id', eventId).update({
+      status: 'completed',
+      updated_at: now,
+    });
+
+    // Push to winner(s)
+    const winnerReg = await db(t('registrations')).where('id', finalWinnerRegId).first();
+    const winnerUserIds = [winnerReg?.user_id, winnerReg?.partner_user_id].filter(Boolean) as number[];
+    for (const uid of winnerUserIds) {
+      await NotificationService.send(
+        uid,
+        'tournament_completed',
+        'Glückwunsch! 🏆',
+        `Du hast "${event.title}" gewonnen! Teile deinen Sieg mit der Community.`,
+        { event_id: eventId }
+      );
+      // Evaluate first_prize achievement for the winner
+      try {
+        await AchievementService.evaluateAfterPrize(uid);
+      } catch (err) {
+        console.warn('[bracket] evaluateAfterPrize failed:', err);
+      }
+    }
   }
 
   // --- Helper Methods ---

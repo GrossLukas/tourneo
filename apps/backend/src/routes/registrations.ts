@@ -8,6 +8,7 @@ const router = Router();
 
 router.get('/', authenticate, RegistrationController.listUserRegistrations);
 router.get('/:id', authenticate, RegistrationController.getById);
+router.get('/:id/waitlist-status', authenticate, RegistrationController.waitlistStatus);
 router.post('/', authenticate, validateBody(createRegistrationSchema), RegistrationController.register);
 router.put('/:id/cancel', authenticate, validateBody(cancelRegistrationSchema), RegistrationController.cancel);
 router.post('/:id/checkin', authenticate, RegistrationController.checkIn);

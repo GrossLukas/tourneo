@@ -38,6 +38,44 @@ export class BracketController {
     }
   }
 
+  static async enterScores(req: Request, res: Response, next: NextFunction) {
+    try {
+      const matchId = parseInt(req.params.matchId, 10);
+      const { sets } = req.body;
+      const result = await BracketService.enterScoresAsPlayer(matchId, sets, req.user!.userId);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getMatchScores(req: Request, res: Response, next: NextFunction) {
+    try {
+      const matchId = parseInt(req.params.matchId, 10);
+      const { db, t } = require('../config/database');
+      const match = await db(t('matches')).where('id', matchId).first();
+      if (!match) {
+        res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Match not found' } });
+        return;
+      }
+      const scores = await db(t('match_scores'))
+        .where('match_id', matchId)
+        .orderBy('set_number', 'asc');
+      res.json({ success: true, data: { match, scores } });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getNextMatch(req: Request, res: Response, next: NextFunction) {
+    try {
+      const next = await BracketService.getNextMatchForUser(req.user!.userId);
+      res.json({ success: true, data: next });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async publish(req: Request, res: Response, next: NextFunction) {
     try {
       const { db, t } = require('../config/database');

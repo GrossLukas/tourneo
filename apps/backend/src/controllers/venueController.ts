@@ -1,7 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
+import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { db, t } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
+import { VenueReviewService } from '../services/venueReviewService';
 
 export class VenueController {
   static async list(req: Request, res: Response, next: NextFunction) {
@@ -187,6 +191,81 @@ export class VenueController {
       });
       const venue = await db(t('venues')).where('id', venueId).first();
       res.json({ success: true, data: venue });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // REVIEWS
+  // ──────────────────────────────────────────────
+  static async listReviews(req: Request, res: Response, next: NextFunction) {
+    try {
+      const venueId = parseInt(req.params.id, 10);
+      const [reviews, summary] = await Promise.all([
+        VenueReviewService.listReviews(venueId),
+        VenueReviewService.getRatingSummary(venueId),
+      ]);
+      res.json({ success: true, data: reviews, meta: summary });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async createReview(req: Request, res: Response, next: NextFunction) {
+    try {
+      const venueId = parseInt(req.params.id, 10);
+      const { rating, comment } = req.body || {};
+      const ratingNum = Number(rating);
+      if (!Number.isFinite(ratingNum)) {
+        throw AppError.badRequest('Rating is required');
+      }
+      const review = await VenueReviewService.upsertReview(
+        venueId,
+        req.user!.userId,
+        ratingNum,
+        typeof comment === 'string' ? comment : undefined
+      );
+      res.status(201).json({ success: true, data: review });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // PHOTOS
+  // ──────────────────────────────────────────────
+  static async listPhotos(req: Request, res: Response, next: NextFunction) {
+    try {
+      const venueId = parseInt(req.params.id, 10);
+      const photos = await VenueReviewService.listPhotos(venueId);
+      res.json({ success: true, data: photos });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async uploadPhoto(req: Request, res: Response, next: NextFunction) {
+    try {
+      const venueId = parseInt(req.params.id, 10);
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) throw AppError.badRequest('No image uploaded');
+
+      // Resize + compress to 1280px wide WebP
+      const processed = await sharp(file.buffer)
+        .resize({ width: 1280, withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer();
+
+      // Local storage under uploads/venues/{venueId}/{uuid}.webp
+      const uploadsRoot = path.resolve(process.cwd(), 'uploads', 'venues', String(venueId));
+      fs.mkdirSync(uploadsRoot, { recursive: true });
+      const filename = `${uuidv4()}.webp`;
+      fs.writeFileSync(path.join(uploadsRoot, filename), processed);
+
+      const publicUrl = `/uploads/venues/${venueId}/${filename}`;
+      const row = await VenueReviewService.addPhoto(venueId, req.user!.userId, publicUrl);
+      res.status(201).json({ success: true, data: row });
     } catch (error) {
       next(error);
     }

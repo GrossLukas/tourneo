@@ -11,6 +11,9 @@ import { legalRouter } from './legal';
 import { notificationRouter } from './notifications';
 import { adminRouter } from './admin';
 import { gdprRouter } from './gdpr';
+import { partnerRouter } from './partners';
+import { chatRouter } from './chat';
+import { meRouter } from './me';
 
 const router = Router();
 
@@ -27,6 +30,9 @@ router.use('/legal', legalRouter);
 router.use('/notifications', notificationRouter);
 router.use('/admin', adminRouter);
 router.use('/', gdprRouter); // /me/data-export, /me/delete-account
+router.use('/', partnerRouter); // /events/:id/partners + /partners/:id
+router.use('/', chatRouter); // /events/:id/chat
+router.use('/me', meRouter); // /me/referral, /me/achievements, /me/next-match
 router.use('/membership', require('./membership').membershipRouter);
 router.use('/hall-of-fame', require('./hallOfFame').hallOfFameRouter);
 

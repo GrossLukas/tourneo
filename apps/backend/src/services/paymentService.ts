@@ -225,6 +225,14 @@ export class PaymentService {
         console.error('[payment] Confirmation email failed:', err);
       }
     }
+
+    // Referral reward (best-effort)
+    try {
+      const { ReferralService } = await import('./referralService');
+      await ReferralService.grantRewardForReferredUser(payment.user_id);
+    } catch (err) {
+      console.error('[payment] Referral reward failed:', err);
+    }
   }
 
   private static async handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
