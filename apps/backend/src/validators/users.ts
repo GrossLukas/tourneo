@@ -61,6 +61,8 @@ export const createVenueSchema = z.object({
   operating_hours: z.record(z.string()).optional(),
 });
 
+export const updateVenueSchema = createVenueSchema.partial();
+
 export const createSupportTicketSchema = z.object({
   event_id: z.number().int().positive().optional(),
   category: z.enum(['general', 'payment', 'refund', 'tournament', 'technical', 'account', 'other']),

@@ -259,6 +259,14 @@ export class EventService {
       created_at: now,
     });
 
+    // Fan-out notifications to all active users (best-effort, async-safe)
+    try {
+      const { NotificationService } = await import('./notificationService');
+      await NotificationService.notifyEventPublished(eventId);
+    } catch (err) {
+      console.error('[events] Failed to fan-out publish notifications:', err);
+    }
+
     return this.getEventById(eventId);
   }
 

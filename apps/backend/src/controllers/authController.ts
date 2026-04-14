@@ -43,4 +43,44 @@ export class AuthController {
     // In a more complete implementation, we'd invalidate the refresh token
     res.json({ success: true, data: { message: 'Logged out successfully' } });
   }
+
+  static async verifyEmail(req: Request, res: Response, next: NextFunction) {
+    try {
+      const token = (req.query.token as string) || (req.body?.token as string);
+      const result = await AuthService.verifyEmail(token);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async resendVerification(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = req.body;
+      const result = await AuthService.resendVerification(email);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async forgotPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = req.body;
+      const result = await AuthService.forgotPassword(email);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async resetPassword(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { token, password } = req.body;
+      const result = await AuthService.resetPassword(token, password);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

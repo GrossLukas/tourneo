@@ -20,6 +20,8 @@ export interface Venue {
   courts?: Court[];
   booking_links?: ExternalBookingLink[];
   created_at: string;
+  /** Set by backend when a geo-search was used (km, 1 decimal). */
+  distance_km?: number | null;
 }
 
 export interface Court {
@@ -44,9 +46,14 @@ interface VenueState {
   currentVenue: Venue | null;
   loading: boolean;
   error: string | null;
+  /** True when last fetch used geolocation. */
+  geoActive: boolean;
   filters: {
     city?: string;
     search?: string;
+    lat?: number;
+    lng?: number;
+    radius_km?: number;
   };
 
   fetchVenues: () => Promise<void>;
@@ -61,6 +68,7 @@ export const useVenueStore = create<VenueState>((set, get) => ({
   currentVenue: null,
   loading: false,
   error: null,
+  geoActive: false,
   filters: {},
 
   fetchVenues: async () => {
@@ -68,7 +76,11 @@ export const useVenueStore = create<VenueState>((set, get) => ({
     try {
       const { filters } = get();
       const response = await api.get('/venues', { params: filters });
-      set({ venues: response.data.data, loading: false });
+      set({
+        venues: response.data.data,
+        loading: false,
+        geoActive: filters.lat !== undefined && filters.lng !== undefined,
+      });
     } catch (error: any) {
       set({ error: error.response?.data?.message || 'Failed to fetch venues', loading: false });
     }

@@ -17,6 +17,19 @@ import { useEventStore, type Event } from '../../src/store/eventStore';
 import { TLoadingScreen, TEmptyState } from '../../src/components/common';
 import { spacing, fontSize, fontWeight, radius, shadow } from '../../src/theme/spacing';
 
+// expo-location is loaded lazily so we don't crash if the native module is
+// not yet linked (e.g. in expo go without the plugin reload).
+let LocationModule: typeof import('expo-location') | null = null;
+async function loadLocation() {
+  if (LocationModule) return LocationModule;
+  try {
+    LocationModule = await import('expo-location');
+    return LocationModule;
+  } catch {
+    return null;
+  }
+}
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ─── Sport Categories ────────────────────────────────────────
@@ -111,6 +124,10 @@ const VenueCard = React.memo(function VenueCard({
   venue: Venue; colors: Colors; onPress: () => void;
 }) {
   const courtCount = venue.courts?.length ?? 0;
+  const distance =
+    venue.distance_km !== undefined && venue.distance_km !== null
+      ? `${venue.distance_km.toFixed(1).replace('.', ',')} km entfernt`
+      : null;
 
   return (
     <TouchableOpacity
@@ -134,6 +151,12 @@ const VenueCard = React.memo(function VenueCard({
               <Text style={[styles.venueDetailText, { color: colors.textSecondary }]}>{courtCount} Plätze</Text>
             </>
           )}
+          {distance && (
+            <>
+              <Text style={[styles.venueDetailDot, { color: colors.textTertiary }]}>·</Text>
+              <Text style={[styles.venueDetailText, { color: colors.primary }]}>{distance}</Text>
+            </>
+          )}
         </View>
       </View>
       <Text style={[styles.venueArrow, { color: colors.primary }]}>›</Text>
@@ -149,17 +172,51 @@ export default function SpielenScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Real data from stores
-  const { venues, fetchVenues, loading: venuesLoading } = useVenueStore();
+  const { venues, fetchVenues, loading: venuesLoading, geoActive, setFilters, clearFilters } =
+    useVenueStore();
   const { events, fetchEvents, loading: eventsLoading } = useEventStore();
 
+  /**
+   * Tries to obtain the user location and triggers a geo-search.
+   * Falls back to the default city-based search when the permission
+   * is denied or the location lookup fails.
+   */
+  const fetchVenuesWithLocation = async () => {
+    const Location = await loadLocation();
+    if (!Location) {
+      await fetchVenues();
+      return;
+    }
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        clearFilters();
+        await fetchVenues();
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setFilters({
+        lat: loc.coords.latitude,
+        lng: loc.coords.longitude,
+        radius_km: 25,
+      });
+      await fetchVenues();
+    } catch {
+      clearFilters();
+      await fetchVenues();
+    }
+  };
+
   useEffect(() => {
-    fetchVenues();
+    fetchVenuesWithLocation();
     fetchEvents();
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchVenues(), fetchEvents()]);
+    await Promise.all([fetchVenuesWithLocation(), fetchEvents()]);
     setRefreshing(false);
   };
 

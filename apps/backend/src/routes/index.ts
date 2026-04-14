@@ -10,6 +10,7 @@ import { supportRouter } from './support';
 import { legalRouter } from './legal';
 import { notificationRouter } from './notifications';
 import { adminRouter } from './admin';
+import { gdprRouter } from './gdpr';
 
 const router = Router();
 
@@ -25,6 +26,7 @@ router.use('/support', supportRouter);
 router.use('/legal', legalRouter);
 router.use('/notifications', notificationRouter);
 router.use('/admin', adminRouter);
+router.use('/', gdprRouter); // /me/data-export, /me/delete-account
 router.use('/membership', require('./membership').membershipRouter);
 router.use('/hall-of-fame', require('./hallOfFame').hallOfFameRouter);
 

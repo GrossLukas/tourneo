@@ -1,10 +1,49 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 import { authenticate, adminOnly, superadminOnly } from '../middleware/auth';
+import { validateBody } from '../middleware/validate';
 import { PaymentController } from '../controllers/paymentController';
 import { AuditService } from '../services/auditService';
 import { db, t } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
+
+// ──────────────────────────────────────────────
+// Shared Zod schemas for admin mutations (8a)
+// ──────────────────────────────────────────────
+const userRoleSchema = z.object({
+  role: z.enum(['user', 'admin', 'superadmin']),
+});
+const userStatusSchema = z.object({
+  status: z.enum(['active', 'suspended', 'deleted']),
+});
+const refundDecisionSchema = z.object({
+  reason: z.string().min(1).max(500).optional(),
+});
+const createRefundSchema = z.object({
+  payment_id: z.number().int().positive(),
+  amount_cents: z.number().int().positive(),
+  reason: z.enum([
+    'user_cancellation_14d',
+    'organizer_cancellation',
+    'admin_decision',
+    'duplicate',
+    'other',
+  ]),
+  reason_detail: z.string().max(1000).optional(),
+});
+const notifyParticipantsSchema = z.object({
+  subject: z.string().min(1).max(255),
+  body: z.string().min(1).max(5000),
+  target: z
+    .enum(['all_participants', 'confirmed_only', 'waitlisted_only', 'all_users'])
+    .default('all_participants'),
+});
+const matchResultSchema = z.object({
+  winner_registration_id: z.number().int().positive(),
+  score: z.string().min(1).max(255).optional(),
+  notes: z.string().max(2000).optional(),
+});
 
 const router = Router();
 
@@ -768,7 +807,7 @@ router.get('/events/:id/checkin-status', async (req: Request, res: Response, nex
 // ============================================================
 
 // Enter/update match result
-router.put('/matches/:matchId/result', async (req: Request, res: Response, next: NextFunction) => {
+router.put('/matches/:matchId/result', validateBody(matchResultSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const matchId = parseInt(req.params.matchId, 10);
     const { scores, winner_registration_id, notes } = req.body;
@@ -932,7 +971,7 @@ router.post('/events/:id/placements', async (req: Request, res: Response, next: 
 // 6. PUSH NOTIFICATIONS TO PARTICIPANTS
 // ============================================================
 
-router.post('/events/:id/notify', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/events/:id/notify', validateBody(notifyParticipantsSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const eventId = parseInt(req.params.id, 10);
     const { subject, body, target = 'all_participants' } = req.body;
@@ -1061,7 +1100,7 @@ router.get('/refunds', async (req: Request, res: Response, next: NextFunction) =
 });
 
 // Approve/process refund
-router.put('/refunds/:id/approve', async (req: Request, res: Response, next: NextFunction) => {
+router.put('/refunds/:id/approve', validateBody(refundDecisionSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const refundId = parseInt(req.params.id, 10);
     const refund = await db(t('refunds')).where('id', refundId).first();
@@ -1090,7 +1129,7 @@ router.put('/refunds/:id/approve', async (req: Request, res: Response, next: Nex
 });
 
 // Reject refund
-router.put('/refunds/:id/reject', async (req: Request, res: Response, next: NextFunction) => {
+router.put('/refunds/:id/reject', validateBody(refundDecisionSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const refundId = parseInt(req.params.id, 10);
     const { reason } = req.body;
@@ -1122,7 +1161,7 @@ router.put('/refunds/:id/reject', async (req: Request, res: Response, next: Next
 });
 
 // Create manual refund
-router.post('/refunds', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/refunds', validateBody(createRefundSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { payment_id, registration_id, amount_cents, reason, reason_detail } = req.body;
 
@@ -1395,7 +1434,7 @@ router.get('/users', superadminOnly, async (req: Request, res: Response, next: N
   }
 });
 
-router.put('/users/:id/role', superadminOnly, async (req: Request, res: Response, next: NextFunction) => {
+router.put('/users/:id/role', superadminOnly, validateBody(userRoleSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = parseInt(req.params.id, 10);
     const { role } = req.body;
@@ -1417,7 +1456,7 @@ router.put('/users/:id/role', superadminOnly, async (req: Request, res: Response
   }
 });
 
-router.put('/users/:id/status', superadminOnly, async (req: Request, res: Response, next: NextFunction) => {
+router.put('/users/:id/status', superadminOnly, validateBody(userStatusSchema), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = parseInt(req.params.id, 10);
     const { status } = req.body;

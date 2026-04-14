@@ -62,6 +62,13 @@ export default function CheckoutScreen() {
     return () => { checkout.reset(); };
   }, [eventId]);
 
+  // Auto-refresh registrations on successful payment
+  useEffect(() => {
+    if (checkout.status === 'success') {
+      fetchMyRegistrations();
+    }
+  }, [checkout.status]);
+
   const handlePay = useCallback(async () => {
     await checkout.openCheckout();
   }, []);
@@ -73,8 +80,13 @@ export default function CheckoutScreen() {
 
   const event = currentEvent;
   const session = checkout.session;
-  const feeAmount = event ? event.entry_fee_cents / 100 : 0;
-  const isFree = feeAmount === 0;
+  // Prefer net amount from backend (includes membership discount)
+  const feeAmount = session
+    ? session.amount / 100
+    : event
+      ? event.entry_fee_cents / 100
+      : 0;
+  const isFree = feeAmount === 0 || session?.free === true;
 
   // Success state
   if (checkout.status === 'success') {

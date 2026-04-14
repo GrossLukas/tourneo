@@ -6,33 +6,122 @@ import { AppError } from '../middleware/errorHandler';
 export class VenueController {
   static async list(req: Request, res: Response, next: NextFunction) {
     try {
-      const { city, is_indoor, is_outdoor, is_partner, page = 1, per_page = 20 } = req.query;
-      let query = db(t('venues')).where('status', 'active');
+      const {
+        city,
+        is_indoor,
+        is_outdoor,
+        is_partner,
+        lat,
+        lng,
+        radius_km,
+        page = 1,
+        per_page = 20,
+      } = req.query;
 
-      if (city) query = query.where('address_city', 'LIKE', `%${city}%`);
+      // Geo-Suche aktiv?
+      const latNum = lat !== undefined ? Number(lat) : NaN;
+      const lngNum = lng !== undefined ? Number(lng) : NaN;
+      const useGeo = Number.isFinite(latNum) && Number.isFinite(lngNum);
+      const radius = Number(radius_km) > 0 ? Number(radius_km) : 25;
+
+      const venuesTable = t('venues');
+
+      let query = db(venuesTable).where('status', 'active');
+
+      if (useGeo) {
+        // Haversine-Formel (km), nutzt MySQL/MariaDB-Funktionen.
+        // distance_km wird als Computed Column zurückgegeben.
+        query = query
+          .select('*')
+          .select(
+            db.raw(
+              `ROUND((6371 * ACOS(
+                COS(RADIANS(?)) * COS(RADIANS(latitude)) *
+                COS(RADIANS(longitude) - RADIANS(?)) +
+                SIN(RADIANS(?)) * SIN(RADIANS(latitude))
+              )), 1) AS distance_km`,
+              [latNum, lngNum, latNum]
+            )
+          )
+          .whereNotNull('latitude')
+          .whereNotNull('longitude')
+          .havingRaw(
+            `(6371 * ACOS(
+              COS(RADIANS(?)) * COS(RADIANS(latitude)) *
+              COS(RADIANS(longitude) - RADIANS(?)) +
+              SIN(RADIANS(?)) * SIN(RADIANS(latitude))
+            )) <= ?`,
+            [latNum, lngNum, latNum, radius]
+          )
+          .orderBy('distance_km', 'asc');
+      } else if (city) {
+        // Klassische Stadt-Suche als Fallback
+        query = query.where('address_city', 'LIKE', `%${city}%`).orderBy('name', 'asc');
+      } else {
+        query = query.orderBy('name', 'asc');
+      }
+
       if (is_indoor !== undefined) query = query.where('is_indoor', is_indoor === 'true');
       if (is_outdoor !== undefined) query = query.where('is_outdoor', is_outdoor === 'true');
       if (is_partner !== undefined) query = query.where('is_partner_venue', is_partner === 'true');
 
-      const countQuery = query.clone();
-      const [{ count: total }] = await countQuery.count('* as count');
+      // Total count (separate query – HAVING-Filter ohne ORDER)
+      let total = 0;
+      if (useGeo) {
+        const totalRows = await db(venuesTable)
+          .where('status', 'active')
+          .whereNotNull('latitude')
+          .whereNotNull('longitude')
+          .modify((qb) => {
+            if (is_indoor !== undefined) qb.where('is_indoor', is_indoor === 'true');
+            if (is_outdoor !== undefined) qb.where('is_outdoor', is_outdoor === 'true');
+            if (is_partner !== undefined) qb.where('is_partner_venue', is_partner === 'true');
+          })
+          .havingRaw(
+            `(6371 * ACOS(
+              COS(RADIANS(?)) * COS(RADIANS(latitude)) *
+              COS(RADIANS(longitude) - RADIANS(?)) +
+              SIN(RADIANS(?)) * SIN(RADIANS(latitude))
+            )) <= ?`,
+            [latNum, lngNum, latNum, radius]
+          )
+          .select(
+            db.raw(
+              `(6371 * ACOS(
+                COS(RADIANS(?)) * COS(RADIANS(latitude)) *
+                COS(RADIANS(longitude) - RADIANS(?)) +
+                SIN(RADIANS(?)) * SIN(RADIANS(latitude))
+              )) AS d`,
+              [latNum, lngNum, latNum]
+            )
+          );
+        total = totalRows.length;
+      } else {
+        const [{ count }] = await query.clone().clearSelect().clearOrder().count('* as count');
+        total = Number(count);
+      }
+
       const offset = (Number(page) - 1) * Number(per_page);
-      const venues = await query.limit(Number(per_page)).offset(offset).orderBy('name', 'asc');
+      const venues = await query.limit(Number(per_page)).offset(offset);
 
       // Get courts count for each venue
       const venueIds = venues.map((v: any) => v.id);
-      const courtCounts = await db(t('courts'))
-        .whereIn('venue_id', venueIds)
-        .where('status', 'active')
-        .groupBy('venue_id')
-        .select('venue_id')
-        .count('* as court_count');
+      const courtCounts = venueIds.length
+        ? await db(t('courts'))
+            .whereIn('venue_id', venueIds)
+            .where('status', 'active')
+            .groupBy('venue_id')
+            .select('venue_id')
+            .count('* as court_count')
+        : [];
 
       const courtMap = new Map(courtCounts.map((c: any) => [c.venue_id, Number(c.court_count)]));
 
       const enriched = venues.map((v: any) => ({
         ...v,
         court_count: courtMap.get(v.id) || 0,
+        distance_km:
+          v.distance_km !== undefined && v.distance_km !== null ? Number(v.distance_km) : null,
       }));
 
       res.json({
@@ -41,8 +130,9 @@ export class VenueController {
         meta: {
           page: Number(page),
           per_page: Number(per_page),
-          total: Number(total),
-          total_pages: Math.ceil(Number(total) / Number(per_page)),
+          total,
+          total_pages: Math.ceil(total / Number(per_page)),
+          ...(useGeo ? { geo: { lat: latNum, lng: lngNum, radius_km: radius } } : {}),
         },
       });
     } catch (error) {

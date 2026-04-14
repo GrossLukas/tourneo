@@ -1,13 +1,21 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { db, t } from '../config/database';
 import { env } from '../config/environment';
 import { AppError } from '../middleware/errorHandler';
 import { AuthTokenPayload, UserRole } from '../types';
 import { RegisterInput, LoginInput } from '../validators/auth';
+import { emailService } from './emailService';
 
 const BCRYPT_ROUNDS = 12;
+const VERIFICATION_TOKEN_TTL_HOURS = 24;
+const PASSWORD_RESET_TTL_HOURS = 1;
+
+function generateToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
 
 export class AuthService {
   static async register(input: RegisterInput) {
@@ -19,6 +27,10 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
     const userUuid = uuidv4();
     const now = new Date();
+    const verificationToken = generateToken();
+    const verificationExpires = new Date(
+      now.getTime() + VERIFICATION_TOKEN_TTL_HOURS * 60 * 60 * 1000
+    );
 
     const result = await db.transaction(async (trx) => {
       // Create user
@@ -27,6 +39,8 @@ export class AuthService {
         email: input.email.toLowerCase().trim(),
         password_hash: passwordHash,
         email_verified: false,
+        email_verification_token: verificationToken,
+        email_verification_expires_at: verificationExpires,
         role: 'user' as UserRole,
         status: 'active',
         created_at: now,
@@ -128,6 +142,17 @@ export class AuthService {
       role: 'user',
     });
 
+    // Send verification email (best effort – don't fail registration if SMTP is down)
+    try {
+      await emailService.sendVerificationEmail(
+        input.email.toLowerCase().trim(),
+        input.first_name,
+        verificationToken
+      );
+    } catch (err) {
+      console.error('[auth] Failed to send verification email:', err);
+    }
+
     return {
       user: {
         id: result.userId,
@@ -140,6 +165,144 @@ export class AuthService {
       },
       ...tokens,
     };
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Email verification
+  // ─────────────────────────────────────────────────────────
+  static async verifyEmail(token: string) {
+    if (!token) throw AppError.badRequest('Verification token is required');
+
+    const user = await db(t('users')).where('email_verification_token', token).first();
+    if (!user) throw AppError.badRequest('Invalid or expired verification token');
+
+    if (
+      user.email_verification_expires_at &&
+      new Date(user.email_verification_expires_at) < new Date()
+    ) {
+      throw AppError.badRequest('Verification token has expired');
+    }
+
+    const now = new Date();
+    await db(t('users')).where('id', user.id).update({
+      email_verified: true,
+      email_verified_at: now,
+      email_verification_token: null,
+      email_verification_expires_at: null,
+      updated_at: now,
+    });
+
+    return { verified: true };
+  }
+
+  static async resendVerification(email: string) {
+    if (!email) throw AppError.badRequest('Email is required');
+
+    const user = await db(t('users'))
+      .where('email', email.toLowerCase().trim())
+      .where('status', 'active')
+      .first();
+
+    // Always return success – do not leak account existence
+    if (!user || user.email_verified) {
+      return { sent: true };
+    }
+
+    const profile = await db(t('profiles')).where('user_id', user.id).first();
+    const token = generateToken();
+    const expires = new Date(Date.now() + VERIFICATION_TOKEN_TTL_HOURS * 60 * 60 * 1000);
+
+    await db(t('users')).where('id', user.id).update({
+      email_verification_token: token,
+      email_verification_expires_at: expires,
+      updated_at: new Date(),
+    });
+
+    try {
+      await emailService.sendVerificationEmail(
+        user.email,
+        profile?.first_name || 'Spieler',
+        token
+      );
+    } catch (err) {
+      console.error('[auth] Failed to send verification email:', err);
+    }
+
+    return { sent: true };
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // Password reset
+  // ─────────────────────────────────────────────────────────
+  static async forgotPassword(email: string) {
+    if (!email) throw AppError.badRequest('Email is required');
+
+    const user = await db(t('users'))
+      .where('email', email.toLowerCase().trim())
+      .where('status', 'active')
+      .first();
+
+    // Always return success – do not leak account existence
+    if (!user) return { sent: true };
+
+    const profile = await db(t('profiles')).where('user_id', user.id).first();
+    const token = generateToken();
+    const expires = new Date(Date.now() + PASSWORD_RESET_TTL_HOURS * 60 * 60 * 1000);
+
+    await db(t('users')).where('id', user.id).update({
+      password_reset_token: token,
+      password_reset_expires_at: expires,
+      updated_at: new Date(),
+    });
+
+    try {
+      await emailService.sendPasswordResetEmail(
+        user.email,
+        profile?.first_name || 'Spieler',
+        token
+      );
+    } catch (err) {
+      console.error('[auth] Failed to send password reset email:', err);
+    }
+
+    return { sent: true };
+  }
+
+  static async resetPassword(token: string, newPassword: string) {
+    if (!token) throw AppError.badRequest('Token is required');
+    if (!newPassword || newPassword.length < 8) {
+      throw AppError.badRequest('Password must be at least 8 characters');
+    }
+
+    const user = await db(t('users')).where('password_reset_token', token).first();
+    if (!user) throw AppError.badRequest('Invalid or expired reset token');
+
+    if (
+      user.password_reset_expires_at &&
+      new Date(user.password_reset_expires_at) < new Date()
+    ) {
+      throw AppError.badRequest('Reset token has expired');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    const now = new Date();
+
+    await db(t('users')).where('id', user.id).update({
+      password_hash: passwordHash,
+      password_reset_token: null,
+      password_reset_expires_at: null,
+      updated_at: now,
+    });
+
+    await db(t('audit_log')).insert({
+      user_id: user.id,
+      action: 'user.password_reset',
+      entity_type: 'user',
+      entity_id: user.id,
+      created_at: now,
+    });
+
+    return { reset: true };
   }
 
   static async login(input: LoginInput) {
