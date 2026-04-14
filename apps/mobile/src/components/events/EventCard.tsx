@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, Image, StyleSheet, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { TCard } from '../common/TCard';
 import { TBadge } from '../common/TBadge';
 import { useTheme } from '../../providers/ThemeProvider';
@@ -7,6 +8,22 @@ import { spacing, fontSize, fontWeight } from '../../theme/spacing';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import type { Event } from '../../store/eventStore';
+
+// ── Pulsing LIVE dot (Night Court red) ─────────────
+function LivePulse() {
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.3, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return <Animated.View style={[styles.liveDot, { opacity }]} />;
+}
 
 interface EventCardProps {
   event: Event;
@@ -57,12 +74,46 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
 
   const feeAmount = event.entry_fee_cents / 100;
   const prizeTotal = event.total_prize_pool_cents / 100;
+  const isLive = event.status === 'in_progress' || event.status === 'live';
+  const isUrgent = !isFull && spotsLeft <= 5;
+
+  // Sport-specific gradient fallback — Night Court palette, NO teal
+  const sport = (event.sport_category || '').toLowerCase();
+  const gradientColors: readonly [string, string, string] =
+    sport === 'fifa'
+      ? (['#1E1B4B', '#312E81', '#4338CA'] as const)  // deep purple
+      : (['#0A0A14', '#111127', '#1E1B4B'] as const); // padel deep-navy
 
   return (
     <TCard onPress={onPress} variant="elevated" style={styles.card}>
       {event.banner_image_url ? (
         <Image source={{ uri: event.banner_image_url }} style={styles.image} />
-      ) : null}
+      ) : (
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.image}
+        >
+          <Text style={styles.gradientEmoji}>{sport === 'fifa' ? '🎮' : '🎾'}</Text>
+        </LinearGradient>
+      )}
+
+      {/* Overlay badges: LIVE + Prize */}
+      <View style={styles.overlayBadges}>
+        {isLive && (
+          <View style={styles.liveBadge}>
+            <LivePulse />
+            <Text style={styles.liveBadgeText}>LIVE</Text>
+          </View>
+        )}
+        {prizeTotal > 0 && (
+          <View style={styles.prizeBadge}>
+            <Text style={styles.prizeBadgeText}>🏆 {prizeTotal.toFixed(0)} €</Text>
+          </View>
+        )}
+      </View>
+
       <View style={styles.content}>
         <View style={styles.badges}>
           <TBadge label={getSkillLabel()} variant={getSkillBadgeVariant()} />
@@ -117,6 +168,13 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
             </View>
           );
         })()}
+
+        {/* Urgency text */}
+        {isUrgent && (
+          <Text style={styles.urgencyText}>
+            ⚡ Nur noch {spotsLeft} {spotsLeft === 1 ? 'Platz' : 'Plätze'} frei
+          </Text>
+        )}
       </View>
     </TCard>
   );
@@ -133,6 +191,56 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 160,
     resizeMode: 'cover',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gradientEmoji: {
+    fontSize: 56,
+  },
+  overlayBadges: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    flexDirection: 'row',
+    gap: spacing.xxs,
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF4757',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 6,
+  },
+  liveBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#fff',
+  },
+  prizeBadge: {
+    backgroundColor: 'rgba(245,158,11,0.95)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  prizeBadgeText: {
+    color: '#0A0A14',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  urgencyText: {
+    marginTop: spacing.xs,
+    color: '#F59E0B',
+    fontSize: 12,
+    fontWeight: '700',
   },
   content: {
     padding: spacing.md,

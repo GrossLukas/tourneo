@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   Switch,
   Alert,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,6 +18,12 @@ import { membership as membershipColors } from '../../src/theme/colors';
 import { useAuthStore } from '../../src/store';
 import { useRatingStore } from '../../src/store/ratingStore';
 import { TRatingBadge } from '../../src/components/common';
+import {
+  getMyElo,
+  getMyReferral,
+  getMyAchievements,
+  createMyReferralCode,
+} from '../../src/api/v2';
 
 // ─── Section Item ────────────────────────────────────────────
 function SectionItem({
@@ -109,6 +116,77 @@ function ThemePicker({
   );
 }
 
+// ─── ELO column ──────────────────────────────────────────────
+const TIER_COLOR: Record<string, string> = {
+  bronze: '#A16207',
+  silver: '#94A3B8',
+  gold: '#F59E0B',
+  platinum: '#38BDF8',
+  diamond: '#818CF8',
+  elite: '#EC4899',
+};
+const TIER_LABEL: Record<string, string> = {
+  bronze: 'Bronze',
+  silver: 'Silber',
+  gold: 'Gold',
+  platinum: 'Platin',
+  diamond: 'Diamant',
+  elite: 'Elite',
+};
+
+function EloColumn({
+  label,
+  icon,
+  elo,
+  peak,
+  tier,
+  colors,
+}: {
+  label: string;
+  icon: string;
+  elo: number;
+  peak: number;
+  tier: string;
+  colors: any;
+}) {
+  const tierColor = TIER_COLOR[tier] || colors.textSecondary;
+  return (
+    <View style={styles.eloCol}>
+      <Text style={styles.eloIcon}>{icon}</Text>
+      <Text style={[styles.eloLabel, { color: colors.textTertiary }]}>{label}</Text>
+      <Text style={[styles.eloValue, { color: colors.textPrimary }]}>{elo}</Text>
+      <View style={[styles.tierPill, { backgroundColor: tierColor + '22', borderColor: tierColor }]}>
+        <Text style={[styles.tierPillText, { color: tierColor }]}>{TIER_LABEL[tier] || tier}</Text>
+      </View>
+      <Text style={[styles.eloPeak, { color: colors.textTertiary }]}>Peak {peak}</Text>
+    </View>
+  );
+}
+
+const ACHIEVEMENT_ICON: Record<string, string> = {
+  first_win: '🥇',
+  first_tournament: '🎯',
+  podium: '🏆',
+  veteran: '🎖️',
+  streak_3: '🔥',
+  streak_5: '⚡',
+  streak_10: '💎',
+  elo_1000: '📈',
+  elo_1200: '🚀',
+};
+
+const ACHIEVEMENT_LABEL: Record<string, string> = {
+  first_win: 'Erster Sieg',
+  first_tournament: 'Erstes Turnier',
+  podium: 'Podium',
+  veteran: 'Veteran',
+  streak_3: '3er Serie',
+  streak_5: '5er Serie',
+  streak_10: '10er Serie',
+  elo_1000: 'Gold erreicht',
+  elo_1200: 'Diamant',
+};
+
 // ─── Stat Pill ───────────────────────────────────────────────
 function StatPill({
   label,
@@ -135,9 +213,60 @@ export default function ProfilScreen() {
   const { user, logout } = useAuthStore();
   const { myRating, fetchMyRating } = useRatingStore();
 
+  // ── V2: ELO / referral / achievements ─────────────
+  type EloResp = Awaited<ReturnType<typeof getMyElo>>;
+  type ReferralResp = Awaited<ReturnType<typeof getMyReferral>>;
+  type AchievementsResp = Awaited<ReturnType<typeof getMyAchievements>>;
+
+  const [elo, setElo] = useState<EloResp | null>(null);
+  const [referral, setReferral] = useState<ReferralResp | null>(null);
+  const [achievements, setAchievements] = useState<AchievementsResp>([]);
+  const [referralBusy, setReferralBusy] = useState(false);
+
   React.useEffect(() => {
     fetchMyRating();
+    (async () => {
+      try {
+        const [eloRes, refRes, achRes] = await Promise.all([
+          getMyElo().catch(() => null),
+          getMyReferral().catch(() => null),
+          getMyAchievements().catch(() => [] as AchievementsResp),
+        ]);
+        setElo(eloRes);
+        setReferral(refRes);
+        setAchievements(achRes);
+      } catch {
+        // non-fatal
+      }
+    })();
   }, []);
+
+  const handleShareReferral = async () => {
+    let code: string = referral?.code || '';
+    if (!code) {
+      try {
+        setReferralBusy(true);
+        const res = await createMyReferralCode();
+        code = res.code;
+        const finalCode = code;
+        setReferral((prev) =>
+          prev ? { ...prev, code: finalCode } : { total: 0, rewarded: 0, code: finalCode }
+        );
+      } catch {
+        Alert.alert('Fehler', 'Referral-Code konnte nicht erstellt werden.');
+        return;
+      } finally {
+        setReferralBusy(false);
+      }
+    }
+    try {
+      await Share.share({
+        message: `Komm zu Tourneo! Nutze meinen Code ${code} bei der Anmeldung. #tourneo`,
+      });
+    } catch {
+      /* silent */
+    }
+  };
 
   const displayName = user?.first_name
     ? `${user.first_name} ${user.last_name || ''}`
@@ -225,6 +354,132 @@ export default function ProfilScreen() {
             <StatPill label="Punkte" value="840" colors={colors} />
             <StatPill label="Platz" value="#23" colors={colors} />
           </View>
+        </View>
+
+        {/* V2: ELO card */}
+        {elo && (
+          <View
+            style={[
+              styles.eloCard,
+              {
+                backgroundColor: colors.cardBg,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <Text style={[styles.eloTitle, { color: colors.textTertiary }]}>SKILL RATING</Text>
+            <View style={styles.eloRow}>
+              <EloColumn
+                label="Padel"
+                icon="🎾"
+                elo={elo.padel.elo}
+                peak={elo.padel.peak}
+                tier={elo.padel.tier}
+                colors={colors}
+              />
+              <View style={[styles.eloDivider, { backgroundColor: colors.divider }]} />
+              <EloColumn
+                label="FIFA"
+                icon="🎮"
+                elo={elo.fifa.elo}
+                peak={elo.fifa.peak}
+                tier={elo.fifa.tier}
+                colors={colors}
+              />
+            </View>
+            <Text style={[styles.eloMeta, { color: colors.textTertiary }]}>
+              {elo.matches_played} Matches gespielt
+            </Text>
+          </View>
+        )}
+
+        {/* V2: Achievements grid */}
+        {achievements.length > 0 && (
+          <View
+            style={[
+              styles.achCard,
+              {
+                backgroundColor: colors.cardBg,
+                borderColor: colors.cardBorder,
+              },
+            ]}
+          >
+            <Text style={[styles.achTitle, { color: colors.textPrimary }]}>
+              🏅 Erfolge ({achievements.length})
+            </Text>
+            <View style={styles.achGrid}>
+              {achievements.slice(0, 8).map((a) => (
+                <View
+                  key={a.id}
+                  style={[
+                    styles.achBadge,
+                    { backgroundColor: colors.surfaceSecondary, borderColor: colors.cardBorder },
+                  ]}
+                >
+                  <Text style={styles.achIcon}>{ACHIEVEMENT_ICON[a.achievement_type] || '⭐'}</Text>
+                  <Text
+                    style={[styles.achLabel, { color: colors.textSecondary }]}
+                    numberOfLines={1}
+                  >
+                    {ACHIEVEMENT_LABEL[a.achievement_type] || a.achievement_type}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* V2: Referral box */}
+        <View
+          style={[
+            styles.referralCard,
+            {
+              backgroundColor: colors.cardBg,
+              borderColor: colors.cardBorder,
+            },
+          ]}
+        >
+          <Text style={[styles.referralTitle, { color: colors.textPrimary }]}>
+            🎁 Freunde einladen
+          </Text>
+          <Text style={[styles.referralSub, { color: colors.textSecondary }]}>
+            Teile Tourneo mit Freunden und sichere dir Belohnungen für jede erfolgreiche Anmeldung.
+          </Text>
+          {referral?.code ? (
+            <View style={[styles.codeBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.cardBorder }]}>
+              <Text style={[styles.codeLabel, { color: colors.textTertiary }]}>Dein Code</Text>
+              <Text style={[styles.codeValue, { color: colors.primary }]}>{referral.code}</Text>
+            </View>
+          ) : null}
+          {referral && (
+            <View style={styles.referralStats}>
+              <View style={styles.referralStat}>
+                <Text style={[styles.referralStatValue, { color: colors.textPrimary }]}>
+                  {referral.total}
+                </Text>
+                <Text style={[styles.referralStatLabel, { color: colors.textTertiary }]}>
+                  Eingeladen
+                </Text>
+              </View>
+              <View style={styles.referralStat}>
+                <Text style={[styles.referralStatValue, { color: colors.textPrimary }]}>
+                  {referral.rewarded}
+                </Text>
+                <Text style={[styles.referralStatLabel, { color: colors.textTertiary }]}>
+                  Belohnt
+                </Text>
+              </View>
+            </View>
+          )}
+          <TouchableOpacity
+            onPress={handleShareReferral}
+            disabled={referralBusy}
+            style={[styles.referralBtn, { backgroundColor: colors.primary, opacity: referralBusy ? 0.6 : 1 }]}
+          >
+            <Text style={styles.referralBtnText}>
+              {referral?.code ? 'Einladung teilen' : 'Code erstellen'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Membership Upsell (if not club) */}
@@ -488,6 +743,113 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xxs,
     marginTop: 2,
   },
+
+  // V2: ELO card
+  eloCard: {
+    marginTop: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+  },
+  eloTitle: {
+    fontSize: fontSize.xxs,
+    fontWeight: '700' as '700',
+    letterSpacing: 1.2,
+    marginBottom: spacing.sm,
+  },
+  eloRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eloCol: { flex: 1, alignItems: 'center' },
+  eloDivider: { width: 1, height: 90, marginHorizontal: spacing.sm },
+  eloIcon: { fontSize: 28, marginBottom: 2 },
+  eloLabel: { fontSize: fontSize.xxs, textTransform: 'uppercase', letterSpacing: 1 },
+  eloValue: { fontSize: 28, fontWeight: '800' as '800', marginTop: 2 },
+  tierPill: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  tierPillText: { fontSize: fontSize.xxs, fontWeight: '700' as '700' },
+  eloPeak: { fontSize: fontSize.xxs, marginTop: 4 },
+  eloMeta: { fontSize: fontSize.xs, textAlign: 'center', marginTop: spacing.sm },
+
+  // V2: Achievements card
+  achCard: {
+    marginTop: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+  },
+  achTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '700' as '700',
+    marginBottom: spacing.md,
+  },
+  achGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  achBadge: {
+    width: '22%',
+    minHeight: 68,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  achIcon: { fontSize: 22 },
+  achLabel: {
+    fontSize: 10,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+
+  // V2: Referral card
+  referralCard: {
+    marginTop: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+  },
+  referralTitle: {
+    fontSize: fontSize.md,
+    fontWeight: '700' as '700',
+  },
+  referralSub: {
+    fontSize: fontSize.sm,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  codeBox: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  codeLabel: { fontSize: fontSize.xxs, textTransform: 'uppercase', letterSpacing: 1 },
+  codeValue: { fontSize: fontSize.xxl, fontWeight: '800' as '800', marginTop: 2, letterSpacing: 2 },
+  referralStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: spacing.md,
+  },
+  referralStat: { alignItems: 'center' },
+  referralStatValue: { fontSize: fontSize.xl, fontWeight: '800' as '800' },
+  referralStatLabel: { fontSize: fontSize.xxs, marginTop: 2 },
+  referralBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+  },
+  referralBtnText: { color: '#fff', fontSize: fontSize.sm, fontWeight: '700' as '700' },
 
   // Membership Banner
   membershipBanner: {
