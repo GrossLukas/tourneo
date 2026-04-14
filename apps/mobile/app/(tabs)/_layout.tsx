@@ -78,19 +78,13 @@ export default function TabLayout() {
       <Tabs.Screen
         name="spielen"
         options={{
-          title: 'Spielen',
-          tabBarIcon: ({ focused, color }) => (
-            <TabBarIcon name={focused ? 'game-controller' : 'game-controller-outline'} focused={focused} color={color} />
-          ),
+          href: null, // moved into Home section
         }}
       />
       <Tabs.Screen
         name="community"
         options={{
-          title: 'Community',
-          tabBarIcon: ({ focused, color }) => (
-            <TabBarIcon name={focused ? 'people' : 'people-outline'} focused={focused} color={color} />
-          ),
+          href: null, // moved into Profil sub-page
         }}
       />
       <Tabs.Screen

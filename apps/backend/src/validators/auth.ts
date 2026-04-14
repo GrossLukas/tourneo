@@ -51,6 +51,7 @@ export const registerSchema = z.object({
   consent_media: z.boolean().default(false),
   terms_version_id: z.number().int().positive(),
   privacy_version_id: z.number().int().positive(),
+  referral_code: z.string().trim().min(1).max(32).optional(),
 });
 
 export const loginSchema = z.object({

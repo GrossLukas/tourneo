@@ -8,6 +8,8 @@ const router = Router();
 
 router.get('/', optionalAuth, EventController.list);
 router.get('/:id', optionalAuth, EventController.getById);
+router.get('/:id/recap', optionalAuth, EventController.getRecap);
+router.get('/:id/ical', optionalAuth, EventController.getIcal);
 
 // Admin routes
 router.post('/', authenticate, adminOnly, validateBody(createEventSchema), EventController.create);

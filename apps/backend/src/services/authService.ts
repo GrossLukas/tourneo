@@ -8,6 +8,7 @@ import { AppError } from '../middleware/errorHandler';
 import { AuthTokenPayload, UserRole } from '../types';
 import { RegisterInput, LoginInput } from '../validators/auth';
 import { emailService } from './emailService';
+import { ReferralService } from './referralService';
 
 const BCRYPT_ROUNDS = 12;
 const VERIFICATION_TOKEN_TTL_HOURS = 24;
@@ -151,6 +152,15 @@ export class AuthService {
       );
     } catch (err) {
       console.error('[auth] Failed to send verification email:', err);
+    }
+
+    // Record referral if provided (best effort)
+    if (input.referral_code) {
+      try {
+        await ReferralService.recordReferral(result.userId, input.referral_code);
+      } catch (err) {
+        console.error('[auth] Failed to record referral:', err);
+      }
     }
 
     return {

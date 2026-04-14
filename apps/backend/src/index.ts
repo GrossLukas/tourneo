@@ -3,9 +3,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
+import * as path from 'path';
 import { env } from './config/environment';
 import { testConnection } from './config/database';
 import { apiRouter } from './routes';
+import { startJobs } from './jobs';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { generalLimiter } from './middleware/rateLimiter';
 import {
@@ -76,6 +78,15 @@ app.use(preventParamPollution);
 // Compression
 app.use(compression());
 
+// Static uploads (venue photos etc.)
+app.use(
+  '/uploads',
+  express.static(path.resolve(process.cwd(), 'uploads'), {
+    maxAge: '7d',
+    fallthrough: true,
+  })
+);
+
 // API Routes
 app.use(`/api/${env.apiVersion}`, apiRouter);
 
@@ -100,6 +111,15 @@ async function start() {
   if (!dbConnected) {
     console.warn('⚠️  Database connection failed. Server will start but DB operations will fail.');
     console.warn('   Make sure your .env file has correct DB credentials.');
+  }
+
+  // Start background jobs (match reminders etc.)
+  if (dbConnected) {
+    try {
+      startJobs();
+    } catch (err) {
+      console.warn('⚠️  Failed to start background jobs:', err);
+    }
   }
 
   app.listen(env.port, () => {

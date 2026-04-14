@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { EventService } from '../services/eventService';
+import { RecapService } from '../services/recapService';
+import { IcalService } from '../services/icalService';
 import { eventFiltersSchema } from '../validators/events';
 
 export class EventController {
@@ -47,6 +49,28 @@ export class EventController {
       const eventId = parseInt(req.params.id, 10);
       const event = await EventService.cancelEvent(eventId, req.user!.userId);
       res.json({ success: true, data: event });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getRecap(req: Request, res: Response, next: NextFunction) {
+    try {
+      const eventId = parseInt(req.params.id, 10);
+      const data = await RecapService.getRecap(eventId);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getIcal(req: Request, res: Response, next: NextFunction) {
+    try {
+      const eventId = parseInt(req.params.id, 10);
+      const ics = await IcalService.generateForEvent(eventId);
+      res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="event-${eventId}.ics"`);
+      res.send(ics);
     } catch (error) {
       next(error);
     }
