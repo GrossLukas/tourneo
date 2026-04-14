@@ -41,7 +41,7 @@ export function TSkeleton({ width = '100%', height = 16, borderRadius = 8, style
           width: width as any,
           height,
           borderRadius,
-          backgroundColor: colors.border,
+          backgroundColor: 'rgba(255,255,255,0.06)',
           opacity,
         },
         style,

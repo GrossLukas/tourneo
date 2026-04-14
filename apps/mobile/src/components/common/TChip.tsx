@@ -26,8 +26,8 @@ export const TChip: React.FC<TChipProps> = ({
       style={[
         styles.chip,
         {
-          backgroundColor: selected ? (colors.primary as string) : colors.surfaceSecondary,
-          borderColor: selected ? (colors.primary as string) : colors.border,
+          backgroundColor: selected ? 'rgba(99,102,241,0.12)' : '#111127',
+          borderColor: selected ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.08)',
         },
         style,
       ]}
@@ -36,7 +36,7 @@ export const TChip: React.FC<TChipProps> = ({
         style={[
           styles.label,
           {
-            color: selected ? '#FFFFFF' : colors.textSecondary,
+            color: selected ? '#818CF8' : 'rgba(255,255,255,0.5)',
           },
         ]}
       >
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.full,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     marginRight: spacing.xs,
     marginBottom: spacing.xs,
   },

@@ -22,18 +22,20 @@ export const TCard: React.FC<TCardProps> = ({
 
   const getCardStyle = (): ViewStyle => {
     const base: ViewStyle = {
-      backgroundColor: colors.cardBg,
+      backgroundColor: '#111127',
       borderRadius: radius.lg,
       padding: spacing[padding],
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(255,255,255,0.08)',
     };
 
     switch (variant) {
       case 'elevated':
-        return { ...base, ...shadow.md, shadowColor: colors.shadowColor, shadowOpacity: colors.cardShadowOpacity };
+        return { ...base, borderColor: 'rgba(99,102,241,0.2)' };
       case 'outlined':
-        return { ...base, borderWidth: 1, borderColor: colors.cardBorder };
+        return { ...base, borderColor: 'rgba(255,255,255,0.12)' };
       default:
-        return { ...base, ...shadow.sm, shadowColor: colors.shadowColor, shadowOpacity: colors.cardShadowOpacity };
+        return base;
     }
   };
 

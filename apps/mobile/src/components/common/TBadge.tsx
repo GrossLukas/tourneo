@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
-type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info' | 'membership';
+type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info' | 'membership' | 'live' | 'prize';
 type BadgeSize = 'sm' | 'md';
 
 interface TBadgeProps {
@@ -27,25 +27,29 @@ export const TBadge: React.FC<TBadgeProps> = ({
     if (variant === 'membership' && membershipTier) {
       switch (membershipTier) {
         case 'plus':
-          return { bg: colors.membership.plus + '20', text: colors.membership.plus };
+          return { bg: 'rgba(129,140,248,0.15)', text: '#818CF8' };
         case 'club':
-          return { bg: colors.membership.club + '20', text: colors.membership.club };
+          return { bg: 'rgba(245,158,11,0.15)', text: '#F59E0B' };
         default:
-          return { bg: colors.surfaceSecondary, text: colors.textSecondary };
+          return { bg: '#16162A', text: 'rgba(255,255,255,0.6)' };
       }
     }
 
     switch (variant) {
       case 'success':
-        return { bg: colors.successBg, text: colors.success };
+        return { bg: 'rgba(16,185,129,0.12)', text: '#10B981' };
       case 'warning':
-        return { bg: colors.warningBg, text: colors.warning };
+        return { bg: 'rgba(245,158,11,0.12)', text: '#F59E0B' };
       case 'error':
-        return { bg: colors.errorBg, text: colors.error };
+        return { bg: 'rgba(255,71,87,0.12)', text: '#FF4757' };
       case 'info':
-        return { bg: colors.primaryLight, text: colors.primary as string };
+        return { bg: 'rgba(99,102,241,0.12)', text: '#818CF8' };
+      case 'live':
+        return { bg: '#FF4757', text: '#FFFFFF' };
+      case 'prize':
+        return { bg: '#F59E0B', text: '#1A1000' };
       default:
-        return { bg: colors.surfaceSecondary, text: colors.textSecondary };
+        return { bg: '#16162A', text: 'rgba(255,255,255,0.6)' };
     }
   };
 

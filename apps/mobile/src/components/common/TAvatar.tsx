@@ -46,8 +46,10 @@ export const TAvatar: React.FC<TAvatarProps> = ({
   };
 
   const getBorderColor = (): string | undefined => {
-    if (!membershipTier || membershipTier === 'free') return undefined;
-    return membershipTier === 'club' ? colors.membership.club : colors.membership.plus;
+    // Night Court: every avatar gets an Indigo ring; tiers tint it
+    if (membershipTier === 'club') return '#F59E0B';
+    if (membershipTier === 'plus') return '#818CF8';
+    return '#6366F1';
   };
 
   const borderColor = getBorderColor();
@@ -60,19 +62,18 @@ export const TAvatar: React.FC<TAvatarProps> = ({
           width: dimension,
           height: dimension,
           borderRadius: dimension / 2,
-          backgroundColor: colors.primaryLight,
+          backgroundColor: 'rgba(99,102,241,0.15)',
+          borderWidth: 3,
+          borderColor: borderColor || '#6366F1',
         },
-        borderColor
-          ? { borderWidth: 2, borderColor }
-          : null,
       ]}
     >
       {uri ? (
         <Image
           source={{ uri }}
           style={{
-            width: dimension - (borderColor ? 4 : 0),
-            height: dimension - (borderColor ? 4 : 0),
+            width: dimension - 6,
+            height: dimension - 6,
             borderRadius: dimension / 2,
           }}
         />
@@ -82,7 +83,7 @@ export const TAvatar: React.FC<TAvatarProps> = ({
             styles.initials,
             {
               fontSize: fSize,
-              color: colors.primary as string,
+              color: '#FFFFFF',
             },
           ]}
         >

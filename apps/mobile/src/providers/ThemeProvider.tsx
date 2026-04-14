@@ -16,16 +16,17 @@ interface ThemeContextType {
 const THEME_STORAGE_KEY = '@tourneo_theme_preference';
 
 const ThemeContext = createContext<ThemeContextType>({
-  colors: getColors('light'),
-  scheme: 'light',
-  preference: 'system',
-  isDark: false,
+  colors: getColors('dark'),
+  scheme: 'dark',
+  preference: 'dark',
+  isDark: true,
   setPreference: () => {},
 });
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const systemScheme = useSystemColorScheme();
-  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+  // Night Court is dark-mode-first — default preference is `dark`
+  const [preference, setPreferenceState] = useState<ThemePreference>('dark');
   const [loaded, setLoaded] = useState(false);
 
   // Load stored preference on mount
@@ -43,9 +44,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     AsyncStorage.setItem(THEME_STORAGE_KEY, pref);
   }, []);
 
-  // Resolve actual scheme
+  // Resolve actual scheme – Night Court (dark) is the default
   const scheme: ColorScheme = preference === 'system'
-    ? (systemScheme ?? 'light')
+    ? (systemScheme === 'light' ? 'light' : 'dark')
     : preference;
 
   const colors = getColors(scheme);

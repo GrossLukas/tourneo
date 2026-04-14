@@ -18,12 +18,12 @@ function drawIcon(canvas, size) {
   canvas.width = size;
   canvas.height = size;
 
-  // Background gradient
+  // Night Court background — deep indigo-black
   const grad = ctx.createLinearGradient(0, 0, size, size);
-  grad.addColorStop(0, '#0A7E8C');
-  grad.addColorStop(0.5, '#0B8F9E');
-  grad.addColorStop(1, '#06616D');
-  
+  grad.addColorStop(0, '#0A0A14');
+  grad.addColorStop(0.5, '#111127');
+  grad.addColorStop(1, '#0A0A14');
+
   // Rounded rect background
   const r = size * 0.22;
   ctx.beginPath();
@@ -111,11 +111,11 @@ function drawIcon(canvas, size) {
   ctx.fillStyle = '#F0B800';
   ctx.fill();
   
-  // Padel ball on trophy
+  // Padel ball on trophy — Indigo accent
   const ballR = ts * 0.15;
   ctx.beginPath();
   ctx.arc(0, -ts * 0.2, ballR, 0, Math.PI * 2);
-  ctx.fillStyle = '#E8654A';
+  ctx.fillStyle = '#6366F1';
   ctx.fill();
   
   // Ball line
@@ -150,10 +150,10 @@ function drawSplash(canvas, w, h) {
   canvas.width = w;
   canvas.height = h;
 
-  // Background
+  // Night Court background
   const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, '#0A7E8C');
-  grad.addColorStop(1, '#06616D');
+  grad.addColorStop(0, '#0A0A14');
+  grad.addColorStop(1, '#0A0A14');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 

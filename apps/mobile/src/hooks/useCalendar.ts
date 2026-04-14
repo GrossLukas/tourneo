@@ -46,7 +46,7 @@ export function useCalendar() {
     if (Platform.OS === 'android') {
       const newCalId = await Calendar.createCalendarAsync({
         title: 'Tourneo Events',
-        color: '#0A7E8C',
+        color: '#6366F1',
         entityType: Calendar.EntityTypes.EVENT,
         source: {
           isLocalAccount: true,

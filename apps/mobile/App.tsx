@@ -16,7 +16,8 @@ function AppContent() {
   const { isDark } = useTheme();
   return (
     <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      {/* Night Court is dark-mode-first — always light status bar icons */}
+      <StatusBar style="light" backgroundColor="#0A0A14" />
       <ExpoRoot context={ctx} />
     </>
   );
@@ -37,5 +38,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0A0A14',
   },
 });

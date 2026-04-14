@@ -18,20 +18,21 @@ import { spacing, fontSize, fontWeight, radius } from '../src/theme/spacing';
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 function getNotificationIcon(type: AppNotification['type']): { name: IoniconsName; color: string } {
+  // Night Court palette
   switch (type) {
-    case 'event_reminder': return { name: 'alarm-outline', color: '#2563EB' };
-    case 'registration_confirmed': return { name: 'checkmark-circle-outline', color: '#059669' };
-    case 'waitlist_promoted': return { name: 'arrow-up-circle-outline', color: '#7C3AED' };
-    case 'match_result': return { name: 'trophy-outline', color: '#D97706' };
-    case 'match_upcoming': return { name: 'time-outline', color: '#2563EB' };
-    case 'bracket_published': return { name: 'git-network-outline', color: '#0A7E8C' };
-    case 'friend_request': return { name: 'person-add-outline', color: '#7C3AED' };
-    case 'team_invite': return { name: 'people-outline', color: '#0A7E8C' };
-    case 'payment_confirmed': return { name: 'card-outline', color: '#059669' };
-    case 'payment_refunded': return { name: 'arrow-undo-outline', color: '#D97706' };
-    case 'membership_expiring': return { name: 'warning-outline', color: '#DC2626' };
-    case 'system_announcement': return { name: 'megaphone-outline', color: '#6B7280' };
-    default: return { name: 'notifications-outline', color: '#6B7280' };
+    case 'event_reminder': return { name: 'alarm-outline', color: '#FF4757' };
+    case 'registration_confirmed': return { name: 'checkmark-circle-outline', color: '#10B981' };
+    case 'waitlist_promoted': return { name: 'arrow-up-circle-outline', color: '#818CF8' };
+    case 'match_result': return { name: 'trophy-outline', color: '#F59E0B' };
+    case 'match_upcoming': return { name: 'time-outline', color: '#FF4757' };
+    case 'bracket_published': return { name: 'git-network-outline', color: '#6366F1' };
+    case 'friend_request': return { name: 'person-add-outline', color: '#818CF8' };
+    case 'team_invite': return { name: 'people-outline', color: '#6366F1' };
+    case 'payment_confirmed': return { name: 'card-outline', color: '#10B981' };
+    case 'payment_refunded': return { name: 'arrow-undo-outline', color: '#F59E0B' };
+    case 'membership_expiring': return { name: 'warning-outline', color: '#FF4757' };
+    case 'system_announcement': return { name: 'megaphone-outline', color: 'rgba(255,255,255,0.4)' };
+    default: return { name: 'notifications-outline', color: 'rgba(255,255,255,0.4)' };
   }
 }
 
@@ -80,7 +81,9 @@ function NotificationItem({ notification, colors, t, onPress, onDelete }: Notifi
       }}
       style={[
         styles.notifItem,
-        { backgroundColor: notification.read ? colors.bg : colors.primaryLight, borderColor: colors.cardBorder },
+        notification.read
+          ? { backgroundColor: '#0A0A14', borderLeftWidth: 0, borderColor: 'rgba(255,255,255,0.06)' }
+          : { backgroundColor: 'rgba(99,102,241,0.06)', borderLeftWidth: 2, borderLeftColor: '#6366F1', borderColor: 'rgba(99,102,241,0.15)' },
       ]}
     >
       <View style={[styles.notifIcon, { backgroundColor: `${icon.color}15` }]}>
