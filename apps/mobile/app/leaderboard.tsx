@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   podiumSlot: { flex: 1, alignItems: 'center' },
   podiumAvatar: {
     width: 52, height: 52, borderRadius: 26, borderWidth: 3,
-    alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F4F6',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: '#16162A',
     marginBottom: spacing.xs, overflow: 'hidden',
   },
   podiumAvatarFirst: { width: 64, height: 64, borderRadius: 32, borderWidth: 4 },

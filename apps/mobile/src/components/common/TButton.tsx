@@ -11,7 +11,7 @@ import {
 import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'gold';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface TButtonProps {
@@ -52,12 +52,13 @@ export const TButton: React.FC<TButtonProps> = ({
   const getBackgroundColor = (): string => {
     if (disabled) return colors.surfacePressed;
     switch (variant) {
-      case 'primary': return colors.primary as string;
-      case 'secondary': return colors.accent;
+      case 'primary': return '#6366F1';
+      case 'secondary': return 'transparent';
       case 'outline': return 'transparent';
       case 'ghost': return 'transparent';
-      case 'danger': return colors.error;
-      default: return colors.primary as string;
+      case 'danger': return 'rgba(255,71,87,0.12)';
+      case 'gold': return '#F59E0B';
+      default: return '#6366F1';
     }
   };
 
@@ -65,18 +66,28 @@ export const TButton: React.FC<TButtonProps> = ({
     if (disabled) return colors.textTertiary;
     switch (variant) {
       case 'primary': return '#FFFFFF';
-      case 'secondary': return '#FFFFFF';
-      case 'outline': return colors.primary as string;
-      case 'ghost': return colors.primary as string;
-      case 'danger': return '#FFFFFF';
+      case 'secondary': return '#818CF8';
+      case 'outline': return '#818CF8';
+      case 'ghost': return '#818CF8';
+      case 'danger': return '#FF4757';
+      case 'gold': return '#1A1000';
       default: return '#FFFFFF';
     }
   };
 
   const getBorderColor = (): string => {
     if (disabled) return colors.surfacePressed;
-    if (variant === 'outline') return colors.primary as string;
+    if (variant === 'outline') return 'rgba(99,102,241,0.4)';
+    if (variant === 'secondary') return 'rgba(99,102,241,0.4)';
+    if (variant === 'danger') return 'rgba(255,71,87,0.3)';
     return 'transparent';
+  };
+
+  const getBorderWidth = (): number => {
+    if (variant === 'outline') return 1.5;
+    if (variant === 'secondary') return StyleSheet.hairlineWidth;
+    if (variant === 'danger') return StyleSheet.hairlineWidth;
+    return 0;
   };
 
   const s = sizeStyles[size];
@@ -93,7 +104,7 @@ export const TButton: React.FC<TButtonProps> = ({
           paddingHorizontal: s.paddingHorizontal,
           backgroundColor: getBackgroundColor(),
           borderColor: getBorderColor(),
-          borderWidth: variant === 'outline' ? 1.5 : 0,
+          borderWidth: getBorderWidth(),
           width: fullWidth ? '100%' : undefined,
         },
         style,

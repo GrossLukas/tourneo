@@ -107,6 +107,7 @@ export default function RootLayout() {
         headerShown: false,
         contentStyle: { backgroundColor: colors.bg },
         animation: 'slide_from_right',
+        navigationBarColor: '#0A0A14',
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

@@ -37,9 +37,9 @@ export const TInput: React.FC<TInputProps> = ({
   const [focused, setFocused] = useState(false);
 
   const getBorderColor = (): string => {
-    if (error) return colors.error;
-    if (focused) return colors.borderFocus;
-    return colors.border;
+    if (error) return '#FF4757';
+    if (focused) return '#6366F1';
+    return 'rgba(255,255,255,0.08)';
   };
 
   return (
@@ -47,7 +47,7 @@ export const TInput: React.FC<TInputProps> = ({
       {label && (
         <Text style={[styles.label, { color: colors.textSecondary }]}>
           {label}
-          {required && <Text style={{ color: colors.error }}> *</Text>}
+          {required && <Text style={{ color: '#FF4757' }}> *</Text>}
         </Text>
       )}
       <View
@@ -55,7 +55,7 @@ export const TInput: React.FC<TInputProps> = ({
           styles.inputContainer,
           {
             borderColor: getBorderColor(),
-            backgroundColor: colors.surfaceSecondary,
+            backgroundColor: '#16162A',
           },
           focused && styles.inputFocused,
           error ? styles.inputError : null,
@@ -67,11 +67,11 @@ export const TInput: React.FC<TInputProps> = ({
           style={[
             styles.input,
             {
-              color: colors.textPrimary,
+              color: '#FFFFFF',
             },
             leftIcon ? { paddingLeft: 0 } : null,
           ]}
-          placeholderTextColor={colors.textTertiary}
+          placeholderTextColor="rgba(255,255,255,0.3)"
           onFocus={(e) => {
             setFocused(true);
             inputProps.onFocus?.(e);
@@ -92,7 +92,7 @@ export const TInput: React.FC<TInputProps> = ({
         )}
       </View>
       {error && (
-        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+        <Text style={[styles.errorText, { color: '#FF4757' }]}>{error}</Text>
       )}
       {hint && !error && (
         <Text style={[styles.hintText, { color: colors.textTertiary }]}>{hint}</Text>
@@ -113,16 +113,16 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     height: 48,
   },
   inputFocused: {
-    borderWidth: 2,
+    borderWidth: 1,
   },
   inputError: {
-    borderWidth: 2,
+    borderWidth: 1,
   },
   input: {
     flex: 1,

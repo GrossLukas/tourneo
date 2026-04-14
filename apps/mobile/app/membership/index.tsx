@@ -32,7 +32,7 @@ const TIERS: Record<Tier, {
     price: '0 €',
     priceNote: 'Kostenlos',
     icon: '🎾',
-    color: '#8E95A9',
+    color: '#888780',
     features: [
       'Öffentliche Turniere',
       'Platzsuche & Entdecken',
@@ -48,7 +48,7 @@ const TIERS: Record<Tier, {
     price: '7,99 €',
     priceNote: 'pro Monat',
     icon: '⭐',
-    color: '#0A7E8C',
+    color: '#818CF8',
     features: [
       'Alle Free-Features',
       '10% Rabatt auf Turniergebühren',

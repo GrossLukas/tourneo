@@ -1,21 +1,22 @@
 {
   "expo": {
-    "name": "Tourneo",
+    "name": "Turneo",
     "slug": "tourneo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#065B66"
+      "backgroundColor": "#0A0A14"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "de.tourneo.app",
       "buildNumber": "2",
+      "backgroundColor": "#0A0A14",
       "infoPlist": {
         "NSCameraUsageDescription": "Tourneo benötigt Zugriff auf die Kamera für dein Profilbild.",
         "NSPhotoLibraryUsageDescription": "Tourneo benötigt Zugriff auf deine Fotos für dein Profilbild.",
@@ -28,8 +29,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#065B66"
+        "backgroundColor": "#0A0A14"
       },
+      "backgroundColor": "#0A0A14",
       "package": "de.tourneo.app",
       "versionCode": 1,
       "permissions": [

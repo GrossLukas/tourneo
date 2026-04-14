@@ -91,19 +91,32 @@ export const EventCard: React.FC<EventCardProps> = ({ event, onPress }) => {
 
         <View style={[styles.footer, { borderTopColor: colors.divider }]}>
           <View style={styles.feeContainer}>
-            <Text style={[styles.fee, { color: colors.primary as string }]}>
+            <Text style={[styles.fee, { color: '#818CF8' }]}>
               {feeAmount > 0 ? `${feeAmount.toFixed(2)} €` : 'Kostenlos'}
             </Text>
             {prizeTotal > 0 && (
-              <Text style={[styles.prize, { color: colors.success }]}>
+              <Text style={[styles.prize, { color: '#F59E0B' }]}>
                 🏆 {prizeTotal.toFixed(0)} € Preisgeld
               </Text>
             )}
           </View>
-          <Text style={[styles.participants, { color: colors.textTertiary }]}>
+          <Text style={[styles.participants, { color: 'rgba(255,255,255,0.4)' }]}>
             {event.participant_count}/{event.max_participants} Spieler
           </Text>
         </View>
+
+        {/* Fill bar – Night Court */}
+        {(() => {
+          const fillRatio = event.max_participants > 0
+            ? Math.min(1, event.participant_count / event.max_participants)
+            : 0;
+          const fillColor = fillRatio > 0.85 ? '#FF4757' : fillRatio > 0.6 ? '#F59E0B' : '#10B981';
+          return (
+            <View style={styles.fillBarTrack}>
+              <View style={[styles.fillBarFill, { width: `${fillRatio * 100}%`, backgroundColor: fillColor }]} />
+            </View>
+          );
+        })()}
       </View>
     </TCard>
   );
@@ -164,5 +177,16 @@ const styles = StyleSheet.create({
   },
   participants: {
     fontSize: fontSize.sm,
+  },
+  fillBarTrack: {
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 2,
+    marginTop: spacing.sm,
+    overflow: 'hidden',
+  },
+  fillBarFill: {
+    height: '100%',
+    borderRadius: 2,
   },
 });
