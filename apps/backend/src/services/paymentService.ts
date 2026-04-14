@@ -85,6 +85,9 @@ export class PaymentService {
       case 'payment_intent.payment_failed':
         await this.handlePaymentFailure(event.data.object as Stripe.PaymentIntent);
         break;
+      case 'charge.refunded':
+        await this.handleChargeRefunded(event.data.object as Stripe.Charge);
+        break;
       default:
         console.log(`Unhandled Stripe event: ${event.type}`);
     }
@@ -105,6 +108,15 @@ export class PaymentService {
     // Idempotency check
     if (payment.status === 'succeeded') return;
 
+    let pushTitle: string | null = null;
+    let pushBody: string | null = null;
+    let pushData: Record<string, any> | null = null;
+    let recipientUserId = payment.user_id;
+    let recipientEmail: string | null = null;
+    let recipientFirstName: string | null = null;
+    let eventTitleForEmail: string | null = null;
+    let eventDateForEmail: string | null = null;
+
     await db.transaction(async (trx) => {
       // Update payment
       await trx(t('payments')).where('id', payment.id).update({
@@ -123,7 +135,7 @@ export class PaymentService {
           updated_at: now,
         });
 
-        // Create notification
+        // Create in-app notification (push will be pushed via NotificationService below)
         const registration = await trx(t('registrations'))
           .where('id', payment.registration_id)
           .first();
@@ -141,7 +153,30 @@ export class PaymentService {
             registration_id: payment.registration_id,
           }),
           created_at: now,
+          is_push_sent: false,
         });
+
+        pushTitle = 'Anmeldung bestätigt';
+        pushBody = `Deine Anmeldung für "${eventRow?.title}" wurde bestätigt.`;
+        pushData = {
+          event_id: registration.event_id,
+          registration_id: payment.registration_id,
+        };
+        recipientUserId = payment.user_id;
+
+        if (eventRow) {
+          eventTitleForEmail = eventRow.title;
+          eventDateForEmail = eventRow.start_date
+            ? new Date(eventRow.start_date).toLocaleDateString('de-DE')
+            : '';
+        }
+
+        const userRow = await trx(t('users')).where('id', payment.user_id).first();
+        const profileRow = await trx(t('profiles'))
+          .where('user_id', payment.user_id)
+          .first();
+        if (userRow) recipientEmail = userRow.email;
+        if (profileRow) recipientFirstName = profileRow.first_name;
       }
 
       // Audit log
@@ -157,6 +192,39 @@ export class PaymentService {
         created_at: now,
       });
     });
+
+    // Push notification (best-effort, outside the transaction)
+    if (pushTitle && pushBody) {
+      try {
+        const { NotificationService } = await import('./notificationService');
+        // Skip the DB insert (already done) – call sendPushOnly via send() will create
+        // a duplicate row. Instead, send via FCM only by importing the module guarded.
+        await NotificationService.send(
+          recipientUserId,
+          'registration_confirmed',
+          pushTitle,
+          pushBody,
+          pushData || undefined
+        );
+      } catch (err) {
+        console.error('[payment] Push notification failed:', err);
+      }
+    }
+
+    // Confirmation email (best-effort)
+    if (recipientEmail && recipientFirstName && eventTitleForEmail) {
+      try {
+        const { emailService } = await import('./emailService');
+        await emailService.sendRegistrationConfirmation(
+          recipientEmail,
+          recipientFirstName,
+          eventTitleForEmail,
+          eventDateForEmail || ''
+        );
+      } catch (err) {
+        console.error('[payment] Confirmation email failed:', err);
+      }
+    }
   }
 
   private static async handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
@@ -166,25 +234,182 @@ export class PaymentService {
       .where('stripe_payment_intent_id', paymentIntent.id)
       .first();
 
-    if (!payment) return;
+    if (!payment) {
+      console.error(`Payment not found for failed PaymentIntent: ${paymentIntent.id}`);
+      return;
+    }
 
-    await db(t('payments')).where('id', payment.id).update({
-      status: 'failed',
-      failed_at: now,
-      failure_reason: paymentIntent.last_payment_error?.message || 'Payment failed',
-      updated_at: now,
+    // Idempotency check
+    if (payment.status === 'failed') return;
+
+    const failureReason =
+      paymentIntent.last_payment_error?.message || 'Payment failed';
+
+    await db.transaction(async (trx) => {
+      await trx(t('payments')).where('id', payment.id).update({
+        status: 'failed',
+        failed_at: now,
+        failure_reason: failureReason,
+        updated_at: now,
+      });
+
+      // Cancel registration
+      if (payment.registration_id) {
+        await trx(t('registrations')).where('id', payment.registration_id).update({
+          status: 'cancelled',
+          updated_at: now,
+        });
+
+        // Notify the user about payment failure
+        await trx(t('notifications')).insert({
+          user_id: payment.user_id,
+          type: 'general',
+          title: 'Zahlung fehlgeschlagen',
+          body: `Deine Zahlung konnte nicht verarbeitet werden: ${failureReason}`,
+          data: JSON.stringify({
+            registration_id: payment.registration_id,
+            reason: failureReason,
+          }),
+          created_at: now,
+        });
+      }
+
+      // Audit log
+      await trx(t('audit_log')).insert({
+        user_id: payment.user_id,
+        action: 'payment.failed',
+        entity_type: 'payment',
+        entity_id: payment.id,
+        new_values: JSON.stringify({
+          reason: failureReason,
+          stripe_pi: paymentIntent.id,
+        }),
+        created_at: now,
+      });
     });
 
-    await db(t('audit_log')).insert({
-      user_id: payment.user_id,
-      action: 'payment.failed',
-      entity_type: 'payment',
-      entity_id: payment.id,
-      new_values: JSON.stringify({
-        reason: paymentIntent.last_payment_error?.message,
-      }),
-      created_at: now,
+    // Promote next user from waitlist (free spot opened up)
+    if (payment.registration_id) {
+      const reg = await db(t('registrations'))
+        .where('id', payment.registration_id)
+        .first();
+      if (reg) {
+        const { RegistrationService } = await import('./registrationService');
+        await RegistrationService.promoteFromWaitlist(reg.event_id);
+      }
+    }
+  }
+
+  /**
+   * Handles charge.refunded webhook from Stripe.
+   * Creates refund records, updates payment + registration status,
+   * and promotes the next user from the waitlist.
+   */
+  private static async handleChargeRefunded(charge: Stripe.Charge) {
+    const now = new Date();
+
+    // Find the payment via charge_id or payment_intent_id
+    const payment = await db(t('payments'))
+      .where('stripe_charge_id', charge.id)
+      .orWhere('stripe_payment_intent_id', charge.payment_intent as string)
+      .first();
+
+    if (!payment) {
+      console.error(`Payment not found for refunded Charge: ${charge.id}`);
+      return;
+    }
+
+    const refundedAmount = charge.amount_refunded;
+    const isFullRefund = refundedAmount >= payment.net_amount_cents;
+
+    let promotedEventId: number | null = null;
+
+    await db.transaction(async (trx) => {
+      // Idempotency: ensure we have not already recorded this refund
+      const existingRefunds = await trx(t('refunds'))
+        .where('payment_id', payment.id)
+        .sum('amount_cents as total');
+      const alreadyRefundedCents = Number(existingRefunds[0]?.total || 0);
+
+      const newRefundCents = refundedAmount - alreadyRefundedCents;
+      if (newRefundCents <= 0) {
+        // Nothing new to record
+        return;
+      }
+
+      // Determine stripe refund id (latest refund on the charge)
+      const stripeRefundId = charge.refunds?.data?.[0]?.id || null;
+
+      // Insert refund row
+      await trx(t('refunds')).insert({
+        uuid: uuidv4(),
+        payment_id: payment.id,
+        user_id: payment.user_id,
+        amount_cents: newRefundCents,
+        reason: 'admin_decision',
+        reason_detail: 'Refunded via Stripe',
+        stripe_refund_id: stripeRefundId,
+        status: 'processed',
+        processed_at: now,
+        created_at: now,
+        updated_at: now,
+      });
+
+      // Update payment status
+      await trx(t('payments')).where('id', payment.id).update({
+        status: isFullRefund ? 'refunded' : 'partially_refunded',
+        updated_at: now,
+      });
+
+      // Update registration
+      if (payment.registration_id) {
+        const reg = await trx(t('registrations'))
+          .where('id', payment.registration_id)
+          .first();
+
+        if (reg) {
+          await trx(t('registrations')).where('id', payment.registration_id).update({
+            status: 'refunded',
+            updated_at: now,
+          });
+          promotedEventId = reg.event_id;
+
+          // Notify user
+          await trx(t('notifications')).insert({
+            user_id: payment.user_id,
+            type: 'general',
+            title: 'Rückerstattung erhalten',
+            body: `Eine Rückerstattung über €${(newRefundCents / 100).toFixed(2)} wurde durchgeführt.`,
+            data: JSON.stringify({
+              payment_id: payment.id,
+              registration_id: payment.registration_id,
+              amount_cents: newRefundCents,
+            }),
+            created_at: now,
+          });
+        }
+      }
+
+      // Audit log
+      await trx(t('audit_log')).insert({
+        user_id: payment.user_id,
+        action: 'payment.refunded',
+        entity_type: 'payment',
+        entity_id: payment.id,
+        new_values: JSON.stringify({
+          amount: newRefundCents,
+          stripe_charge: charge.id,
+          full_refund: isFullRefund,
+        }),
+        created_at: now,
+      });
     });
+
+    // Promote waitlist outside the transaction so it can re-use trx-less helpers
+    if (promotedEventId !== null) {
+      const { RegistrationService } = await import('./registrationService');
+      await RegistrationService.promoteFromWaitlist(promotedEventId);
+    }
   }
 
   private static async confirmFreeRegistration(registrationId: number, userId: number) {

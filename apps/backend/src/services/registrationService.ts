@@ -212,10 +212,32 @@ export class RegistrationService {
     };
   }
 
+  /**
+   * Promotes the next user from the waitlist to a pending_payment slot.
+   * - Checks capacity first to avoid over-booking.
+   * - Sends an in-app + push notification via NotificationService.
+   * - Sets a 24h payment window (waitlist_promoted_at + 24h).
+   *
+   * Re-runs idempotently: callers may invoke after every cancellation
+   * or refund and any cron job can call this safely.
+   */
   static async promoteFromWaitlist(eventId: number, trx?: any) {
     const executor = trx || db;
 
-    // Find next waitlisted registration by priority: Club > Plus > Free, then by time
+    const event = await executor(t('events')).where('id', eventId).first();
+    if (!event) return null;
+
+    // Capacity check
+    const [{ count: activeCount }] = await executor(t('registrations'))
+      .where('event_id', eventId)
+      .whereIn('status', ['confirmed', 'pending_payment'])
+      .count('* as count');
+
+    if (Number(activeCount) >= event.max_participants) {
+      return null;
+    }
+
+    // Find next waitlisted registration by priority: Club > Plus > Free, then position/time
     const nextInLine = await executor(t('registrations'))
       .where('event_id', eventId)
       .where('status', 'waitlisted')
@@ -225,28 +247,71 @@ export class RegistrationService {
           WHEN 'plus' THEN 2
           WHEN 'free' THEN 3
         END ASC,
+        COALESCE(waitlist_position, 999999) ASC,
         created_at ASC
       `)
       .first();
 
-    if (nextInLine) {
-      await executor(t('registrations')).where('id', nextInLine.id).update({
-        status: 'pending_payment',
-        waitlist_position: null,
-        waitlist_promoted_at: new Date(),
-        updated_at: new Date(),
-      });
+    if (!nextInLine) return null;
 
-      // Create notification
+    const now = new Date();
+    await executor(t('registrations')).where('id', nextInLine.id).update({
+      status: 'pending_payment',
+      waitlist_position: null,
+      waitlist_promoted_at: now,
+      updated_at: now,
+    });
+
+    // Notification: only push outside any open transaction so we don't
+    // hold connection on a slow Firebase round-trip.
+    if (!trx) {
+      try {
+        const { NotificationService } = await import('./notificationService');
+        await NotificationService.send(
+          nextInLine.user_id,
+          'waitlist_promoted',
+          'Du bist dabei!',
+          'Ein Platz ist frei geworden. Bitte schließe deine Zahlung innerhalb von 24 Stunden ab.',
+          { event_id: eventId, registration_id: nextInLine.id }
+        );
+      } catch (err) {
+        console.error('[waitlist] Failed to notify promoted user:', err);
+      }
+    } else {
+      // Inside a transaction – just persist the notification row.
       await executor(t('notifications')).insert({
         user_id: nextInLine.user_id,
         type: 'waitlist_promoted',
         title: 'Du bist dabei!',
-        body: 'Ein Platz ist frei geworden. Bitte schließe deine Zahlung ab.',
+        body: 'Ein Platz ist frei geworden. Bitte schließe deine Zahlung innerhalb von 24 Stunden ab.',
         data: JSON.stringify({ event_id: eventId, registration_id: nextInLine.id }),
-        created_at: new Date(),
+        created_at: now,
       });
     }
+
+    return nextInLine.id as number;
+  }
+
+  /**
+   * Cron-friendly: cancels promoted waitlist users that have not paid
+   * within 24h and promotes the next one. Safe to call from any scheduler.
+   */
+  static async expireUnpaidPromotions() {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const expired = await db(t('registrations'))
+      .where('status', 'pending_payment')
+      .whereNotNull('waitlist_promoted_at')
+      .where('waitlist_promoted_at', '<', cutoff);
+
+    for (const reg of expired) {
+      await db(t('registrations')).where('id', reg.id).update({
+        status: 'cancelled',
+        updated_at: new Date(),
+      });
+      await this.promoteFromWaitlist(reg.event_id);
+    }
+
+    return { expired_count: expired.length };
   }
 
   static async checkIn(registrationId: number, userId: number) {

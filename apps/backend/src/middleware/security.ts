@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { redis } from '../config/redis';
 
 /**
  * Security middleware to prevent common attack vectors
@@ -69,27 +70,100 @@ export function requestSizeLimiter(maxSizeKB: number = 512) {
   };
 }
 
-// IP-based brute force protection store (in-memory, use Redis in production)
-const loginAttempts = new Map<string, { count: number; lastAttempt: number; blockedUntil: number }>();
+// ─────────────────────────────────────────────────────────────
+// IP-based brute force protection
+//
+// Uses Redis (preferred) when REDIS_URL is configured, otherwise falls back
+// to an in-process Map – which is fine for single-instance dev/preview.
+// ─────────────────────────────────────────────────────────────
+type AttemptRecord = { count: number; lastAttempt: number; blockedUntil: number };
+const loginAttempts = new Map<string, AttemptRecord>();
 
-export function bruteForceProtection(maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000, blockDurationMs: number = 30 * 60 * 1000) {
-  // Cleanup old entries every 10 minutes
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, value] of loginAttempts.entries()) {
-      if (now - value.lastAttempt > windowMs * 2) {
-        loginAttempts.delete(key);
-      }
+const COUNT_KEY = (ip: string) => `brute:count:${ip}`;
+const BLOCK_KEY = (ip: string) => `brute:block:${ip}`;
+
+async function getRecord(ip: string, windowMs: number): Promise<AttemptRecord> {
+  if (redis) {
+    const [countStr, blockedStr] = await Promise.all([
+      redis.get(COUNT_KEY(ip)),
+      redis.get(BLOCK_KEY(ip)),
+    ]);
+    return {
+      count: countStr ? parseInt(countStr, 10) : 0,
+      lastAttempt: Date.now(),
+      blockedUntil: blockedStr ? parseInt(blockedStr, 10) : 0,
+    };
+  }
+  const rec = loginAttempts.get(ip);
+  if (!rec) return { count: 0, lastAttempt: 0, blockedUntil: 0 };
+  // Reset if window expired
+  if (Date.now() - rec.lastAttempt > windowMs) {
+    loginAttempts.delete(ip);
+    return { count: 0, lastAttempt: 0, blockedUntil: 0 };
+  }
+  return rec;
+}
+
+async function incrementAttempts(
+  ip: string,
+  maxAttempts: number,
+  windowMs: number,
+  blockDurationMs: number
+): Promise<void> {
+  if (redis) {
+    const newCount = await redis.incr(COUNT_KEY(ip));
+    if (newCount === 1) {
+      await redis.pexpire(COUNT_KEY(ip), windowMs);
     }
-  }, 10 * 60 * 1000);
+    if (newCount >= maxAttempts) {
+      await redis.set(BLOCK_KEY(ip), String(Date.now() + blockDurationMs), 'PX', blockDurationMs);
+      await redis.del(COUNT_KEY(ip));
+    }
+    return;
+  }
+  const now = Date.now();
+  const current = loginAttempts.get(ip) || { count: 0, lastAttempt: now, blockedUntil: 0 };
+  current.count += 1;
+  current.lastAttempt = now;
+  if (current.count >= maxAttempts) {
+    current.blockedUntil = now + blockDurationMs;
+    current.count = 0;
+  }
+  loginAttempts.set(ip, current);
+}
 
-  return (req: Request, res: Response, next: NextFunction) => {
+async function clearAttempts(ip: string): Promise<void> {
+  if (redis) {
+    await Promise.all([redis.del(COUNT_KEY(ip)), redis.del(BLOCK_KEY(ip))]);
+    return;
+  }
+  loginAttempts.delete(ip);
+}
+
+export function bruteForceProtection(
+  maxAttempts: number = 5,
+  windowMs: number = 15 * 60 * 1000,
+  blockDurationMs: number = 30 * 60 * 1000
+) {
+  // In-memory cleanup (only if no Redis)
+  if (!redis) {
+    setInterval(() => {
+      const now = Date.now();
+      for (const [key, value] of loginAttempts.entries()) {
+        if (now - value.lastAttempt > windowMs * 2) {
+          loginAttempts.delete(key);
+        }
+      }
+    }, 10 * 60 * 1000);
+  }
+
+  return async (req: Request, res: Response, next: NextFunction) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const now = Date.now();
 
-    const record = loginAttempts.get(ip);
-    if (record) {
-      // Check if currently blocked
+    try {
+      const record = await getRecord(ip, windowMs);
+      const now = Date.now();
+
       if (record.blockedUntil > now) {
         const remainingSec = Math.ceil((record.blockedUntil - now) / 1000);
         return res.status(429).json({
@@ -98,29 +172,23 @@ export function bruteForceProtection(maxAttempts: number = 5, windowMs: number =
         });
       }
 
-      // Reset if window has passed
-      if (now - record.lastAttempt > windowMs) {
-        loginAttempts.delete(ip);
-      }
+      // Attach helpers (kept synchronous in interface, but use promises internally)
+      (req as any).trackFailedLogin = () => {
+        incrementAttempts(ip, maxAttempts, windowMs, blockDurationMs).catch((err) => {
+          console.error('[security] trackFailedLogin error:', err);
+        });
+      };
+      (req as any).resetLoginAttempts = () => {
+        clearAttempts(ip).catch((err) => {
+          console.error('[security] resetLoginAttempts error:', err);
+        });
+      };
+
+      next();
+    } catch (err) {
+      console.error('[security] bruteForceProtection error:', err);
+      next();
     }
-
-    // Attach helper to track failed attempts
-    (req as any).trackFailedLogin = () => {
-      const current = loginAttempts.get(ip) || { count: 0, lastAttempt: now, blockedUntil: 0 };
-      current.count += 1;
-      current.lastAttempt = now;
-      if (current.count >= maxAttempts) {
-        current.blockedUntil = now + blockDurationMs;
-        current.count = 0;
-      }
-      loginAttempts.set(ip, current);
-    };
-
-    (req as any).resetLoginAttempts = () => {
-      loginAttempts.delete(ip);
-    };
-
-    next();
   };
 }
 

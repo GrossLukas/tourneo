@@ -20,7 +20,8 @@
         "NSCameraUsageDescription": "Tourneo benötigt Zugriff auf die Kamera für dein Profilbild.",
         "NSPhotoLibraryUsageDescription": "Tourneo benötigt Zugriff auf deine Fotos für dein Profilbild.",
         "NSCalendarsUsageDescription": "Tourneo benötigt Zugriff auf deinen Kalender, um Turniertermine hinzuzufügen.",
-        "NSFaceIDUsageDescription": "Tourneo nutzt Face ID für schnelles und sicheres Anmelden."
+        "NSFaceIDUsageDescription": "Tourneo nutzt Face ID für schnelles und sicheres Anmelden.",
+        "NSLocationWhenInUseUsageDescription": "Tourneo nutzt deinen Standort, um Hallen in deiner Nähe anzuzeigen."
       },
       "usesAppleSignIn": true
     },
@@ -30,6 +31,7 @@
         "backgroundColor": "#065B66"
       },
       "package": "de.tourneo.app",
+      "versionCode": 1,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
@@ -39,8 +41,13 @@
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED",
         "USE_BIOMETRIC",
-        "USE_FINGERPRINT"
-      ]
+        "USE_FINGERPRINT",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "softwareKeyboardLayoutMode": "pan",
+      "allowBackup": false,
+      "enableDangerousExperimentalLeanBuilds": false
     },
     "plugins": [
       "expo-router",
@@ -50,7 +57,13 @@
       "expo-notifications",
       "expo-image-picker",
       "expo-apple-authentication",
-      "expo-local-authentication"
+      "expo-local-authentication",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Tourneo nutzt deinen Standort, um Hallen in deiner Nähe anzuzeigen."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
