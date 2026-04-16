@@ -46,6 +46,7 @@ interface EventState {
   events: Event[];
   currentEvent: Event | null;
   loading: boolean;
+  error: string | null;
   filters: Record<string, any>;
   meta: { page: number; total: number; total_pages: number };
 
@@ -59,11 +60,12 @@ export const useEventStore = create<EventState>((set, get) => ({
   events: [],
   currentEvent: null,
   loading: false,
+  error: null,
   filters: {},
   meta: { page: 1, total: 0, total_pages: 0 },
 
   fetchEvents: async (filters?: Record<string, any>) => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
       const params = { ...get().filters, ...filters };
       const response = await apiClient.get('/events', { params });
@@ -73,18 +75,18 @@ export const useEventStore = create<EventState>((set, get) => ({
         loading: false,
       });
     } catch (error) {
-      set({ loading: false });
+      set({ loading: false, error: 'Turniere konnten nicht geladen werden.' });
       console.error('Failed to fetch events:', error);
     }
   },
 
   fetchEventById: async (id: number) => {
-    set({ loading: true });
+    set({ loading: true, error: null });
     try {
       const response = await apiClient.get(`/events/${id}`);
       set({ currentEvent: response.data.data, loading: false });
     } catch (error) {
-      set({ loading: false });
+      set({ loading: false, error: 'Event konnte nicht geladen werden.' });
       console.error('Failed to fetch event:', error);
     }
   },

@@ -18,5 +18,8 @@
     "install:all": "npm install"
   },
   "author": "Lukas Gross <gross.lukas01@web.de>",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "overrides": {
+    "react": "19.1.0"
+  }
 }

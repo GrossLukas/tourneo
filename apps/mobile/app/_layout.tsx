@@ -12,6 +12,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { useConsentStore } from '../src/store/consentStore';
 import { useNotificationStore } from '../src/store/notificationStore';
 import { useTheme } from '../src/providers/ThemeProvider';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 /* ── Push-notification handler (foreground) ─────────────────────── */
 Notifications.setNotificationHandler({
@@ -40,7 +41,7 @@ async function registerForPushNotifications(): Promise<string | null> {
 
   try {
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: process.env.EXPO_PROJECT_ID,
+      projectId: process.env.EXPO_PUBLIC_EXPO_PROJECT_ID,
     });
     return tokenData.data;
   } catch {
@@ -69,9 +70,14 @@ export default function RootLayout() {
   /* ── App boot ─────────────────────────────────────────────── */
   useEffect(() => {
     const boot = async () => {
-      await initialize();
-      await initializeConsent();
-      initialised.current = true;
+      try {
+        await initialize();
+        await initializeConsent();
+      } catch (err) {
+        console.error('[boot] Initialization failed:', err);
+      } finally {
+        initialised.current = true;
+      }
     };
     boot();
   }, []);
@@ -102,6 +108,7 @@ export default function RootLayout() {
   }, [isAuthenticated, hasConsented, segments]);
 
   return (
+    <ErrorBoundary>
     <Stack
       screenOptions={{
         headerShown: false,
@@ -116,6 +123,11 @@ export default function RootLayout() {
       <Stack.Screen name="event/register/[id]" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="event/bracket/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="event/checkout/[id]" options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="event/referee/[matchId]" options={{ headerShown: false }} />
+      <Stack.Screen name="event/partners/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="event/chat/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="event/recap/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="event/waitlist/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="venue/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="membership" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="notifications" options={{ headerShown: false }} />
@@ -124,5 +136,6 @@ export default function RootLayout() {
       <Stack.Screen name="legal/[type]" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
     </Stack>
+    </ErrorBoundary>
   );
 }

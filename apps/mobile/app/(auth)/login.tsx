@@ -43,7 +43,7 @@ export default function LoginScreen() {
     if (biometricStore.isInitialized && biometricStore.enabled && biometrics.isAvailable && !biometrics.isChecking) {
       handleBiometricLogin();
     }
-  }, [biometricStore.isInitialized, biometrics.isChecking]);
+  }, [biometricStore.isInitialized, biometricStore.enabled, biometrics.isAvailable, biometrics.isChecking]);
 
   const showBiometricButton = biometrics.isAvailable && biometricStore.enabled;
 

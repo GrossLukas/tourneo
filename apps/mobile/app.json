@@ -48,8 +48,7 @@
         "ACCESS_FINE_LOCATION"
       ],
       "softwareKeyboardLayoutMode": "pan",
-      "allowBackup": false,
-      "enableDangerousExperimentalLeanBuilds": false
+      "allowBackup": false
     },
     "plugins": [
       "expo-router",

@@ -1,9 +1,15 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
-const API_BASE_URL = __DEV__
-  ? 'http://localhost:3000/api/v1'
-  : 'https://api.tourneo.de/api/v1';
+const DEV_URL =
+  Platform.OS === 'android'
+    ? 'http://10.0.2.2:3000/api/v1'   // Android emulator loopback
+    : 'http://localhost:3000/api/v1';   // iOS simulator
+
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL
+  || (__DEV__ ? DEV_URL : 'https://api.tourneo.de/api/v1');
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
