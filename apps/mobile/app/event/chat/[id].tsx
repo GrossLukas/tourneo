@@ -21,6 +21,7 @@ import { useTheme } from '../../../src/providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../../src/theme/spacing';
 import { useAuthStore } from '../../../src/store/authStore';
 import { listChat, postChat } from '../../../src/api/v2';
+import * as Haptics from 'expo-haptics';
 
 type ChatMsg = Awaited<ReturnType<typeof listChat>>[number];
 
@@ -62,6 +63,7 @@ export default function ChatScreen() {
     setSending(true);
     try {
       await postChat(eventId, trimmed);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setText('');
       await load();
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);

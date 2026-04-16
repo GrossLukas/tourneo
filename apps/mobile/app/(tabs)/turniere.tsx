@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Platform, Dimensions,
+  View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Platform, Dimensions, TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { useEventStore, type Event } from '../../src/store/eventStore';
 import { spacing, fontSize, fontWeight, borderRadius, radius, shadows } from '../../src/theme/spacing';
@@ -13,7 +14,10 @@ type FilterTab = 'all' | 'upcoming' | 'live' | 'past';
 function FilterChip({ label, active, colors, onPress }: { label: string; active: boolean; colors: any; onPress: () => void }) {
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
       style={[
         styles.chip,
         active
@@ -32,7 +36,7 @@ function TournamentCard({ event, colors, onPress }: { event: Event; colors: any;
   const isLive = event.status === 'in_progress';
 
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={[styles.tourCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <TouchableOpacity activeOpacity={0.85} onPress={() => { Haptics.selectionAsync(); onPress(); }} style={[styles.tourCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.tourTop}>
         <View style={styles.tourTopLeft}>
           {isLive && (
@@ -100,12 +104,25 @@ export default function TurniereScreen() {
     setRefreshing(false);
   }, []);
 
-  const filteredEvents = events.filter((e) => {
-    if (activeTab === 'live') return e.status === 'in_progress';
-    if (activeTab === 'upcoming') return e.status === 'published' || e.status === 'registration_open';
-    if (activeTab === 'past') return e.status === 'completed';
-    return true;
-  });
+  const filteredEvents = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    return events.filter((e) => {
+      if (activeTab === 'live' && e.status !== 'in_progress') return false;
+      if (activeTab === 'upcoming' && e.status !== 'published' && e.status !== 'registration_open') return false;
+      if (activeTab === 'past' && e.status !== 'completed') return false;
+
+      if (query) {
+        const title = (e.title ?? '').toLowerCase();
+        const venueName = (e.venue?.name ?? '').toLowerCase();
+        const venueCity = (e.venue?.city ?? '').toLowerCase();
+        if (!title.includes(query) && !venueName.includes(query) && !venueCity.includes(query)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [events, activeTab, searchQuery]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -113,6 +130,27 @@ export default function TurniereScreen() {
       <View style={[styles.header, { backgroundColor: colors.bg }]}>
         <Text style={[styles.pageTitle, { color: colors.textPrimary }]}>Turniere</Text>
         <Text style={[styles.pageSubtitle, { color: colors.textTertiary }]}>{events.length} verfügbar</Text>
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={[
+            styles.searchInput,
+            {
+              backgroundColor: colors.surface,
+              color: colors.textPrimary,
+              borderColor: colors.cardBorder,
+            },
+          ]}
+          placeholder="Turnier, Venue oder Stadt suchen…"
+          placeholderTextColor={colors.textTertiary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCorrect={false}
+          autoCapitalize="none"
+          clearButtonMode="while-editing"
+        />
       </View>
 
       {/* Filter Tabs */}
@@ -182,4 +220,13 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', paddingTop: spacing['5xl'] },
   emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, marginBottom: spacing.xs },
   emptyText: { fontSize: fontSize.sm, textAlign: 'center' },
+
+  searchContainer: { paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  searchInput: {
+    height: 44,
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    paddingHorizontal: spacing.md,
+    fontSize: fontSize.sm,
+  },
 });

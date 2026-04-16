@@ -6,6 +6,7 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Platform, StyleSheet, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { useNotificationStore } from '../../src/store/notificationStore';
 import { fontSize, fontWeight } from '../../src/theme/spacing';
@@ -35,6 +36,11 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      screenListeners={{
+        tabPress: () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        },
+      }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#6366F1',

@@ -13,6 +13,7 @@ import { useConsentStore } from '../src/store/consentStore';
 import { useNotificationStore } from '../src/store/notificationStore';
 import { useTheme } from '../src/providers/ThemeProvider';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { OfflineBanner } from '../src/components/OfflineBanner';
 
 /* ── Push-notification handler (foreground) ─────────────────────── */
 Notifications.setNotificationHandler({
@@ -109,6 +110,7 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
+      <OfflineBanner />
     <Stack
       screenOptions={{
         headerShown: false,

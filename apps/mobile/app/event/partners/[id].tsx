@@ -24,6 +24,8 @@ import {
   createPartnerRequest,
   contactPartner,
 } from '../../../src/api/v2';
+import * as Haptics from 'expo-haptics';
+import type { Colors } from '../../../src/theme/colors';
 
 type PartnerRow = Awaited<ReturnType<typeof listPartners>>[number];
 
@@ -80,6 +82,7 @@ export default function PartnerSearchScreen() {
   const handleContact = useCallback(async (row: PartnerRow) => {
     try {
       await contactPartner(row.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Gesendet', `${row.display_name} wurde benachrichtigt.`);
     } catch (err: any) {
       Alert.alert(

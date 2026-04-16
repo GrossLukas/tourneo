@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import React, { useRef, useCallback } from 'react';
+import { View, StyleSheet, Pressable, Animated, ViewStyle } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../providers/ThemeProvider';
 import { spacing, radius, shadow } from '../../theme/spacing';
 
@@ -19,6 +20,7 @@ export const TCard: React.FC<TCardProps> = ({
   style,
 }) => {
   const { colors } = useTheme();
+  const scale = useRef(new Animated.Value(1)).current;
 
   const getCardStyle = (): ViewStyle => {
     const base: ViewStyle = {
@@ -39,15 +41,40 @@ export const TCard: React.FC<TCardProps> = ({
     }
   };
 
+  const handlePressIn = useCallback(() => {
+    Animated.spring(scale, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      tension: 150,
+      friction: 8,
+    }).start();
+  }, [scale]);
+
+  const handlePressOut = useCallback(() => {
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 150,
+      friction: 8,
+    }).start();
+  }, [scale]);
+
+  const handlePress = useCallback(() => {
+    Haptics.selectionAsync();
+    onPress?.();
+  }, [onPress]);
+
   if (onPress) {
     return (
-      <TouchableOpacity
-        onPress={onPress}
-        activeOpacity={0.7}
-        style={[getCardStyle(), style]}
+      <Pressable
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
       >
-        {children}
-      </TouchableOpacity>
+        <Animated.View style={[getCardStyle(), style, { transform: [{ scale }] }]}>
+          {children}
+        </Animated.View>
+      </Pressable>
     );
   }
 
