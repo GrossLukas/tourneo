@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme, type ThemePreference } from '../../src/providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius, shadow } from '../../src/theme/spacing';
-import { membership as membershipColors } from '../../src/theme/colors';
+import { membership as membershipColors, type Colors } from '../../src/theme/colors';
 import { useAuthStore } from '../../src/store';
 import { useRatingStore } from '../../src/store/ratingStore';
 import { TRatingBadge } from '../../src/components/common';
@@ -39,7 +39,7 @@ function SectionItem({
   title: string;
   subtitle?: string;
   onPress?: () => void;
-  colors: Record<string, any>;
+  colors: Colors;
   trailing?: React.ReactNode;
   danger?: boolean;
 }) {
@@ -73,7 +73,7 @@ function ThemePicker({
   preference,
   onSelect,
 }: {
-  colors: any;
+  colors: Colors;
   preference: ThemePreference;
   onSelect: (pref: ThemePreference) => void;
 }) {
@@ -147,7 +147,7 @@ function EloColumn({
   elo: number;
   peak: number;
   tier: string;
-  colors: any;
+  colors: Colors;
 }) {
   const tierColor = TIER_COLOR[tier] || colors.textSecondary;
   return (
@@ -195,7 +195,7 @@ function StatPill({
 }: {
   label: string;
   value: string;
-  colors: any;
+  colors: Colors;
 }) {
   return (
     <View style={[styles.statPill, { backgroundColor: colors.surfaceSecondary }]}>
@@ -485,22 +485,22 @@ export default function ProfilScreen() {
         {/* Membership Upsell (if not club) */}
         {memberTier !== 'club' && (
           <TouchableOpacity
-            style={[styles.membershipBanner, { backgroundColor: isDark ? '#2D1B69' : '#EDE9FE' }]}
+            style={[styles.membershipBanner, { backgroundColor: colors.primaryLight }]}
             activeOpacity={0.8}
             onPress={() => router.push('/membership')}
           >
             <View style={styles.membershipContent}>
               <Text style={styles.membershipIcon}>⭐</Text>
               <View style={styles.membershipText}>
-                <Text style={[styles.membershipTitle, { color: isDark ? '#DDD6FE' : '#5B21B6' }]}>
+                <Text style={[styles.membershipTitle, { color: colors.textPrimary }]}>
                   {memberTier === 'free' ? 'Upgrade auf Tourneo Plus' : 'Upgrade auf Tourneo Club'}
                 </Text>
-                <Text style={[styles.membershipSubtitle, { color: isDark ? '#C4B5FD' : '#7C3AED' }]}>
+                <Text style={[styles.membershipSubtitle, { color: colors.textSecondary }]}>
                   Mehr Features, exklusive Turniere & Vorteile
                 </Text>
               </View>
             </View>
-            <Text style={[styles.membershipArrow, { color: isDark ? '#C4B5FD' : '#7C3AED' }]}>→</Text>
+            <Text style={[styles.membershipArrow, { color: colors.primary }]}>→</Text>
           </TouchableOpacity>
         )}
 

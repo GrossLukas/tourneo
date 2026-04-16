@@ -18,6 +18,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../src/providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../../src/theme/spacing';
+import type { Colors } from '../../../src/theme/colors';
 import {
   getMatchScore,
   postMatchScore,
@@ -170,7 +171,7 @@ function SidePad({
   value: number;
   onInc: () => void;
   onDec: () => void;
-  colors: any;
+  colors: Colors;
 }) {
   return (
     <View style={styles.side}>

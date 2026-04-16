@@ -52,34 +52,34 @@ export const TButton: React.FC<TButtonProps> = ({
   const getBackgroundColor = (): string => {
     if (disabled) return colors.surfacePressed;
     switch (variant) {
-      case 'primary': return '#6366F1';
+      case 'primary': return colors.primary;
       case 'secondary': return 'transparent';
       case 'outline': return 'transparent';
       case 'ghost': return 'transparent';
-      case 'danger': return 'rgba(255,71,87,0.12)';
-      case 'gold': return '#F59E0B';
-      default: return '#6366F1';
+      case 'danger': return colors.errorBg;
+      case 'gold': return colors.accent;
+      default: return colors.primary;
     }
   };
 
   const getTextColor = (): string => {
     if (disabled) return colors.textTertiary;
     switch (variant) {
-      case 'primary': return '#FFFFFF';
-      case 'secondary': return '#818CF8';
-      case 'outline': return '#818CF8';
-      case 'ghost': return '#818CF8';
-      case 'danger': return '#FF4757';
+      case 'primary': return colors.white;
+      case 'secondary': return colors.textLink;
+      case 'outline': return colors.textLink;
+      case 'ghost': return colors.textLink;
+      case 'danger': return colors.error;
       case 'gold': return '#1A1000';
-      default: return '#FFFFFF';
+      default: return colors.white;
     }
   };
 
   const getBorderColor = (): string => {
     if (disabled) return colors.surfacePressed;
-    if (variant === 'outline') return 'rgba(99,102,241,0.4)';
-    if (variant === 'secondary') return 'rgba(99,102,241,0.4)';
-    if (variant === 'danger') return 'rgba(255,71,87,0.3)';
+    if (variant === 'outline') return colors.borderFocus + '66';
+    if (variant === 'secondary') return colors.borderFocus + '66';
+    if (variant === 'danger') return colors.error + '4D';
     return 'transparent';
   };
 

@@ -27,29 +27,29 @@ export const TBadge: React.FC<TBadgeProps> = ({
     if (variant === 'membership' && membershipTier) {
       switch (membershipTier) {
         case 'plus':
-          return { bg: 'rgba(129,140,248,0.15)', text: '#818CF8' };
+          return { bg: colors.membership.plusLight, text: colors.membership.plus };
         case 'club':
-          return { bg: 'rgba(245,158,11,0.15)', text: '#F59E0B' };
+          return { bg: colors.membership.clubLight, text: colors.membership.club };
         default:
-          return { bg: '#16162A', text: 'rgba(255,255,255,0.6)' };
+          return { bg: colors.surfaceSecondary, text: colors.textSecondary };
       }
     }
 
     switch (variant) {
       case 'success':
-        return { bg: 'rgba(16,185,129,0.12)', text: '#10B981' };
+        return { bg: colors.successBg, text: colors.success };
       case 'warning':
-        return { bg: 'rgba(245,158,11,0.12)', text: '#F59E0B' };
+        return { bg: colors.warningBg, text: colors.warning };
       case 'error':
-        return { bg: 'rgba(255,71,87,0.12)', text: '#FF4757' };
+        return { bg: colors.errorBg, text: colors.error };
       case 'info':
-        return { bg: 'rgba(99,102,241,0.12)', text: '#818CF8' };
+        return { bg: colors.infoBg, text: colors.info };
       case 'live':
-        return { bg: '#FF4757', text: '#FFFFFF' };
+        return { bg: colors.error, text: colors.white };
       case 'prize':
-        return { bg: '#F59E0B', text: '#1A1000' };
+        return { bg: colors.accent, text: '#1A1000' };
       default:
-        return { bg: '#16162A', text: 'rgba(255,255,255,0.6)' };
+        return { bg: colors.surfaceSecondary, text: colors.textSecondary };
     }
   };
 
