@@ -19,6 +19,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../src/providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../../src/theme/spacing';
 import { getWaitlistStatus } from '../../../src/api/v2';
+import type { Colors } from '../../../src/theme/colors';
 
 type WaitlistStatus = Awaited<ReturnType<typeof getWaitlistStatus>>;
 
@@ -166,7 +167,7 @@ function Stat({
 }: {
   label: string;
   value: string;
-  colors: any;
+  colors: Colors;
 }) {
   return (
     <View style={styles.stat}>

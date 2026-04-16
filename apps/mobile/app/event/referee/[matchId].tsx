@@ -5,6 +5,7 @@
  * - Backend auto-detects winner, updates ELO, next-match
  */
 import React, { useCallback, useEffect, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View,
   Text,
@@ -69,6 +70,7 @@ export default function RefereeScreen() {
     try {
       await postMatchScore(id, sets);
       Alert.alert('Ergebnis gespeichert', 'Das Match-Ergebnis wurde übermittelt.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err: any) {
       Alert.alert(
@@ -176,13 +178,19 @@ function SidePad({
       <Text style={[styles.sideValue, { color: colors.textPrimary }]}>{value}</Text>
       <View style={styles.sideBtns}>
         <TouchableOpacity
-          onPress={onDec}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onDec();
+          }}
           style={[styles.sideBtn, { backgroundColor: colors.surfaceSecondary }]}
         >
           <Text style={[styles.sideBtnText, { color: colors.textPrimary }]}>−</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={onInc}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            onInc();
+          }}
           style={[styles.sideBtn, { backgroundColor: colors.primary }]}
         >
           <Text style={[styles.sideBtnText, { color: '#fff' }]}>+</Text>

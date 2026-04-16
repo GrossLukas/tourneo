@@ -17,6 +17,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../../../src/providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../../src/theme/spacing';
 import { getEventRecap } from '../../../src/api/v2';
+import type { Colors } from '../../../src/theme/colors';
 
 export default function RecapScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -140,7 +141,7 @@ function PodiumCard({
 }: {
   place: 1 | 2 | 3;
   row: any;
-  colors: any;
+  colors: Colors;
   big?: boolean;
 }) {
   const medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉';
@@ -163,7 +164,7 @@ function PodiumCard({
   );
 }
 
-function StatRow({ label, value, colors }: { label: string; value: string | number; colors: any }) {
+function StatRow({ label, value, colors }: { label: string; value: string | number; colors: Colors }) {
   return (
     <View style={styles.statRow}>
       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
