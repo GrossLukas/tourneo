@@ -11,6 +11,7 @@ import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '../src/store/authStore';
 import { useConsentStore } from '../src/store/consentStore';
 import { useNotificationStore } from '../src/store/notificationStore';
+import { useFavoritesStore } from '../src/store/favoritesStore';
 import { useTheme } from '../src/providers/ThemeProvider';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { OfflineBanner } from '../src/components/OfflineBanner';
@@ -74,6 +75,7 @@ export default function RootLayout() {
       try {
         await initialize();
         await initializeConsent();
+        useFavoritesStore.getState().hydrate();
       } catch (err) {
         console.error('[boot] Initialization failed:', err);
       } finally {

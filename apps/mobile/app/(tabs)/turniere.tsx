@@ -9,6 +9,8 @@ import { useTheme } from '../../src/providers/ThemeProvider';
 import { useEventStore, type Event } from '../../src/store/eventStore';
 import { spacing, fontSize, fontWeight, borderRadius, radius, shadows } from '../../src/theme/spacing';
 import type { Colors } from '../../src/theme/colors';
+import { TFavoriteButton } from '../../src/components/common';
+import { TurniereSkeleton } from '../../src/components/skeletons/TurniereSkeleton';
 
 type FilterTab = 'all' | 'upcoming' | 'live' | 'past';
 
@@ -55,6 +57,7 @@ function TournamentCard({ event, colors, onPress }: { event: Event; colors: Colo
             </Text>
           </View>
         </View>
+        <TFavoriteButton eventId={event.id} size={22} />
       </View>
 
       <Text style={[styles.tourTitle, { color: colors.textPrimary }]} numberOfLines={2}>{event.title}</Text>
@@ -162,7 +165,10 @@ export default function TurniereScreen() {
         <FilterChip label="Vergangen" active={activeTab === 'past'} colors={colors} onPress={() => setActiveTab('past')} />
       </View>
 
-      {/* List */}
+      {/* List — show skeleton on first load */}
+      {loading && events.length === 0 ? (
+        <TurniereSkeleton />
+      ) : (
       <FlatList<Event>
         data={filteredEvents}
         keyExtractor={(item) => String(item.id)}
@@ -181,6 +187,7 @@ export default function TurniereScreen() {
         }
         showsVerticalScrollIndicator={false}
       />
+      )}
     </View>
   );
 }

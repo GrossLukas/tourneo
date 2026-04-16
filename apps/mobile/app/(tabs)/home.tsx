@@ -6,11 +6,12 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  Image,
   Platform,
   Dimensions,
   Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../src/providers/ThemeProvider';
@@ -44,13 +45,22 @@ const HeroEventCard = React.memo(function HeroEventCard({
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={[styles.heroCard, { backgroundColor: colors.surface }]}>
       {event.banner_image_url ? (
-        <Image source={{ uri: event.banner_image_url }} style={styles.heroImage} />
+        <Image
+          source={{ uri: event.banner_image_url }}
+          style={styles.heroImage}
+          placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4"
+          contentFit="cover"
+          transition={300}
+        />
       ) : (
         <View style={[styles.heroImage, { backgroundColor: colors.primaryDark }]}>
           <Text style={styles.heroPlaceholder}>🏆</Text>
         </View>
       )}
-      <View style={[styles.heroGradient, { backgroundColor: 'rgba(0,0,0,0.45)' }]} />
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.7)']}
+        style={styles.heroGradient}
+      />
       <View style={styles.heroOverlay}>
         <View style={styles.heroBadgeRow}>
           <View style={[styles.heroBadge, { backgroundColor: colors.primary }]}>
@@ -329,7 +339,12 @@ export default function HomeScreen() {
             <TouchableOpacity onPress={() => router.push(user ? '/(tabs)/profil' : '/(auth)/login')}>
               <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
                 {user?.avatar_url ? (
-                  <Image source={{ uri: user.avatar_url }} style={styles.avatarImg} />
+                  <Image
+                    source={{ uri: user.avatar_url }}
+                    style={styles.avatarImg}
+                    contentFit="cover"
+                    transition={200}
+                  />
                 ) : (
                   <Text style={[styles.avatarText, { color: colors.primary }]}>
                     {user?.first_name?.[0]?.toUpperCase() || '?'}
@@ -550,7 +565,7 @@ const styles = StyleSheet.create({
     ...shadow.lg,
   },
   heroImage: {
-    width: '100%', height: '100%', resizeMode: 'cover', position: 'absolute',
+    width: '100%', height: '100%', position: 'absolute',
     alignItems: 'center', justifyContent: 'center',
   },
   heroPlaceholder: { fontSize: 60 },

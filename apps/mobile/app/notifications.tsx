@@ -2,14 +2,15 @@
  * NotificationsScreen – Full notification center.
  * Lists all notifications grouped by type with swipe-to-dismiss and mark-all-read.
  */
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Platform, RefreshControl,
-  Alert,
+  Alert, Animated, PanResponder,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../src/providers/ThemeProvider';
 import { THeader, TEmptyState } from '../src/components/common';
 import { useNotificationStore, type AppNotification } from '../src/store/notificationStore';
@@ -62,53 +63,85 @@ interface NotificationItemProps {
   onDelete: () => void;
 }
 
-function NotificationItem({ notification, colors, t, onPress, onDelete }: NotificationItemProps) {
+function SwipeableNotificationItem({ notification, colors, t, onPress, onDelete }: NotificationItemProps) {
   const icon = getNotificationIcon(notification.type);
+  const translateX = useRef(new Animated.Value(0)).current;
+  const SWIPE_THRESHOLD = -80;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy),
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dx < 0) {
+          translateX.setValue(Math.max(gestureState.dx, -120));
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx < SWIPE_THRESHOLD) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          Animated.timing(translateX, {
+            toValue: -400,
+            duration: 250,
+            useNativeDriver: true,
+          }).start(() => onDelete());
+        } else {
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 80,
+            friction: 10,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={onPress}
-      onLongPress={() => {
-        Alert.alert(
-          t('notifications.deleteConfirm'),
-          '',
-          [
-            { text: t('common.cancel'), style: 'cancel' },
-            { text: t('common.delete'), style: 'destructive', onPress: onDelete },
-          ]
-        );
-      }}
-      style={[
-        styles.notifItem,
-        notification.read
-          ? { backgroundColor: '#0A0A14', borderLeftWidth: 0, borderColor: 'rgba(255,255,255,0.06)' }
-          : { backgroundColor: 'rgba(99,102,241,0.06)', borderLeftWidth: 2, borderLeftColor: '#6366F1', borderColor: 'rgba(99,102,241,0.15)' },
-      ]}
-    >
-      <View style={[styles.notifIcon, { backgroundColor: `${icon.color}15` }]}>
-        <Ionicons name={icon.name} size={22} color={icon.color} />
+    <View style={styles.swipeContainer}>
+      <View style={[styles.deleteBackground, { backgroundColor: colors.error }]}>
+        <Ionicons name="trash-outline" size={22} color="#FFF" />
+        <Text style={styles.deleteText}>Löschen</Text>
       </View>
-      <View style={styles.notifContent}>
-        <View style={styles.notifHeader}>
-          <Text style={[styles.notifType, { color: colors.textTertiary }]}>
-            {getTypeLabel(notification.type, t)}
-          </Text>
-          <Text style={[styles.notifTime, { color: colors.textTertiary }]}>
-            {formatTimeAgo(notification.created_at)}
-          </Text>
-        </View>
-        <Text style={[styles.notifTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-          {notification.title}
-        </Text>
-        <Text style={[styles.notifBody, { color: colors.textSecondary }]} numberOfLines={2}>
-          {notification.body}
-        </Text>
-      </View>
-      {!notification.read && (
-        <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
-      )}
-    </TouchableOpacity>
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={{ transform: [{ translateX }] }}
+      >
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={onPress}
+          style={[
+            styles.notifItem,
+            notification.read
+              ? { backgroundColor: colors.bg, borderLeftWidth: 0, borderColor: colors.borderLight }
+              : { backgroundColor: colors.infoBg, borderLeftWidth: 2, borderLeftColor: colors.primary, borderColor: colors.borderFocus + '26' },
+          ]}
+        >
+          <View style={[styles.notifIcon, { backgroundColor: `${icon.color}15` }]}>
+            <Ionicons name={icon.name} size={22} color={icon.color} />
+          </View>
+          <View style={styles.notifContent}>
+            <View style={styles.notifHeader}>
+              <Text style={[styles.notifType, { color: colors.textTertiary }]}>
+                {getTypeLabel(notification.type, t)}
+              </Text>
+              <Text style={[styles.notifTime, { color: colors.textTertiary }]}>
+                {formatTimeAgo(notification.created_at)}
+              </Text>
+            </View>
+            <Text style={[styles.notifTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+              {notification.title}
+            </Text>
+            <Text style={[styles.notifBody, { color: colors.textSecondary }]} numberOfLines={2}>
+              {notification.body}
+            </Text>
+          </View>
+          {!notification.read && (
+            <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
+          )}
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -141,7 +174,7 @@ export default function NotificationsScreen() {
   }, []);
 
   const renderItem = useCallback(({ item }: { item: AppNotification }) => (
-    <NotificationItem
+    <SwipeableNotificationItem
       notification={item}
       colors={colors}
       t={t}
@@ -217,4 +250,11 @@ const styles = StyleSheet.create({
   notifTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold as any, marginBottom: 2 },
   notifBody: { fontSize: fontSize.xs, lineHeight: 18 },
   unreadDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6, marginLeft: spacing.xs },
+  swipeContainer: { overflow: 'hidden', borderRadius: radius.lg, marginTop: spacing.sm },
+  deleteBackground: {
+    position: 'absolute', right: 0, top: 0, bottom: 0, width: 120,
+    justifyContent: 'center', alignItems: 'center', borderRadius: radius.lg,
+    flexDirection: 'row', gap: spacing.xs,
+  },
+  deleteText: { color: '#FFF', fontSize: fontSize.xs, fontWeight: fontWeight.semibold as any },
 });
