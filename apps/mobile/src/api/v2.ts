@@ -175,3 +175,82 @@ export async function uploadVenuePhoto(venueId: number, uri: string) {
   });
   return res.data.data;
 }
+
+// ─── Playtomic level & verification ──────────────────────
+export type PlaytomicStatus = {
+  level: number | null;
+  status: 'none' | 'pending' | 'approved' | 'rejected';
+  source: 'default' | 'playtomic_self' | 'playtomic_verified';
+  screenshotUrl: string | null;
+};
+
+export async function getMyPlaytomic(): Promise<PlaytomicStatus> {
+  const res = await apiClient.get('/me/playtomic');
+  return res.data.data;
+}
+
+export async function declarePlaytomicLevel(level: number) {
+  const res = await apiClient.post('/me/playtomic/declare', { level });
+  return res.data.data as { seedElo: number; status: string };
+}
+
+export async function submitPlaytomicScreenshot(screenshotUrl: string) {
+  const res = await apiClient.post('/me/playtomic/screenshot', {
+    screenshot_url: screenshotUrl,
+  });
+  return res.data.data;
+}
+
+// ─── Match feedback (rating calibration) ─────────────────
+export type MatchFeedbackValue = 'lower' | 'correct' | 'higher';
+
+export async function listPendingFeedback() {
+  const res = await apiClient.get('/me/feedback/pending');
+  return res.data.data as Array<{
+    id: number;
+    event_id: number;
+    participant_1_registration_id: number;
+    participant_2_registration_id: number;
+    completed_at: string;
+  }>;
+}
+
+export async function submitMatchFeedback(
+  matchId: number,
+  opponentUserId: number,
+  feedback: MatchFeedbackValue,
+  comment?: string
+) {
+  const res = await apiClient.post('/me/feedback', {
+    match_id: matchId,
+    opponent_user_id: opponentUserId,
+    feedback,
+    comment,
+  });
+  return res.data.data;
+}
+
+// ─── Court availability ──────────────────────────────────
+export type AvailabilitySlot = {
+  id: number;
+  venue_id: number;
+  court_id: number | null;
+  slot_date: string;
+  slot_start: string;
+  slot_end: string;
+  status: 'available' | 'booked' | 'blocked';
+  price_cents: number | null;
+  booking_url: string | null;
+};
+
+export async function getVenueAvailability(
+  venueId: number,
+  opts: { from?: string; to?: string; courtId?: number } = {}
+): Promise<AvailabilitySlot[]> {
+  const params: Record<string, string | number> = {};
+  if (opts.from) params.from = opts.from;
+  if (opts.to) params.to = opts.to;
+  if (opts.courtId) params.court_id = opts.courtId;
+  const res = await apiClient.get(`/venues/${venueId}/availability`, { params });
+  return res.data.data;
+}

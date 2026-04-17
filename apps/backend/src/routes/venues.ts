@@ -1,6 +1,7 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { VenueController } from '../controllers/venueController';
+import { CourtAvailabilityService } from '../services/courtAvailabilityService';
 import { authenticate, optionalAuth, adminOnly } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { createVenueSchema, updateVenueSchema } from '../validators/users';
@@ -36,6 +37,26 @@ router.put(
   adminOnly,
   validateBody(updateVenueSchema),
   VenueController.update
+);
+
+// Court availability (public GET)
+router.get(
+  '/:id/availability',
+  optionalAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const venueId = parseInt(req.params.id, 10);
+      const slots = await CourtAvailabilityService.listForVenue(venueId, {
+        fromDate: req.query.from as string,
+        toDate: req.query.to as string,
+        courtId: req.query.court_id ? parseInt(req.query.court_id as string, 10) : undefined,
+        statusFilter: req.query.status as any,
+      });
+      res.json({ success: true, data: slots });
+    } catch (error) {
+      next(error);
+    }
+  }
 );
 
 export { router as venueRouter };

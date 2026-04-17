@@ -5,6 +5,8 @@ import { authenticate, adminOnly, superadminOnly } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { PaymentController } from '../controllers/paymentController';
 import { AuditService } from '../services/auditService';
+import { PlaytomicService } from '../services/playtomicService';
+import { CourtAvailabilityService } from '../services/courtAvailabilityService';
 import { db, t } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 
@@ -1477,5 +1479,110 @@ router.put('/users/:id/status', superadminOnly, validateBody(userStatusSchema), 
     next(error);
   }
 });
+
+// ============================================================
+// 11. PLAYTOMIC VERIFICATION QUEUE
+// ============================================================
+
+const verifyDecisionSchema = z.object({
+  level: z.number().min(0).max(7).optional(),
+});
+
+router.get('/playtomic/pending', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const pending = await PlaytomicService.listPending();
+    res.json({ success: true, data: pending });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post(
+  '/playtomic/:userId/approve',
+  validateBody(verifyDecisionSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = parseInt(req.params.userId, 10);
+      const result = await PlaytomicService.approve(
+        userId,
+        req.user!.userId,
+        req.body.level,
+      );
+      await AuditService.logFromRequest(req, 'playtomic.approved', 'user', userId, {
+        metadata: { applied_elo: result.elo, level: req.body.level },
+      });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post(
+  '/playtomic/:userId/reject',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = parseInt(req.params.userId, 10);
+      await PlaytomicService.reject(userId, req.user!.userId);
+      await AuditService.logFromRequest(req, 'playtomic.rejected', 'user', userId, {});
+      res.json({ success: true, data: { message: 'Rejected' } });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// 12. COURT AVAILABILITY MANAGEMENT
+// ============================================================
+
+const availabilitySlotSchema = z.object({
+  venue_id: z.number().int().positive(),
+  court_id: z.number().int().positive().optional(),
+  slot_date: z.string(),
+  slot_start: z.string(),
+  slot_end: z.string(),
+  status: z.enum(['available', 'booked', 'blocked']).optional(),
+  price_cents: z.number().int().nonnegative().optional(),
+  booking_url: z.string().url().optional(),
+});
+
+const recurringSlotSchema = z.object({
+  venue_id: z.number().int().positive(),
+  court_id: z.number().int().positive().optional(),
+  from_date: z.string(),
+  to_date: z.string(),
+  daily_start: z.string(),
+  daily_end: z.string(),
+  slot_duration_minutes: z.number().int().min(15).max(240),
+  price_cents: z.number().int().nonnegative().optional(),
+  booking_url: z.string().url().optional(),
+});
+
+router.post(
+  '/availability',
+  validateBody(availabilitySlotSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = await CourtAvailabilityService.upsertSlot(req.body);
+      res.json({ success: true, data: { id } });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+router.post(
+  '/availability/recurring',
+  validateBody(recurringSlotSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const count = await CourtAvailabilityService.generateRecurring(req.body);
+      res.json({ success: true, data: { created: count } });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 export { router as adminRouter };
