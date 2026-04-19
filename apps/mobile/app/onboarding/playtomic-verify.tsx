@@ -23,7 +23,6 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../src/theme/spacing';
 import { submitPlaytomicScreenshot } from '../../src/api/v2';
-import { uploadVenuePhoto } from '../../src/api/v2';
 import apiClient from '../../src/api/client';
 
 export default function PlaytomicVerifyScreen() {

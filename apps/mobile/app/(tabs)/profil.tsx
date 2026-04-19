@@ -542,7 +542,7 @@ export default function ProfilScreen() {
               title="Meine Buchungen"
               subtitle="Vergangene & aktuelle Buchungen"
               colors={colors}
-              onPress={() => router.push('/(tabs)/bookings')}
+              onPress={() => Alert.alert('Bald verfügbar', 'Buchungen werden in einem kommenden Update hinzugefügt.')}
             />
             <SectionItem
               icon="📅"

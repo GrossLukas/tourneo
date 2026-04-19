@@ -118,7 +118,7 @@ export default function RootLayout() {
         headerShown: false,
         contentStyle: { backgroundColor: colors.bg },
         animation: 'slide_from_right',
-        navigationBarColor: '#0A0A14',
+        navigationBarColor: colors.bg,
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -133,6 +133,10 @@ export default function RootLayout() {
       <Stack.Screen name="event/recap/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="event/waitlist/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="venue/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="venue/availability/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding/playtomic" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding/playtomic-verify" options={{ headerShown: false }} />
+      <Stack.Screen name="admin/verifications" options={{ headerShown: false }} />
       <Stack.Screen name="membership" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="notifications" options={{ headerShown: false }} />
       <Stack.Screen name="leaderboard" options={{ headerShown: false }} />

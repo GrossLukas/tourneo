@@ -102,10 +102,10 @@ export default function EventRegisterScreen() {
       </View>
     );
   }
-  const feeAmount = e.entry_fee_cents / 100;
+  const feeAmount = (e.entry_fee_cents ?? 0) / 100;
   const discount = currentMembership?.tier === 'club' ? 20 : currentMembership?.tier === 'plus' ? 10 : 0;
   const finalFee = feeAmount * (1 - discount / 100);
-  const spotsLeft = e.spots_remaining ?? (e.max_participants - e.participant_count);
+  const spotsLeft = e.spots_remaining ?? ((e.max_participants ?? 0) - (e.participant_count ?? 0));
   const isFull = spotsLeft <= 0;
 
   const validate = (): boolean => {
