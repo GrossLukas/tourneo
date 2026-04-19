@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius, shadow } from '../../src/theme/spacing';
+import type { Colors } from '../../src/theme/colors';
 import { useCommunityStore } from '../../src/store';
 
 // ─── Tab Filter ──────────────────────────────────────────────
@@ -26,7 +27,7 @@ function TabFilter({
 }: {
   active: CommunityTab;
   onSelect: (tab: CommunityTab) => void;
-  colors: any;
+  colors: Colors;
 }) {
   const tabs: { key: CommunityTab; label: string }[] = [
     { key: 'feed', label: 'Feed' },
@@ -83,7 +84,7 @@ function FriendCard({
   status: 'online' | 'offline' | 'playing';
   level: string;
   wins: number;
-  colors: any;
+  colors: Colors;
 }) {
   const statusColor = status === 'online' ? colors.success : status === 'playing' ? colors.warning : colors.textTertiary;
   const statusLabel = status === 'online' ? 'Online' : status === 'playing' ? 'Im Spiel' : 'Offline';
@@ -139,7 +140,7 @@ function TeamCard({
   members: number;
   sport: string;
   wins: number;
-  colors: any;
+  colors: Colors;
 }) {
   const sportIcon = sport === 'padel' ? '🏸' : sport === 'fifa' ? '🎮' : '🎯';
   return (
@@ -185,7 +186,7 @@ function RankingRow({
   points: number;
   wins: number;
   isCurrentUser?: boolean;
-  colors: any;
+  colors: Colors;
 }) {
   const medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '';
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -233,7 +234,7 @@ function FeedItem({
   icon: string;
   text: string;
   time: string;
-  colors: any;
+  colors: Colors;
 }) {
   return (
     <View style={[styles.feedItem, { borderBottomColor: colors.divider }]}>

@@ -4,15 +4,20 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   Alert,
   Platform,
   RefreshControl,
+  Share,
+  TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../src/providers/ThemeProvider';
-import { TButton, TBadge, TCard, THeader, TLoadingScreen } from '../../src/components/common';
+import { TButton, TBadge, TCard, THeader, TLoadingScreen, TFavoriteButton, TCountdown } from '../../src/components/common';
 import { useEventStore } from '../../src/store/eventStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { useCalendar } from '../../src/hooks/useCalendar';
@@ -65,6 +70,13 @@ export default function EventDetailScreen() {
     return map[f] || f;
   };
 
+  const handleShare = async () => {
+    await Share.share({
+      message: `Schau dir dieses Turnier an: ${e.title} auf Tourneo! tourneo://event/${id}`,
+      title: e.title,
+    });
+  };
+
   const handleRegister = () => {
     if (!user) {
       Alert.alert('Anmeldung erforderlich', 'Bitte melde dich an, um dich für ein Turnier zu registrieren.', [
@@ -78,13 +90,37 @@ export default function EventDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bgSecondary }]}>
-      <THeader title={e.title} showBack onBack={() => router.back()} />
+      <THeader
+        title={e.title}
+        showBack
+        onBack={() => router.back()}
+        rightAction={
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={handleShare}>
+              <Ionicons name="share-outline" size={24} color={colors.textLink} />
+            </TouchableOpacity>
+            <TFavoriteButton eventId={Number(id)} />
+          </View>
+        }
+      />
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={(colors.primary as string)} />}
         showsVerticalScrollIndicator={false}
       >
         {e.banner_image_url ? (
-          <Image source={{ uri: e.banner_image_url }} style={styles.heroImage} />
+          <View style={styles.heroImageContainer}>
+            <Image
+              source={{ uri: e.banner_image_url }}
+              style={styles.heroImage}
+              placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4"
+              contentFit="cover"
+              transition={300}
+            />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.6)']}
+              style={styles.heroGradient}
+            />
+          </View>
         ) : null}
 
         <View style={styles.content}>
@@ -95,6 +131,16 @@ export default function EventDetailScreen() {
             <TBadge label={e.status === 'published' ? 'Offen' : e.status} variant={e.status === 'published' ? 'success' : 'default'} />
             {isFull && <TBadge label="Ausgebucht" variant="error" />}
           </View>
+
+          {/* Countdown */}
+          {(e.status === 'published' || e.status === 'registration_open') && new Date(e.start_date) > new Date() && (
+            <View style={styles.countdownSection}>
+              <Text style={[styles.countdownLabel, { color: colors.textTertiary }]}>
+                Turnier startet in
+              </Text>
+              <TCountdown targetDate={e.start_date} size="md" />
+            </View>
+          )}
 
           <Text style={[styles.title, { color: colors.textPrimary }]}>{e.title}</Text>
 
@@ -236,7 +282,7 @@ export default function EventDetailScreen() {
 
       {/* Bottom Registration Bar */}
       {e.status === 'published' && (
-        <View style={[styles.bottomBar, { backgroundColor: colors.bgSecondary, borderTopColor: colors.border }]}>
+        <BlurView intensity={80} tint="dark" style={[styles.bottomBar, { borderTopColor: colors.border }]}>
           <View style={styles.bottomBarLeft}>
             <Text style={[styles.bottomPrice, { color: (colors.primary as string) }]}>
               {feeAmount > 0 ? `${feeAmount.toFixed(2)} €` : 'Kostenlos'}
@@ -252,7 +298,7 @@ export default function EventDetailScreen() {
             fullWidth={false}
             style={{ paddingHorizontal: spacing.xl }}
           />
-        </View>
+        </BlurView>
       )}
     </View>
   );
@@ -260,7 +306,9 @@ export default function EventDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  heroImage: { width: '100%', height: 220, resizeMode: 'cover' },
+  heroImageContainer: { width: '100%', height: 220 },
+  heroImage: { width: '100%', height: 220 },
+  heroGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '60%' },
   content: { padding: spacing.md },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xxs, marginBottom: spacing.sm },
   title: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold as any, marginBottom: spacing.md },
@@ -305,4 +353,20 @@ const styles = StyleSheet.create({
   bottomBarLeft: {},
   bottomPrice: { fontSize: fontSize.lg, fontWeight: fontWeight.bold as any },
   bottomSpotsText: { fontSize: fontSize.xs, marginTop: 1 },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  countdownSection: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  countdownLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium as any,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
 });

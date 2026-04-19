@@ -9,11 +9,12 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { THeader } from '../../src/components/common';
 import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
+import type { Colors } from '../../src/theme/colors';
 
 const LEGAL_VERSION = '1.0';
 const LEGAL_DATE = 'April 2026';
 
-function Section({ title, children, colors }: { title: string; children: React.ReactNode; colors: any }) {
+function Section({ title, children, colors }: { title: string; children: React.ReactNode; colors: Colors }) {
   return (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{title}</Text>
@@ -22,11 +23,11 @@ function Section({ title, children, colors }: { title: string; children: React.R
   );
 }
 
-function P({ children, colors }: { children: React.ReactNode; colors: any }) {
+function P({ children, colors }: { children: React.ReactNode; colors: Colors }) {
   return <Text style={[styles.paragraph, { color: colors.textSecondary }]}>{children}</Text>;
 }
 
-function Li({ children, colors }: { children: React.ReactNode; colors: any }) {
+function Li({ children, colors }: { children: React.ReactNode; colors: Colors }) {
   return (
     <View style={styles.listItem}>
       <Text style={[styles.bullet, { color: colors.textTertiary }]}>•</Text>
@@ -38,7 +39,7 @@ function Li({ children, colors }: { children: React.ReactNode; colors: any }) {
 // ═══════════════════════════════════════════
 // AGB – Allgemeine Geschäftsbedingungen
 // ═══════════════════════════════════════════
-function AGBContent({ colors }: { colors: any }) {
+function AGBContent({ colors }: { colors: Colors }) {
   return (
     <>
       <Section title="§ 1 Geltungsbereich & Vertragspartner" colors={colors}>
@@ -106,7 +107,7 @@ function AGBContent({ colors }: { colors: any }) {
 // ═══════════════════════════════════════════
 // DATENSCHUTZERKLÄRUNG
 // ═══════════════════════════════════════════
-function DatenschutzContent({ colors }: { colors: any }) {
+function DatenschutzContent({ colors }: { colors: Colors }) {
   return (
     <>
       <Section title="1. Verantwortlicher" colors={colors}>
@@ -214,7 +215,7 @@ export default function LegalScreen() {
 // ═══════════════════════════════════════════
 // IMPRESSUM
 // ═══════════════════════════════════════════
-function ImpressumContent({ colors }: { colors: any }) {
+function ImpressumContent({ colors }: { colors: Colors }) {
   return (
     <>
       <Section title="Angaben gemäß § 5 TMG" colors={colors}>

@@ -144,6 +144,15 @@ export default function VenueDetailScreen() {
           </View>
         )}
 
+        {/* Court Availability shortcut */}
+        <View style={styles.section}>
+          <TButton
+            title="🗓️ Platz-Verfügbarkeit ansehen"
+            onPress={() => router.push(`/venue/availability/${v.id}`)}
+            variant="outline"
+          />
+        </View>
+
         {/* Booking Links */}
         {v.booking_links && v.booking_links.length > 0 && (
           <View style={styles.section}>

@@ -8,10 +8,13 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { useEventStore, type Event } from '../../src/store/eventStore';
 import { spacing, fontSize, fontWeight, borderRadius, radius, shadows } from '../../src/theme/spacing';
+import type { Colors } from '../../src/theme/colors';
+import { TFavoriteButton } from '../../src/components/common';
+import { TurniereSkeleton } from '../../src/components/skeletons/TurniereSkeleton';
 
 type FilterTab = 'all' | 'upcoming' | 'live' | 'past';
 
-function FilterChip({ label, active, colors, onPress }: { label: string; active: boolean; colors: any; onPress: () => void }) {
+function FilterChip({ label, active, colors, onPress }: { label: string; active: boolean; colors: Colors; onPress: () => void }) {
   return (
     <TouchableOpacity
       onPress={() => {
@@ -30,7 +33,7 @@ function FilterChip({ label, active, colors, onPress }: { label: string; active:
   );
 }
 
-function TournamentCard({ event, colors, onPress }: { event: Event; colors: any; onPress: () => void }) {
+function TournamentCard({ event, colors, onPress }: { event: Event; colors: Colors; onPress: () => void }) {
   const fee = event.entry_fee_cents / 100;
   const spotsLeft = event.spots_remaining ?? (event.max_participants - event.participant_count);
   const isLive = event.status === 'in_progress';
@@ -54,6 +57,7 @@ function TournamentCard({ event, colors, onPress }: { event: Event; colors: any;
             </Text>
           </View>
         </View>
+        <TFavoriteButton eventId={event.id} size={22} />
       </View>
 
       <Text style={[styles.tourTitle, { color: colors.textPrimary }]} numberOfLines={2}>{event.title}</Text>
@@ -161,7 +165,10 @@ export default function TurniereScreen() {
         <FilterChip label="Vergangen" active={activeTab === 'past'} colors={colors} onPress={() => setActiveTab('past')} />
       </View>
 
-      {/* List */}
+      {/* List — show skeleton on first load */}
+      {loading && events.length === 0 ? (
+        <TurniereSkeleton />
+      ) : (
       <FlatList<Event>
         data={filteredEvents}
         keyExtractor={(item) => String(item.id)}
@@ -180,6 +187,7 @@ export default function TurniereScreen() {
         }
         showsVerticalScrollIndicator={false}
       />
+      )}
     </View>
   );
 }
@@ -213,7 +221,7 @@ const styles = StyleSheet.create({
   tourPrice: { fontSize: fontSize.lg, fontWeight: fontWeight.bold },
   tourPrize: { fontSize: fontSize.xxs, marginTop: 2 },
   tourBottomRight: { alignItems: 'flex-end' },
-  spotsMeter: { width: 80, height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.08)', overflow: 'hidden', marginBottom: 4 },
+  spotsMeter: { width: 80, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginBottom: 4 },
   spotsFill: { height: '100%', borderRadius: 2 },
   spotsText: { fontSize: fontSize.xxs },
 

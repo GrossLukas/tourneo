@@ -27,8 +27,8 @@ export const THeader: React.FC<THeaderProps> = ({
       style={[
         styles.container,
         {
-          backgroundColor: transparent ? 'transparent' : '#0A0A14',
-          borderBottomColor: transparent ? 'transparent' : 'rgba(255,255,255,0.06)',
+          backgroundColor: transparent ? 'transparent' : colors.bg,
+          borderBottomColor: transparent ? 'transparent' : colors.divider,
           paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + spacing.sm,
         },
       ]}
@@ -37,19 +37,19 @@ export const THeader: React.FC<THeaderProps> = ({
         <View style={styles.left}>
           {showBack && onBack && (
             <TouchableOpacity onPress={onBack} style={styles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={[styles.backArrow, { color: '#818CF8' }]}>‹</Text>
+              <Text style={[styles.backArrow, { color: colors.textLink }]}>‹</Text>
             </TouchableOpacity>
           )}
           <View style={styles.titleContainer}>
             <Text
-              style={[styles.title, { color: '#FFFFFF' }]}
+              style={[styles.title, { color: colors.textPrimary }]}
               numberOfLines={1}
             >
               {title}
             </Text>
             {subtitle && (
               <Text
-                style={[styles.subtitle, { color: 'rgba(255,255,255,0.5)' }]}
+                style={[styles.subtitle, { color: colors.textSecondary }]}
                 numberOfLines={1}
               >
                 {subtitle}
