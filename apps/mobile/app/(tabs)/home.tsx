@@ -21,7 +21,8 @@ import { useRegistrationStore } from '../../src/store/registrationStore';
 import { useMembershipStore } from '../../src/store/membershipStore';
 import { useNotificationStore } from '../../src/store/notificationStore';
 import { spacing, fontSize, fontWeight, radius, shadow } from '../../src/theme/spacing';
-import { SkeletonHomeScreen, ToastContainer, useToast } from '../../src/components/common';
+import { SkeletonHomeScreen, ToastContainer, useToast, TRatingChart, type RatingPoint } from '../../src/components/common';
+import { getMyElo, getMyEloHistory } from '../../src/api/v2';
 import type { Colors } from '../../src/theme/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -234,6 +235,8 @@ export default function HomeScreen() {
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [eloSummary, setEloSummary] = useState<{ padel: number; fifa: number; tier: string } | null>(null);
+  const [eloHistory, setEloHistory] = useState<RatingPoint[]>([]);
   const toast = useToast();
 
   useEffect(() => {
@@ -246,6 +249,20 @@ export default function HomeScreen() {
         fetchEvents(),
         user ? fetchMyRegistrations() : Promise.resolve(),
         user ? fetchCurrentMembership() : Promise.resolve(),
+        user
+          ? getMyElo()
+              .then((e) =>
+                setEloSummary({ padel: e.padel.elo, fifa: e.fifa.elo, tier: e.padel.tier })
+              )
+              .catch(() => {})
+          : Promise.resolve(),
+        user
+          ? getMyEloHistory('padel', 30)
+              .then((points) =>
+                setEloHistory(points.map((p) => ({ elo: p.elo, recorded_at: p.recorded_at })))
+              )
+              .catch(() => {})
+          : Promise.resolve(),
       ]);
     } catch (err) {
       toast.show('error', 'Fehler', 'Daten konnten nicht geladen werden.');
@@ -442,6 +459,41 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
+        {/* ── Rating Widget (ELO chart + matchmaking CTA) ── */}
+        {user && eloSummary && (
+          <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.lg }}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => router.push('/matchmaking')}
+              style={[styles.ratingWidget, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+            >
+              <View style={styles.ratingWidgetHeader}>
+                <View>
+                  <Text style={[styles.ratingWidgetLabel, { color: colors.textTertiary }]}>Dein Rating</Text>
+                  <Text style={[styles.ratingWidgetValue, { color: colors.textPrimary }]}>
+                    {eloSummary.padel}
+                  </Text>
+                </View>
+                <View style={[styles.ratingWidgetCta, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={[styles.ratingWidgetCtaText, { color: colors.primary }]}>Mitspieler finden →</Text>
+                </View>
+              </View>
+              {eloHistory.length > 1 ? (
+                <TRatingChart
+                  points={eloHistory}
+                  height={90}
+                  showAxis={false}
+                  showDelta
+                />
+              ) : (
+                <Text style={[styles.ratingWidgetHint, { color: colors.textTertiary }]}>
+                  Spiele dein erstes Match, um deinen Verlauf zu sehen.
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* ── Anstehende Turniere ──────── */}
         {featuredEvents.length > 1 && (
           <View style={styles.section}>
@@ -557,6 +609,24 @@ const styles = StyleSheet.create({
   },
   statNumber: { fontSize: fontSize.xl, fontWeight: fontWeight.bold },
   statLabel: { fontSize: fontSize.xxs, fontWeight: fontWeight.medium, marginTop: 2 },
+
+  // Rating Widget
+  ratingWidget: {
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+  },
+  ratingWidgetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  ratingWidgetLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.medium as any },
+  ratingWidgetValue: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold as any, marginTop: 2 },
+  ratingWidgetCta: { paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: 999 },
+  ratingWidgetCtaText: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold as any },
+  ratingWidgetHint: { fontSize: fontSize.xs, textAlign: 'center', paddingVertical: spacing.md },
 
   // Hero
   heroSection: { paddingHorizontal: spacing.lg },

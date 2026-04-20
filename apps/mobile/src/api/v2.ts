@@ -230,6 +230,65 @@ export async function submitMatchFeedback(
   return res.data.data;
 }
 
+// ─── Rating history (ELO chart) ──────────────────────────
+export type RatingHistoryPoint = {
+  id: number;
+  user_id: number;
+  sport: 'padel' | 'fifa';
+  elo: number;
+  delta: number;
+  match_id: number | null;
+  reason: 'match' | 'calibration' | 'seed' | 'admin';
+  recorded_at: string;
+};
+
+export async function getMyEloHistory(
+  sport: 'padel' | 'fifa' = 'padel',
+  limit: number = 30,
+): Promise<RatingHistoryPoint[]> {
+  const res = await apiClient.get('/me/elo/history', {
+    params: { sport, limit },
+  });
+  return res.data.data;
+}
+
+// ─── Player discovery / matchmaking ──────────────────────
+export type DiscoverablePlayer = {
+  user_id: number;
+  display_name: string;
+  avatar_url: string | null;
+  city: string | null;
+  elo: number;
+  tier: EloTier;
+  matches_played: number;
+  last_active_at: string | null;
+  distance_km: number | null;
+};
+
+export async function searchPlayers(opts: {
+  sport: 'padel' | 'fifa';
+  elo_min?: number;
+  elo_max?: number;
+  city?: string;
+  lat?: number;
+  lng?: number;
+  radius_km?: number;
+  limit?: number;
+}): Promise<DiscoverablePlayer[]> {
+  const res = await apiClient.get('/players/search', { params: opts });
+  return res.data.data;
+}
+
+export async function setDiscoverable(discoverable: boolean) {
+  const res = await apiClient.put('/me/discoverable', { discoverable });
+  return res.data.data as { discoverable: boolean };
+}
+
+export async function sendHeartbeat() {
+  const res = await apiClient.post('/me/heartbeat', {});
+  return res.data.data as { ok: boolean };
+}
+
 // ─── Court availability ──────────────────────────────────
 export type AvailabilitySlot = {
   id: number;

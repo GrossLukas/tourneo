@@ -266,9 +266,11 @@ export default function SpielenScreen() {
 
   const handleSportPress = (sportId: string) => {
     if (sportId === 'padel' || sportId === 'fifa') {
-      router.push('/(tabs)/turniere');
+      router.push({ pathname: '/matchmaking', params: { sport: sportId } });
+    } else if (sportId === 'freies-spiel') {
+      router.push('/matchmaking');
     } else if (sportId === 'plaetze') {
-      // Scroll to venues section or navigate
+      router.push('/(tabs)/turniere');
     }
   };
 

@@ -1,4 +1,5 @@
 import { db, t } from '../config/database';
+import { RatingHistoryService } from './ratingHistoryService';
 
 export type EloSport = 'padel' | 'fifa';
 
@@ -97,7 +98,7 @@ export class EloService {
     const { delta } = this.calculate(winnerEloAvg, loserEloAvg);
     const now = new Date();
 
-    // Apply delta to each individual player
+    // Apply delta to each individual player and record history
     for (const profile of winnerProfiles) {
       const current = profile[eloColumn] ?? this.DEFAULT_ELO;
       const peak = profile[peakColumn] ?? current;
@@ -110,6 +111,7 @@ export class EloService {
           elo_matches_played: db.raw('?? + 1', ['elo_matches_played']),
           updated_at: now,
         });
+      await RatingHistoryService.record(profile.user_id, sport, next, delta, 'match', matchId);
     }
     for (const profile of loserProfiles) {
       const current = profile[eloColumn] ?? this.DEFAULT_ELO;
@@ -121,6 +123,7 @@ export class EloService {
           elo_matches_played: db.raw('?? + 1', ['elo_matches_played']),
           updated_at: now,
         });
+      await RatingHistoryService.record(profile.user_id, sport, next, -delta, 'match', matchId);
     }
 
     return {

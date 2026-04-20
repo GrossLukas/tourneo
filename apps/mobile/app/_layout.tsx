@@ -143,6 +143,7 @@ export default function RootLayout() {
       <Stack.Screen name="support" options={{ headerShown: false }} />
       <Stack.Screen name="legal/[type]" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="matchmaking/index" options={{ headerShown: false }} />
     </Stack>
     </ErrorBoundary>
   );

@@ -19,3 +19,5 @@ export { TFavoriteButton } from './TFavoriteButton';
 export { TCountdown } from './TCountdown';
 export { TShimmer } from './TShimmer';
 export { TConfetti } from './TConfetti';
+export { TRatingChart } from './TRatingChart';
+export type { RatingPoint } from './TRatingChart';
