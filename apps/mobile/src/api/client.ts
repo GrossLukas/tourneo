@@ -59,6 +59,21 @@ apiClient.interceptors.response.use(
         await SecureStore.deleteItemAsync('refresh_token');
       }
     }
+    // Report unexpected server errors (5xx) to crash reporter; 4xx is user/app flow
+    const status = error?.response?.status;
+    if (typeof status === 'number' && status >= 500) {
+      try {
+        // Lazy import to avoid circular deps at module load time
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { captureError } = require('../utils/crashReport');
+        captureError(error, {
+          tags: { kind: 'api', status: String(status) },
+          extra: { url: error?.config?.url, method: error?.config?.method },
+        });
+      } catch {
+        // ignore — reporter is optional
+      }
+    }
     return Promise.reject(error);
   }
 );

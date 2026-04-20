@@ -7,7 +7,6 @@ import {
   Alert,
   Platform,
   RefreshControl,
-  Share,
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +20,7 @@ import { TButton, TBadge, TCard, THeader, TLoadingScreen, TFavoriteButton, TCoun
 import { useEventStore } from '../../src/store/eventStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { useCalendar } from '../../src/hooks/useCalendar';
+import { shareTournamentInvite } from '../../src/utils/shareMatch';
 import { spacing, fontSize, fontWeight } from '../../src/theme/spacing';
 import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
@@ -71,10 +71,7 @@ export default function EventDetailScreen() {
   };
 
   const handleShare = async () => {
-    await Share.share({
-      message: `Schau dir dieses Turnier an: ${e.title} auf Tourneo! tourneo://event/${id}`,
-      title: e.title,
-    });
+    await shareTournamentInvite(Number(id), e.title, e.start_date ?? undefined);
   };
 
   const handleRegister = () => {

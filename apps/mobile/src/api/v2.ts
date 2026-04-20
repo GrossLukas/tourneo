@@ -289,6 +289,69 @@ export async function sendHeartbeat() {
   return res.data.data as { ok: boolean };
 }
 
+// ─── Public player profile ───────────────────────────────
+export type PlayerStats = {
+  matches_played: number;
+  matches_won: number;
+  matches_lost: number;
+  win_rate: number;
+  current_streak: number;
+  streak_type: 'win' | 'loss' | 'none';
+  last_5: Array<'W' | 'L'>;
+};
+
+export type PublicPlayerProfile = {
+  user_id: number;
+  display_name: string;
+  avatar_url: string | null;
+  city: string | null;
+  bio: string | null;
+  member_since: string;
+  discoverable: boolean;
+  last_active_at: string | null;
+  padel: { elo: number; peak: number; tier: EloTier };
+  fifa: { elo: number; peak: number; tier: EloTier };
+  stats: PlayerStats;
+  achievements_count: number;
+  tournaments_played: number;
+};
+
+export type HeadToHead = {
+  opponent_user_id: number;
+  opponent_name: string;
+  opponent_avatar: string | null;
+  total_matches: number;
+  my_wins: number;
+  opponent_wins: number;
+  recent_matches: Array<{
+    match_id: number;
+    event_title: string;
+    completed_at: string;
+    won: boolean;
+  }>;
+};
+
+export async function getPublicProfile(userId: number): Promise<PublicPlayerProfile> {
+  const res = await apiClient.get(`/profiles/${userId}`);
+  return res.data.data;
+}
+
+export async function getHeadToHead(userId: number): Promise<HeadToHead> {
+  const res = await apiClient.get(`/profiles/${userId}/head-to-head`);
+  return res.data.data;
+}
+
+export async function getPlayerEloHistory(
+  userId: number,
+  sport: 'padel' | 'fifa' = 'padel',
+  limit: number = 30,
+): Promise<RatingHistoryPoint[]> {
+  const res = await apiClient.get(`/profiles/${userId}/elo-history`, {
+    params: { sport, limit },
+  });
+  return res.data.data;
+}
+
 // ─── Court availability ──────────────────────────────────
 export type AvailabilitySlot = {
   id: number;

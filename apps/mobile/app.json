@@ -24,7 +24,11 @@
         "NSFaceIDUsageDescription": "Tourneo nutzt Face ID für schnelles und sicheres Anmelden.",
         "NSLocationWhenInUseUsageDescription": "Tourneo nutzt deinen Standort, um Hallen in deiner Nähe anzuzeigen."
       },
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "associatedDomains": [
+        "applinks:tourneo.de",
+        "applinks:www.tourneo.de"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -48,7 +52,23 @@
         "ACCESS_FINE_LOCATION"
       ],
       "softwareKeyboardLayoutMode": "pan",
-      "allowBackup": false
+      "allowBackup": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "tourneo.de" },
+            { "scheme": "https", "host": "www.tourneo.de" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": [{ "scheme": "tourneo" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "plugins": [
       "expo-router",
