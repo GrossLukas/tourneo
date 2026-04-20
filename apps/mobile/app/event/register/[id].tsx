@@ -138,8 +138,13 @@ export default function EventRegisterScreen() {
           text: isFull ? 'Ja, auf Warteliste' : 'Jetzt anmelden',
           onPress: async () => {
             try {
+              const eventId = Number(id);
+              if (!eventId || Number.isNaN(eventId)) {
+                Alert.alert('Fehler', 'Ungültige Turnier-ID.');
+                return;
+              }
               await registerForEvent({
-                event_id: id!,
+                event_id: String(eventId),
                 registration_type: regType,
                 partner_user_id: regType === 'duo' ? partnerEmail.trim() : undefined,
                 team_id: regType === 'team' ? teamName.trim() : undefined,

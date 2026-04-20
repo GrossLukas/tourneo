@@ -14,6 +14,8 @@ import { gdprRouter } from './gdpr';
 import { partnerRouter } from './partners';
 import { chatRouter } from './chat';
 import { meRouter } from './me';
+import { playersRouter } from './players';
+import { profilesRouter } from './profiles';
 
 const router = Router();
 
@@ -33,6 +35,8 @@ router.use('/', gdprRouter); // /me/data-export, /me/delete-account
 router.use('/', partnerRouter); // /events/:id/partners + /partners/:id
 router.use('/', chatRouter); // /events/:id/chat
 router.use('/me', meRouter); // /me/referral, /me/achievements, /me/next-match
+router.use('/players', playersRouter); // /players/search
+router.use('/profiles', profilesRouter); // /profiles/:id, /profiles/:id/head-to-head
 router.use('/membership', require('./membership').membershipRouter);
 router.use('/hall-of-fame', require('./hallOfFame').hallOfFameRouter);
 

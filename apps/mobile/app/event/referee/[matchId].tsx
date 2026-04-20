@@ -24,6 +24,7 @@ import {
   postMatchScore,
   type MatchSet,
 } from '../../../src/api/v2';
+import { shareMatchResult } from '../../../src/utils/shareMatch';
 
 export default function RefereeScreen() {
   const { matchId } = useLocalSearchParams<{ matchId: string }>();
@@ -70,9 +71,36 @@ export default function RefereeScreen() {
     setSubmitting(true);
     try {
       await postMatchScore(id, sets);
-      Alert.alert('Ergebnis gespeichert', 'Das Match-Ergebnis wurde übermittelt.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
+
+      // Determine winner based on sets won
+      const p1Sets = sets.filter((s) => s.p1 > s.p2).length;
+      const p2Sets = sets.filter((s) => s.p2 > s.p1).length;
+      const winnerIsP1 = p1Sets > p2Sets;
+      const winnerName = winnerIsP1 ? match?.participant_1_name : match?.participant_2_name;
+      const loserName = winnerIsP1 ? match?.participant_2_name : match?.participant_1_name;
+
+      Alert.alert(
+        'Ergebnis gespeichert',
+        'Das Match-Ergebnis wurde übermittelt.',
+        [
+          { text: 'Schließen', style: 'cancel', onPress: () => router.back() },
+          winnerName && loserName
+            ? {
+                text: 'Teilen',
+                onPress: async () => {
+                  await shareMatchResult({
+                    winnerName,
+                    loserName,
+                    sets,
+                    eventTitle: match?.event_title,
+                  });
+                  router.back();
+                },
+              }
+            : { text: 'OK', onPress: () => router.back() },
+        ].filter(Boolean) as any,
+      );
     } catch (err: any) {
       Alert.alert(
         'Fehler',
@@ -81,7 +109,7 @@ export default function RefereeScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [id, sets, router]);
+  }, [id, sets, router, match]);
 
   if (loading) {
     return (

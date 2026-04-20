@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  AppState,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../../../src/providers/ThemeProvider';
@@ -36,43 +37,79 @@ export default function ChatScreen() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [lastSeenId, setLastSeenId] = useState<number>(0);
   const listRef = useRef<FlatList>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isActiveRef = useRef<boolean>(true);
 
   const load = useCallback(async () => {
     try {
       const data = await listChat(eventId);
-      setRows(data);
+      setRows((prev) => {
+        if (!data) return prev;
+        const hasOptimistic = prev.some((m) => m.id < 0);
+        const prevTop = prev[prev.length - 1]?.id ?? 0;
+        const nextTop = data[data.length - 1]?.id ?? 0;
+        if (!hasOptimistic && data.length === prev.length && prevTop === nextTop) return prev;
+        if (nextTop > lastSeenId) setLastSeenId(nextTop);
+        return data;
+      });
     } catch {
       // silent; server may forbid non-participants
     }
-  }, [eventId]);
+  }, [eventId, lastSeenId]);
 
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, [load]);
 
-  // Poll every 15s for new messages while screen is mounted
-  useEffect(() => {
-    const i = setInterval(load, 15000);
-    return () => clearInterval(i);
+  // Adaptive polling: 2s when user is active on chat, 15s in background
+  const startPolling = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    const ms = isActiveRef.current ? 2000 : 15000;
+    intervalRef.current = setInterval(load, ms);
   }, [load]);
+
+  useEffect(() => {
+    startPolling();
+    const sub = AppState.addEventListener('change', (state) => {
+      isActiveRef.current = state === 'active';
+      startPolling();
+    });
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      sub.remove();
+    };
+  }, [startPolling]);
 
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed || sending) return;
     setSending(true);
+    const tempId = -Date.now();
+    const optimistic: ChatMsg = {
+      id: tempId,
+      user_id: myUserId ?? 0,
+      display_name: user?.display_name ?? 'Du',
+      avatar_url: user?.avatar_url ?? null,
+      message: trimmed,
+      created_at: new Date().toISOString(),
+    };
+    setRows((prev) => [...prev, optimistic]);
+    setText('');
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
     try {
       await postChat(eventId, trimmed);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setText('');
       await load();
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50);
     } catch {
-      // error toast handled elsewhere
+      // rollback on failure
+      setRows((prev) => prev.filter((m) => m.id !== tempId));
+      setText(trimmed);
     } finally {
       setSending(false);
     }
-  }, [eventId, text, sending, load]);
+  }, [eventId, text, sending, load, myUserId, user?.display_name]);
 
   const data = useMemo(() => rows, [rows]);
 

@@ -44,16 +44,34 @@ apiClient.interceptors.response.use(
           const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
             refresh_token: refreshToken,
           });
-          const { access_token, refresh_token: newRefresh } = response.data.data;
-          await SecureStore.setItemAsync('access_token', access_token);
-          await SecureStore.setItemAsync('refresh_token', newRefresh);
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          const tokens = response?.data?.data;
+          if (!tokens?.access_token || !tokens?.refresh_token) {
+            throw new Error('Invalid refresh response');
+          }
+          await SecureStore.setItemAsync('access_token', tokens.access_token);
+          await SecureStore.setItemAsync('refresh_token', tokens.refresh_token);
+          originalRequest.headers.Authorization = `Bearer ${tokens.access_token}`;
           return apiClient(originalRequest);
         }
       } catch {
         // Refresh failed - clear tokens
         await SecureStore.deleteItemAsync('access_token');
         await SecureStore.deleteItemAsync('refresh_token');
+      }
+    }
+    // Report unexpected server errors (5xx) to crash reporter; 4xx is user/app flow
+    const status = error?.response?.status;
+    if (typeof status === 'number' && status >= 500) {
+      try {
+        // Lazy import to avoid circular deps at module load time
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { captureError } = require('../utils/crashReport');
+        captureError(error, {
+          tags: { kind: 'api', status: String(status) },
+          extra: { url: error?.config?.url, method: error?.config?.method },
+        });
+      } catch {
+        // ignore — reporter is optional
       }
     }
     return Promise.reject(error);

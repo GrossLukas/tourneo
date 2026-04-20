@@ -15,6 +15,7 @@ import { useFavoritesStore } from '../src/store/favoritesStore';
 import { useTheme } from '../src/providers/ThemeProvider';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
 import { OfflineBanner } from '../src/components/OfflineBanner';
+import { initCrashReporting, setCrashUser } from '../src/utils/crashReport';
 
 /* ── Push-notification handler (foreground) ─────────────────────── */
 Notifications.setNotificationHandler({
@@ -71,6 +72,7 @@ export default function RootLayout() {
 
   /* ── App boot ─────────────────────────────────────────────── */
   useEffect(() => {
+    initCrashReporting();
     const boot = async () => {
       try {
         await initialize();
@@ -84,6 +86,15 @@ export default function RootLayout() {
     };
     boot();
   }, []);
+
+  /* ── Identify user for crash reporting ────────────────────── */
+  useEffect(() => {
+    if (user?.id) {
+      setCrashUser({ id: user.id, email: user.email });
+    } else {
+      setCrashUser(null);
+    }
+  }, [user?.id, user?.email]);
 
   /* ── Push token registration (after auth) ─────────────────── */
   useEffect(() => {
@@ -137,12 +148,15 @@ export default function RootLayout() {
       <Stack.Screen name="onboarding/playtomic" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding/playtomic-verify" options={{ headerShown: false }} />
       <Stack.Screen name="admin/verifications" options={{ headerShown: false }} />
+      <Stack.Screen name="admin/quick-create" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="membership" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="notifications" options={{ headerShown: false }} />
       <Stack.Screen name="leaderboard" options={{ headerShown: false }} />
       <Stack.Screen name="support" options={{ headerShown: false }} />
       <Stack.Screen name="legal/[type]" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="matchmaking/index" options={{ headerShown: false }} />
+      <Stack.Screen name="profile/[id]" options={{ headerShown: false }} />
     </Stack>
     </ErrorBoundary>
   );

@@ -12,6 +12,8 @@ import { BracketService } from '../services/bracketService';
 import { EloService } from '../services/eloService';
 import { PlaytomicService } from '../services/playtomicService';
 import { MatchFeedbackService } from '../services/matchFeedbackService';
+import { RatingHistoryService } from '../services/ratingHistoryService';
+import { PlayerDiscoveryService } from '../services/playerDiscoveryService';
 import { db, t } from '../config/database';
 
 const router = Router();
@@ -116,6 +118,54 @@ router.get(
       next(error);
     }
   }
+);
+
+// ELO history (time series for chart)
+router.get(
+  '/elo/history',
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const sport = (req.query.sport as string) === 'fifa' ? 'fifa' : 'padel';
+      const limitRaw = Number(req.query.limit);
+      const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 30;
+      const history = await RatingHistoryService.listForUser(req.user!.userId, sport, limit);
+      res.json({ success: true, data: history });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Discoverable toggle (player search opt-in)
+router.put(
+  '/discoverable',
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const discoverable = Boolean(req.body?.discoverable);
+      await db(t('profiles'))
+        .where('user_id', req.user!.userId)
+        .update({ discoverable, updated_at: new Date() });
+      res.json({ success: true, data: { discoverable } });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Bump last_active_at (called on app resume)
+router.post(
+  '/heartbeat',
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await PlayerDiscoveryService.bumpLastActive(req.user!.userId);
+      res.json({ success: true, data: { ok: true } });
+    } catch (error) {
+      next(error);
+    }
+  },
 );
 
 // ──────────────────────────────────────────

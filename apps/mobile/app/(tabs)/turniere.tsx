@@ -7,10 +7,12 @@ import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { useEventStore, type Event } from '../../src/store/eventStore';
+import { useAuthStore } from '../../src/store/authStore';
 import { spacing, fontSize, fontWeight, borderRadius, radius, shadows } from '../../src/theme/spacing';
 import type { Colors } from '../../src/theme/colors';
 import { TFavoriteButton } from '../../src/components/common';
 import { TurniereSkeleton } from '../../src/components/skeletons/TurniereSkeleton';
+import { Ionicons } from '@expo/vector-icons';
 
 type FilterTab = 'all' | 'upcoming' | 'live' | 'past';
 
@@ -96,6 +98,8 @@ export default function TurniereScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { events, loading, fetchEvents } = useEventStore();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -188,6 +192,19 @@ export default function TurniereScreen() {
         showsVerticalScrollIndicator={false}
       />
       )}
+
+      {isAdmin && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            router.push('/admin/quick-create');
+          }}
+          style={[styles.fab, { backgroundColor: colors.primary }]}
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -236,5 +253,20 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     paddingHorizontal: spacing.md,
     fontSize: fontSize.sm,
+  },
+  fab: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.xl + 60,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });

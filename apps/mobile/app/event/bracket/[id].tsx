@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Alert, AppState } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../src/providers/ThemeProvider';
 import { THeader, TLoadingScreen, TEmptyState } from '../../../src/components/common';
@@ -22,21 +22,51 @@ export default function BracketScreen() {
     opponentName: string;
   } | null>(null);
 
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
-    fetchBracket();
+    fetchBracket(true);
+
+    // Live poll every 10s while at least one match is in_progress or scheduled today
+    const startPolling = () => {
+      if (pollRef.current) return;
+      pollRef.current = setInterval(() => {
+        fetchBracket(false);
+      }, 10000);
+    };
+    const stopPolling = () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+    startPolling();
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') startPolling();
+      else stopPolling();
+    });
+
+    return () => {
+      stopPolling();
+      sub.remove();
+    };
   }, [id]);
 
-  const fetchBracket = async () => {
-    setLoading(true);
+  const hasLiveMatch =
+    bracket?.matches?.some((m: any) => m.status === 'in_progress') ?? false;
+
+  const fetchBracket = async (showLoader = false) => {
+    if (showLoader) setLoading(true);
     try {
       const response = await api.get(`/brackets/event/${id}`);
       setBracket(response.data.data);
     } catch (error: any) {
-      if (error.response?.status !== 404) {
+      if (showLoader && error.response?.status !== 404) {
         Alert.alert('Fehler', 'Spielplan konnte nicht geladen werden.');
       }
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   };
 
@@ -58,9 +88,17 @@ export default function BracketScreen() {
               {bracket.bracket_type === 'single_elimination' ? 'K.O.-System' : bracket.bracket_type}
               {bracket.third_place_match ? ' (mit Spiel um Platz 3)' : ''}
             </Text>
-            <Text style={[styles.totalMatches, { color: colors.textTertiary }]}>
-              {bracket.matches.length} Spiele · {bracket.total_participants} Teilnehmer
-            </Text>
+            <View style={styles.metaRow}>
+              <Text style={[styles.totalMatches, { color: colors.textTertiary }]}>
+                {bracket.matches.length} Spiele · {bracket.total_participants} Teilnehmer
+              </Text>
+              {hasLiveMatch && (
+                <View style={[styles.liveBadge, { backgroundColor: '#FF4757' }]}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>LIVE</Text>
+                </View>
+              )}
+            </View>
           </View>
           <BracketView
             matches={bracket.matches}
@@ -133,4 +171,15 @@ const styles = StyleSheet.create({
   info: { padding: spacing.md, paddingBottom: spacing.xs },
   bracketType: { fontSize: fontSize.md, fontWeight: fontWeight.semibold as any },
   totalMatches: { fontSize: fontSize.sm, marginTop: 2 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 2 },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    gap: 4,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
+  liveText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' as any, letterSpacing: 0.6 },
 });
