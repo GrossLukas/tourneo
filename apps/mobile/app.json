@@ -59,6 +59,7 @@
       "expo-image-picker",
       "expo-apple-authentication",
       "expo-local-authentication",
+      "expo-web-browser",
       [
         "expo-location",
         {

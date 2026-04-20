@@ -44,10 +44,13 @@ apiClient.interceptors.response.use(
           const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
             refresh_token: refreshToken,
           });
-          const { access_token, refresh_token: newRefresh } = response.data.data;
-          await SecureStore.setItemAsync('access_token', access_token);
-          await SecureStore.setItemAsync('refresh_token', newRefresh);
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          const tokens = response?.data?.data;
+          if (!tokens?.access_token || !tokens?.refresh_token) {
+            throw new Error('Invalid refresh response');
+          }
+          await SecureStore.setItemAsync('access_token', tokens.access_token);
+          await SecureStore.setItemAsync('refresh_token', tokens.refresh_token);
+          originalRequest.headers.Authorization = `Bearer ${tokens.access_token}`;
           return apiClient(originalRequest);
         }
       } catch {

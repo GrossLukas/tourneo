@@ -165,13 +165,16 @@ export default function NotificationsScreen() {
   const handleNotificationPress = useCallback((notif: AppNotification) => {
     if (!notif.read) markAsRead(notif.id);
 
-    // Navigate based on notification data
-    if (notif.data?.event_id) {
-      router.push(`/event/${notif.data.event_id}`);
-    } else if (notif.data?.match_id) {
-      router.push(`/event/bracket/${notif.data.event_id || ''}`);
+    const eventId = notif.data?.event_id;
+    const matchId = notif.data?.match_id;
+    const bracketEventId = notif.data?.bracket_event_id ?? eventId;
+
+    if (matchId && bracketEventId) {
+      router.push(`/event/bracket/${bracketEventId}`);
+    } else if (eventId) {
+      router.push(`/event/${eventId}`);
     }
-  }, []);
+  }, [markAsRead, router]);
 
   const renderItem = useCallback(({ item }: { item: AppNotification }) => (
     <SwipeableNotificationItem
