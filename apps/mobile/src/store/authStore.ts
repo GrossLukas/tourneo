@@ -144,6 +144,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { useBiometricStore } = require('./biometricStore');
       await useBiometricStore.getState().disable();
     } catch { /* ignore if store not available */ }
+    // Wipe all per-user caches so the next login does not leak data.
+    // Lazy require avoids circular-import issues between authStore and
+    // store/index.ts, which aggregates all stores.
+    try {
+      const { resetAllUserStores } = require('./index');
+      await resetAllUserStores();
+    } catch (err) {
+      if (__DEV__) console.warn('[auth] resetAllUserStores failed:', err);
+    }
     set({ user: null, isAuthenticated: false, showBiometricPrompt: false });
   },
 

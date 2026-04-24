@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Platform } from 'react-native';
 import api from '../api/client';
 
 export interface AppNotification {
@@ -28,6 +29,7 @@ interface NotificationState {
   registerPushToken: (token: string) => Promise<void>;
   setPushToken: (token: string) => void;
   clearError: () => void;
+  reset: () => void;
 }
 
 export const useNotificationStore = create<NotificationState>((set) => ({
@@ -96,15 +98,26 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   registerPushToken: async (token) => {
     try {
       await api.post('/notifications/push-token', {
-        token,
-        platform: 'ios',
+        push_token: token,
+        platform: Platform.OS === 'android' ? 'android' : 'ios',
       });
       set({ pushToken: token });
     } catch (error: any) {
-      // Silent fail - retry later
+      if (__DEV__) {
+        console.warn('[notifications] registerPushToken failed:', error?.response?.status, error?.response?.data);
+      }
     }
   },
 
   setPushToken: (token) => set({ pushToken: token }),
   clearError: () => set({ error: null }),
+
+  reset: () =>
+    set({
+      notifications: [],
+      unreadCount: 0,
+      loading: false,
+      error: null,
+      pushToken: null,
+    }),
 }));

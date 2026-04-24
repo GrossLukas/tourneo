@@ -38,6 +38,7 @@ interface MembershipState {
   cancelSubscription: () => Promise<void>;
   restorePurchases: (appleReceipt: string) => Promise<void>;
   clearError: () => void;
+  reset: () => void;
 }
 
 const DEFAULT_TIERS: MembershipTierInfo[] = [
@@ -161,4 +162,12 @@ export const useMembershipStore = create<MembershipState>((set) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  reset: () =>
+    set({
+      currentMembership: null,
+      tiers: DEFAULT_TIERS,
+      loading: false,
+      error: null,
+    }),
 }));

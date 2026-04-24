@@ -48,6 +48,7 @@ interface RatingStoreState {
   fetchPlayerRating: (userId: number, sport?: SportCategory) => Promise<void>;
   setActiveSport: (sport: SportCategory) => void;
   clearError: () => void;
+  reset: () => void;
 }
 
 export function getTierColor(tier: RatingTier): string {
@@ -127,4 +128,14 @@ export const useRatingStore = create<RatingStoreState>((set, get) => ({
 
   setActiveSport: (sport) => set({ activeSport: sport }),
   clearError: () => set({ error: null }),
+
+  reset: () =>
+    set({
+      myRating: null,
+      leaderboard: [],
+      playerRating: null,
+      activeSport: 'padel',
+      loading: false,
+      error: null,
+    }),
 }));

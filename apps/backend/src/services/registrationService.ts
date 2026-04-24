@@ -8,56 +8,56 @@ import dayjs from 'dayjs';
 
 export class RegistrationService {
   static async createRegistration(input: CreateRegistrationInput, userId: number) {
-    const event = await db(t('events')).where('id', input.event_id).first();
-    if (!event) throw AppError.notFound('Event');
-
-    // Get user's membership
-    const membership = await db(t('memberships'))
-      .where('user_id', userId)
-      .where('status', 'active')
-      .first();
-    const membershipTier: MembershipTier = membership?.tier || 'free';
-
-    // Check if user can register
-    const accessCheck = EventService.canUserRegister(event, membershipTier);
-    if (!accessCheck.canRegister) {
-      throw AppError.badRequest(accessCheck.reason || 'Cannot register for this event');
-    }
-
-    // Check for existing registration
-    const existingReg = await db(t('registrations'))
-      .where('event_id', input.event_id)
-      .where('user_id', userId)
-      .whereNotIn('status', ['cancelled', 'refunded'])
-      .first();
-
-    if (existingReg) {
-      throw AppError.conflict('You are already registered for this event');
-    }
-
-    // Check capacity
-    const [{ count: currentCount }] = await db(t('registrations'))
-      .where('event_id', input.event_id)
-      .whereIn('status', ['confirmed', 'pending_payment'])
-      .count('* as count');
-
-    const isFull = Number(currentCount) >= event.max_participants;
-
-    // Calculate discounted fee
-    const { fee: netFee, discount } = EventService.calculateDiscountedFee(
-      event.entry_fee_cents,
-      membershipTier
-    );
-
     const regUuid = uuidv4();
     const now = new Date();
 
+    // All reads + writes happen inside a single transaction with a
+    // SELECT ... FOR UPDATE on the event row. Concurrent registrations
+    // therefore serialize: capacity check and duplicate check cannot
+    // race with a parallel insert, which previously allowed overbooking
+    // and duplicate registrations.
     const result = await db.transaction(async (trx) => {
+      const event = await trx(t('events'))
+        .where('id', input.event_id)
+        .forUpdate()
+        .first();
+      if (!event) throw AppError.notFound('Event');
+
+      const membership = await trx(t('memberships'))
+        .where('user_id', userId)
+        .where('status', 'active')
+        .first();
+      const membershipTier: MembershipTier = membership?.tier || 'free';
+
+      const accessCheck = EventService.canUserRegister(event, membershipTier);
+      if (!accessCheck.canRegister) {
+        throw AppError.badRequest(accessCheck.reason || 'Cannot register for this event');
+      }
+
+      const existingReg = await trx(t('registrations'))
+        .where('event_id', input.event_id)
+        .where('user_id', userId)
+        .whereNotIn('status', ['cancelled', 'refunded'])
+        .first();
+      if (existingReg) {
+        throw AppError.conflict('You are already registered for this event');
+      }
+
+      const [{ count: currentCount }] = await trx(t('registrations'))
+        .where('event_id', input.event_id)
+        .whereIn('status', ['confirmed', 'pending_payment'])
+        .count('* as count');
+      const isFull = Number(currentCount) >= event.max_participants;
+
+      const { fee: netFee, discount } = EventService.calculateDiscountedFee(
+        event.entry_fee_cents,
+        membershipTier
+      );
+
       let status: string;
       let waitlistPosition: number | null = null;
 
       if (isFull) {
-        // Add to waitlist
         const [{ maxPos }] = await trx(t('registrations'))
           .where('event_id', input.event_id)
           .where('status', 'waitlisted')
@@ -87,7 +87,6 @@ export class RegistrationService {
         updated_at: now,
       });
 
-      // Audit log
       await trx(t('audit_log')).insert({
         user_id: userId,
         action: isFull ? 'registration.waitlisted' : 'registration.created',
@@ -107,6 +106,10 @@ export class RegistrationService {
         registrationId,
         status,
         waitlistPosition,
+        netFee,
+        discount,
+        entryFeeCents: event.entry_fee_cents,
+        membershipTier,
       };
     });
 
@@ -116,11 +119,11 @@ export class RegistrationService {
       event_id: input.event_id,
       status: result.status,
       waitlist_position: result.waitlistPosition,
-      entry_fee_cents: event.entry_fee_cents,
-      discount_cents: discount,
-      net_fee_cents: netFee,
-      membership_tier: membershipTier,
-      requires_payment: result.status === 'pending_payment' && netFee > 0,
+      entry_fee_cents: result.entryFeeCents,
+      discount_cents: result.discount,
+      net_fee_cents: result.netFee,
+      membership_tier: result.membershipTier,
+      requires_payment: result.status === 'pending_payment' && result.netFee > 0,
     };
   }
 
@@ -222,13 +225,26 @@ export class RegistrationService {
    * or refund and any cron job can call this safely.
    */
   static async promoteFromWaitlist(eventId: number, trx?: any) {
-    const executor = trx || db;
+    // When called without an outer transaction, open one and lock the
+    // event row so the capacity check and promotion cannot race with a
+    // concurrent createRegistration or a parallel waitlist promotion.
+    if (!trx) {
+      return db.transaction(async (innerTrx) => {
+        return this._promoteFromWaitlistInternal(eventId, innerTrx, /* externalTrx */ false);
+      });
+    }
+    return this._promoteFromWaitlistInternal(eventId, trx, /* externalTrx */ true);
+  }
 
-    const event = await executor(t('events')).where('id', eventId).first();
+  private static async _promoteFromWaitlistInternal(
+    eventId: number,
+    trx: any,
+    externalTrx: boolean
+  ) {
+    const event = await trx(t('events')).where('id', eventId).forUpdate().first();
     if (!event) return null;
 
-    // Capacity check
-    const [{ count: activeCount }] = await executor(t('registrations'))
+    const [{ count: activeCount }] = await trx(t('registrations'))
       .where('event_id', eventId)
       .whereIn('status', ['confirmed', 'pending_payment'])
       .count('* as count');
@@ -237,8 +253,7 @@ export class RegistrationService {
       return null;
     }
 
-    // Find next waitlisted registration by priority: Club > Plus > Free, then position/time
-    const nextInLine = await executor(t('registrations'))
+    const nextInLine = await trx(t('registrations'))
       .where('event_id', eventId)
       .where('status', 'waitlisted')
       .orderByRaw(`
@@ -255,37 +270,44 @@ export class RegistrationService {
     if (!nextInLine) return null;
 
     const now = new Date();
-    await executor(t('registrations')).where('id', nextInLine.id).update({
+    await trx(t('registrations')).where('id', nextInLine.id).update({
       status: 'pending_payment',
       waitlist_position: null,
       waitlist_promoted_at: now,
       updated_at: now,
     });
 
-    // Notification: only push outside any open transaction so we don't
-    // hold connection on a slow Firebase round-trip.
-    if (!trx) {
-      try {
-        const { NotificationService } = await import('./notificationService');
-        await NotificationService.send(
-          nextInLine.user_id,
-          'waitlist_promoted',
-          'Du bist dabei!',
-          'Ein Platz ist frei geworden. Bitte schließe deine Zahlung innerhalb von 24 Stunden ab.',
-          { event_id: eventId, registration_id: nextInLine.id }
-        );
-      } catch (err) {
-        console.error('[waitlist] Failed to notify promoted user:', err);
-      }
-    } else {
-      // Inside a transaction – just persist the notification row.
-      await executor(t('notifications')).insert({
-        user_id: nextInLine.user_id,
-        type: 'waitlist_promoted',
-        title: 'Du bist dabei!',
-        body: 'Ein Platz ist frei geworden. Bitte schließe deine Zahlung innerhalb von 24 Stunden ab.',
-        data: JSON.stringify({ event_id: eventId, registration_id: nextInLine.id }),
-        created_at: now,
+    // Persist the notification row inside the current transaction so it
+    // rolls back if the promotion fails. Push delivery (Firebase) is
+    // dispatched after the transaction commits; see waitlist_push below.
+    await trx(t('notifications')).insert({
+      user_id: nextInLine.user_id,
+      type: 'waitlist_promoted',
+      title: 'Du bist dabei!',
+      body: 'Ein Platz ist frei geworden. Bitte schließe deine Zahlung innerhalb von 24 Stunden ab.',
+      data: JSON.stringify({ event_id: eventId, registration_id: nextInLine.id }),
+      created_at: now,
+    });
+
+    // Fire-and-forget push only when we own the transaction; when the
+    // caller owns it, they should dispatch after their own commit.
+    if (!externalTrx) {
+      const promotedUserId = nextInLine.user_id as number;
+      const promotedRegId = nextInLine.id as number;
+      setImmediate(() => {
+        import('./notificationService')
+          .then(({ NotificationService }) =>
+            NotificationService.send(
+              promotedUserId,
+              'waitlist_promoted',
+              'Du bist dabei!',
+              'Ein Platz ist frei geworden. Bitte schließe deine Zahlung innerhalb von 24 Stunden ab.',
+              { event_id: eventId, registration_id: promotedRegId }
+            )
+          )
+          .catch((err) => {
+            console.error('[waitlist] Failed to send push to promoted user:', err?.message || err);
+          });
       });
     }
 

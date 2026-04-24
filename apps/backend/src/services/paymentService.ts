@@ -317,101 +317,123 @@ export class PaymentService {
     const now = new Date();
 
     // Find the payment via charge_id or payment_intent_id
-    const payment = await db(t('payments'))
+    const initialPayment = await db(t('payments'))
       .where('stripe_charge_id', charge.id)
       .orWhere('stripe_payment_intent_id', charge.payment_intent as string)
       .first();
 
-    if (!payment) {
+    if (!initialPayment) {
       console.error(`Payment not found for refunded Charge: ${charge.id}`);
       return;
     }
 
     const refundedAmount = charge.amount_refunded;
-    const isFullRefund = refundedAmount >= payment.net_amount_cents;
+    const isFullRefund = refundedAmount >= initialPayment.net_amount_cents;
+    const stripeRefundId = charge.refunds?.data?.[0]?.id || null;
 
     let promotedEventId: number | null = null;
 
-    await db.transaction(async (trx) => {
-      // Idempotency: ensure we have not already recorded this refund
-      const existingRefunds = await trx(t('refunds'))
-        .where('payment_id', payment.id)
-        .sum('amount_cents as total');
-      const alreadyRefundedCents = Number(existingRefunds[0]?.total || 0);
+    try {
+      await db.transaction(async (trx) => {
+        // Lock the payment row so two concurrent charge.refunded webhooks
+        // for the same payment serialize. Without the lock both could read
+        // alreadyRefundedCents = 0 and create duplicate refund rows.
+        const payment = await trx(t('payments'))
+          .where('id', initialPayment.id)
+          .forUpdate()
+          .first();
+        if (!payment) return;
 
-      const newRefundCents = refundedAmount - alreadyRefundedCents;
-      if (newRefundCents <= 0) {
-        // Nothing new to record
+        // Second idempotency check: if we have already inserted a refund
+        // for this exact Stripe refund id, we are done.
+        if (stripeRefundId) {
+          const existingByStripeId = await trx(t('refunds'))
+            .where('stripe_refund_id', stripeRefundId)
+            .first();
+          if (existingByStripeId) return;
+        }
+
+        const existingRefunds = await trx(t('refunds'))
+          .where('payment_id', payment.id)
+          .sum('amount_cents as total');
+        const alreadyRefundedCents = Number(existingRefunds[0]?.total || 0);
+
+        const newRefundCents = refundedAmount - alreadyRefundedCents;
+        if (newRefundCents <= 0) {
+          return;
+        }
+
+        await trx(t('refunds')).insert({
+          uuid: uuidv4(),
+          payment_id: payment.id,
+          user_id: payment.user_id,
+          amount_cents: newRefundCents,
+          reason: 'admin_decision',
+          reason_detail: 'Refunded via Stripe',
+          stripe_refund_id: stripeRefundId,
+          status: 'processed',
+          processed_at: now,
+          created_at: now,
+          updated_at: now,
+        });
+
+        await trx(t('payments')).where('id', payment.id).update({
+          status: isFullRefund ? 'refunded' : 'partially_refunded',
+          updated_at: now,
+        });
+
+        if (payment.registration_id) {
+          const reg = await trx(t('registrations'))
+            .where('id', payment.registration_id)
+            .first();
+
+          if (reg) {
+            await trx(t('registrations')).where('id', payment.registration_id).update({
+              status: 'refunded',
+              updated_at: now,
+            });
+            promotedEventId = reg.event_id;
+
+            await trx(t('notifications')).insert({
+              user_id: payment.user_id,
+              type: 'general',
+              title: 'Rückerstattung erhalten',
+              body: `Eine Rückerstattung über €${(newRefundCents / 100).toFixed(2)} wurde durchgeführt.`,
+              data: JSON.stringify({
+                payment_id: payment.id,
+                registration_id: payment.registration_id,
+                amount_cents: newRefundCents,
+              }),
+              created_at: now,
+            });
+          }
+        }
+
+        await trx(t('audit_log')).insert({
+          user_id: payment.user_id,
+          action: 'payment.refunded',
+          entity_type: 'payment',
+          entity_id: payment.id,
+          new_values: JSON.stringify({
+            amount: newRefundCents,
+            stripe_charge: charge.id,
+            full_refund: isFullRefund,
+          }),
+          created_at: now,
+        });
+      });
+    } catch (err: any) {
+      // UNIQUE(stripe_refund_id) violation — another concurrent webhook
+      // already wrote this refund. Treat as idempotent success.
+      const code = err?.code || err?.errno;
+      if (code === 'ER_DUP_ENTRY' || code === 1062) {
+        console.warn(
+          `[payments] Duplicate refund webhook for charge ${charge.id}; skipping (idempotent).`
+        );
         return;
       }
-
-      // Determine stripe refund id (latest refund on the charge)
-      const stripeRefundId = charge.refunds?.data?.[0]?.id || null;
-
-      // Insert refund row
-      await trx(t('refunds')).insert({
-        uuid: uuidv4(),
-        payment_id: payment.id,
-        user_id: payment.user_id,
-        amount_cents: newRefundCents,
-        reason: 'admin_decision',
-        reason_detail: 'Refunded via Stripe',
-        stripe_refund_id: stripeRefundId,
-        status: 'processed',
-        processed_at: now,
-        created_at: now,
-        updated_at: now,
-      });
-
-      // Update payment status
-      await trx(t('payments')).where('id', payment.id).update({
-        status: isFullRefund ? 'refunded' : 'partially_refunded',
-        updated_at: now,
-      });
-
-      // Update registration
-      if (payment.registration_id) {
-        const reg = await trx(t('registrations'))
-          .where('id', payment.registration_id)
-          .first();
-
-        if (reg) {
-          await trx(t('registrations')).where('id', payment.registration_id).update({
-            status: 'refunded',
-            updated_at: now,
-          });
-          promotedEventId = reg.event_id;
-
-          // Notify user
-          await trx(t('notifications')).insert({
-            user_id: payment.user_id,
-            type: 'general',
-            title: 'Rückerstattung erhalten',
-            body: `Eine Rückerstattung über €${(newRefundCents / 100).toFixed(2)} wurde durchgeführt.`,
-            data: JSON.stringify({
-              payment_id: payment.id,
-              registration_id: payment.registration_id,
-              amount_cents: newRefundCents,
-            }),
-            created_at: now,
-          });
-        }
-      }
-
-      // Audit log
-      await trx(t('audit_log')).insert({
-        user_id: payment.user_id,
-        action: 'payment.refunded',
-        entity_type: 'payment',
-        entity_id: payment.id,
-        new_values: JSON.stringify({
-          amount: newRefundCents,
-          stripe_charge: charge.id,
-          full_refund: isFullRefund,
-        }),
-        created_at: now,
-      });
-    });
+      throw err;
+    }
 
     // Promote waitlist outside the transaction so it can re-use trx-less helpers
     if (promotedEventId !== null) {
