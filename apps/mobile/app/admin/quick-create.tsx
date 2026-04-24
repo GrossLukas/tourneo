@@ -119,7 +119,7 @@ export default function QuickCreateScreen() {
     return venues;
   }, [venues, selected]);
 
-  const canSubmit = selected && venueId !== null && !submitting;
+  const canSubmit = selected && venueId !== null && Number.isFinite(venueId) && !submitting;
 
   const handleSubmit = useCallback(async () => {
     if (!selected || venueId === null) return;
@@ -251,14 +251,18 @@ export default function QuickCreateScreen() {
           </View>
         ) : (
           <View style={{ gap: spacing.xs }}>
-            {filteredVenues.slice(0, 10).map((v) => {
-              const active = venueId === Number(v.id);
+            {filteredVenues
+              .map((v) => ({ ...v, numericId: Number(v.id) }))
+              .filter((v) => Number.isFinite(v.numericId))
+              .slice(0, 10)
+              .map((v) => {
+              const active = venueId === v.numericId;
               return (
                 <TouchableOpacity
                   key={v.id}
                   onPress={() => {
                     Haptics.selectionAsync();
-                    setVenueId(Number(v.id));
+                    setVenueId(v.numericId);
                   }}
                   style={[
                     styles.venueRow,
