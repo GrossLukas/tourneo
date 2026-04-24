@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Tourneo · Night Court</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #05050A; color: #fff; font-family: 'Inter', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  button { font-family: inherit; }
+  input { font-family: inherit; }
+  ::-webkit-scrollbar { display: none; }
+  @keyframes tpulse { 0% { transform: scale(1); opacity: 0.9; } 70% { transform: scale(3.2); opacity: 0; } 100% { transform: scale(3.2); opacity: 0; } }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideup { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes pop { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+  @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  @keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+</style>
+
+<script src="tokens.js"></script>
+<script src="data.js"></script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="ui.jsx"></script>
+<script type="text/babel" src="home.jsx"></script>
+<script type="text/babel" src="turniere.jsx"></script>
+<script type="text/babel" src="event.jsx"></script>
+<script type="text/babel" src="profile.jsx"></script>
+<script type="text/babel" src="live.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "indigo",
+  "showGlow": true,
+  "showScrollbars": false
+}/*EDITMODE-END*/;
+
+const accentMap = {
+  indigo: { primary: '#6366F1', primaryDark: '#4F46E5', primaryLight: '#818CF8' },
+  violet: { primary: '#8B5CF6', primaryDark: '#7C3AED', primaryLight: '#A78BFA' },
+  teal:   { primary: '#0EA5B5', primaryDark: '#0891A4', primaryLight: '#22D3EE' },
+  coral:  { primary: '#F97066', primaryDark: '#E5554A', primaryLight: '#FCA89E' },
+};
+
+function App() {
+  const [tweaks, setTweaks] = useTweaks(TWEAK_DEFAULTS);
+
+  // Apply accent
+  React.useEffect(() => {
+    const a = accentMap[tweaks.accent] || accentMap.indigo;
+    window.TURNEO.primary = a.primary;
+    window.TURNEO.primaryDark = a.primaryDark;
+    window.TURNEO.primaryLight = a.primaryLight;
+    window.TURNEO.primaryGlow = a.primary + '59';
+    window.TURNEO.primaryBg = a.primary + '1F';
+  }, [tweaks.accent]);
+
+  // Each artboard gets its own navigation state
+  const makeNavState = (initial) => {
+    const [tab, setTab] = React.useState(initial);
+    const [sheet, setSheet] = React.useState(false);
+    return { tab, setTab, sheet, setSheet };
+  };
+
+  return (
+    <>
+      <TweaksPanel title="Tweaks">
+        <TweakSection title="Brand">
+          <TweakRadio
+            label="Accent"
+            value={tweaks.accent}
+            onChange={v => setTweaks({ accent: v })}
+            options={[
+              { value: 'indigo', label: 'Indigo' },
+              { value: 'violet', label: 'Violet' },
+              { value: 'teal', label: 'Teal' },
+              { value: 'coral', label: 'Coral' },
+            ]}
+          />
+        </TweakSection>
+      </TweaksPanel>
+
+      <DesignCanvas title="Tourneo — Night Court" bg="#05050A">
+        <DCSection id="core" title="Core Flows">
+          <DCArtboard id="home" label="Home" width={402} height={874}>
+            <ArtboardFrame><HomeRoot key={tweaks.accent} /></ArtboardFrame>
+          </DCArtboard>
+          <DCArtboard id="turniere" label="Turniere" width={402} height={874}>
+            <ArtboardFrame><TurniereRoot key={tweaks.accent} /></ArtboardFrame>
+          </DCArtboard>
+          <DCArtboard id="event" label="Event · Registrierung" width={402} height={874}>
+            <ArtboardFrame><EventRoot key={tweaks.accent} /></ArtboardFrame>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="live" title="Live & Profile">
+          <DCArtboard id="livem" label="Live Match" width={402} height={874}>
+            <ArtboardFrame><LiveRoot key={tweaks.accent} /></ArtboardFrame>
+          </DCArtboard>
+          <DCArtboard id="profil" label="Profil" width={402} height={874}>
+            <ArtboardFrame><ProfileRoot key={tweaks.accent} /></ArtboardFrame>
+          </DCArtboard>
+          <DCArtboard id="member" label="Membership" width={402} height={874}>
+            <ArtboardFrame><MembershipRoot key={tweaks.accent} /></ArtboardFrame>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+    </>
+  );
+}
+
+const ArtboardFrame = ({ children }) => (
+  <IOSDevice width={402} height={874} dark={true}>
+    {children}
+  </IOSDevice>
+);
+
+// Each root has its own stack so Tabs / navigation work independently
+function HomeRoot() {
+  const [tab, setTab] = React.useState('home');
+  return (
+    <>
+      <HomeScreen onNavigate={setTab} />
+      <BottomTabs active={tab} onChange={setTab} />
+    </>
+  );
+}
+function TurniereRoot() {
+  const [tab, setTab] = React.useState('turniere');
+  return (
+    <>
+      <TurniereScreen onNavigate={setTab} />
+      <BottomTabs active={tab} onChange={setTab} />
+    </>
+  );
+}
+function EventRoot() {
+  const [sheet, setSheet] = React.useState(false);
+  return (
+    <>
+      <EventScreen onNavigate={() => {}} onRegister={() => setSheet(true)} />
+      <RegisterSheet open={sheet} onClose={() => setSheet(false)} onDone={() => setSheet(false)} />
+    </>
+  );
+}
+function LiveRoot() {
+  return <LiveMatchScreen onNavigate={() => {}} />;
+}
+function ProfileRoot() {
+  const [tab, setTab] = React.useState('profil');
+  return (
+    <>
+      <ProfileScreen onNavigate={setTab} />
+      <BottomTabs active={tab} onChange={setTab} />
+    </>
+  );
+}
+function MembershipRoot() {
+  return <MembershipScreen onNavigate={() => {}} />;
+}
+
+// Mount
+setTimeout(() => {
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+}, 50);
+</script>
+</body>
+</html>
