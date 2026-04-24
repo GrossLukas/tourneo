@@ -70,6 +70,7 @@ interface CommunityState {
   searchUsers: (query: string) => Promise<void>;
   clearSearch: () => void;
   clearError: () => void;
+  reset: () => void;
 }
 
 export const useCommunityStore = create<CommunityState>((set) => ({
@@ -221,4 +222,14 @@ export const useCommunityStore = create<CommunityState>((set) => ({
 
   clearSearch: () => set({ searchResults: [] }),
   clearError: () => set({ error: null }),
+  reset: () =>
+    set({
+      teams: [],
+      currentTeam: null,
+      friends: [],
+      pendingRequests: [],
+      searchResults: [],
+      loading: false,
+      error: null,
+    }),
 }));

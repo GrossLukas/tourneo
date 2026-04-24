@@ -113,7 +113,9 @@ export class NotificationService {
             db(t('push_tokens'))
               .where('token', tokens[idx])
               .update({ is_active: false, updated_at: new Date() })
-              .catch(() => {});
+              .catch((e) => {
+                console.warn('[notifications] Failed to deactivate dead token:', e?.message || e);
+              });
           }
         }
       });

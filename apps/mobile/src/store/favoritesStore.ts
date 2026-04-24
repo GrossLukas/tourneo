@@ -12,6 +12,7 @@ interface FavoritesStoreState {
   toggleFavorite: (eventId: number) => Promise<void>;
   isFavorite: (eventId: number) => boolean;
   hydrate: () => Promise<void>;
+  reset: () => Promise<void>;
 }
 
 export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
@@ -45,5 +46,14 @@ export const useFavoritesStore = create<FavoritesStoreState>((set, get) => ({
 
   isFavorite: (eventId: number) => {
     return get().favorites.includes(eventId);
+  },
+
+  reset: async () => {
+    set({ favorites: [] });
+    try {
+      await AsyncStorage.removeItem(FAVORITES_KEY);
+    } catch {
+      // ignore – next hydrate will overwrite
+    }
   },
 }));

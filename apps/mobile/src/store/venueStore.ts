@@ -61,6 +61,7 @@ interface VenueState {
   setFilters: (filters: Partial<VenueState['filters']>) => void;
   clearFilters: () => void;
   clearError: () => void;
+  reset: () => void;
 }
 
 export const useVenueStore = create<VenueState>((set, get) => ({
@@ -102,4 +103,14 @@ export const useVenueStore = create<VenueState>((set, get) => ({
 
   clearFilters: () => set({ filters: {} }),
   clearError: () => set({ error: null }),
+
+  reset: () =>
+    set({
+      venues: [],
+      currentVenue: null,
+      loading: false,
+      error: null,
+      geoActive: false,
+      filters: {},
+    }),
 }));

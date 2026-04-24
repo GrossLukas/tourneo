@@ -3,12 +3,20 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Dev-only secret fallbacks. If any of these are observed in production
+// validateEnv() below will abort the startup — the hardcoded values must
+// never sign real tokens.
+const DEV_ACCESS_SECRET = 'dev-access-secret-change-me';
+const DEV_REFRESH_SECRET = 'dev-refresh-secret-change-me';
+
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '3000', 10),
   apiVersion: process.env.API_VERSION || 'v1',
   isDevelopment: process.env.NODE_ENV === 'development',
-  isProduction: process.env.NODE_ENV === 'production',
+  isProduction,
 
   db: {
     host: process.env.DB_HOST || 'localhost',
@@ -23,8 +31,8 @@ export const env = {
   },
 
   jwt: {
-    accessSecret: process.env.JWT_ACCESS_SECRET || 'dev-access-secret-change-me',
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-me',
+    accessSecret: process.env.JWT_ACCESS_SECRET || DEV_ACCESS_SECRET,
+    refreshSecret: process.env.JWT_REFRESH_SECRET || DEV_REFRESH_SECRET,
     accessExpiry: process.env.JWT_ACCESS_EXPIRY || '15m',
     refreshExpiry: process.env.JWT_REFRESH_EXPIRY || '30d',
   },
@@ -80,3 +88,48 @@ export const env = {
 
   logLevel: process.env.LOG_LEVEL || 'debug',
 };
+
+/**
+ * Aborts startup if the process is running in production without the
+ * mandatory configuration. Catches the common "forgot to set JWT secrets"
+ * class of deploys where tokens end up signed with the dev fallback,
+ * which would make them trivially forgeable.
+ *
+ * Called from src/index.ts before the HTTP server is bound.
+ */
+export function validateEnv(): void {
+  if (!env.isProduction) return;
+
+  const errors: string[] = [];
+
+  const require = (name: string, value: string, minLen = 1) => {
+    if (!value || value.length < minLen) {
+      errors.push(
+        minLen > 1
+          ? `${name} must be set and at least ${minLen} characters in production`
+          : `${name} must be set in production`
+      );
+    }
+  };
+
+  require('JWT_ACCESS_SECRET', process.env.JWT_ACCESS_SECRET || '', 32);
+  require('JWT_REFRESH_SECRET', process.env.JWT_REFRESH_SECRET || '', 32);
+  require('STRIPE_SECRET_KEY', env.stripe.secretKey);
+  require('STRIPE_WEBHOOK_SECRET', env.stripe.webhookSecret);
+  require('APP_URL', process.env.APP_URL || '');
+  require('ADMIN_URL', process.env.ADMIN_URL || '');
+  require('DB_PASSWORD', env.db.password);
+
+  if (env.jwt.accessSecret === DEV_ACCESS_SECRET || env.jwt.refreshSecret === DEV_REFRESH_SECRET) {
+    errors.push('JWT secrets must not use the development fallback values in production');
+  }
+  if (env.jwt.accessSecret === env.jwt.refreshSecret) {
+    errors.push('JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must differ');
+  }
+
+  if (errors.length > 0) {
+    // eslint-disable-next-line no-console
+    console.error('❌ Environment validation failed:\n  - ' + errors.join('\n  - '));
+    throw new Error('Invalid production environment: ' + errors.join('; '));
+  }
+}

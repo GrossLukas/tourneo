@@ -58,9 +58,8 @@ export class NotificationController {
 
   static async registerPushToken(req: Request, res: Response, next: NextFunction) {
     try {
-      const { push_token, platform } = req.body;
+      const { push_token, platform } = req.body as { push_token: string; platform: 'ios' | 'android' };
 
-      // Upsert push token
       const existing = await db(t('push_tokens'))
         .where('user_id', req.user!.userId)
         .where('token', push_token)
@@ -69,13 +68,14 @@ export class NotificationController {
       if (existing) {
         await db(t('push_tokens')).where('id', existing.id).update({
           is_active: true,
+          platform,
           updated_at: new Date(),
         });
       } else {
         await db(t('push_tokens')).insert({
           user_id: req.user!.userId,
           token: push_token,
-          platform: platform || 'ios',
+          platform,
           is_active: true,
           created_at: new Date(),
           updated_at: new Date(),

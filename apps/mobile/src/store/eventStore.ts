@@ -54,6 +54,7 @@ interface EventState {
   fetchEventById: (id: number) => Promise<void>;
   setFilters: (filters: Record<string, any>) => void;
   clearFilters: () => void;
+  reset: () => void;
 }
 
 export const useEventStore = create<EventState>((set, get) => ({
@@ -97,5 +98,16 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   clearFilters: () => {
     set({ filters: {} });
+  },
+
+  reset: () => {
+    set({
+      events: [],
+      currentEvent: null,
+      loading: false,
+      error: null,
+      filters: {},
+      meta: { page: 1, total: 0, total_pages: 0 },
+    });
   },
 }));

@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import * as path from 'path';
-import { env } from './config/environment';
+import { env, validateEnv } from './config/environment';
 import { testConnection } from './config/database';
 import { apiRouter } from './routes';
 import { startJobs } from './jobs';
@@ -106,6 +106,10 @@ app.use(errorHandler);
 
 // Start server
 async function start() {
+  // Fail-fast on misconfigured production deploys (e.g. missing JWT
+  // secrets) before we accept any traffic.
+  validateEnv();
+
   // Test database connection
   const dbConnected = await testConnection();
   if (!dbConnected) {

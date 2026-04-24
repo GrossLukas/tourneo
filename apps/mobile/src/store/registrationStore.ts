@@ -43,6 +43,7 @@ interface RegistrationState {
   cancelRegistration: (id: string, reason?: string) => Promise<void>;
   getRegistrationById: (id: string) => Promise<void>;
   clearError: () => void;
+  reset: () => void;
 }
 
 export const useRegistrationStore = create<RegistrationState>((set, get) => ({
@@ -105,4 +106,12 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  reset: () =>
+    set({
+      myRegistrations: [],
+      currentRegistration: null,
+      loading: false,
+      error: null,
+    }),
 }));
