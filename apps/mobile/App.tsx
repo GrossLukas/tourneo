@@ -3,9 +3,10 @@ import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { ExpoRoot } from 'expo-router';
 import { ThemeProvider, useTheme } from './src/providers/ThemeProvider';
+import { useNightCourtFonts } from './src/theme/fonts';
 
 // Initialize i18n
 import './src/i18n';
@@ -14,6 +15,9 @@ const ctx = (require as any).context('./app');
 
 function AppContent() {
   const { isDark } = useTheme();
+  // Load Outfit / Inter / JetBrains Mono. While they load we still render
+  // the app so there is no blank flash – the system font is used as fallback.
+  useNightCourtFonts();
   return (
     <>
       {/* Night Court is dark-mode-first — always light status bar icons */}
