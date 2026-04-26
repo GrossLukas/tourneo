@@ -1,294 +1,115 @@
+/**
+ * Night Court — Profil screen.
+ *
+ * Layout:
+ *   1. Identity card (avatar / name / handle / TOURNEO PLUS badge)
+ *   2. 3-up StatBig grid (ELO · Winrate · Streak)
+ *   3. Achievements horizontal shelf
+ *   4. Membership upsell card → /membership
+ *   5. Settings list (Mitgliedschaft · Benachrichtigungen · Einstellungen · Rechtliches · Abmelden)
+ */
 import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
-  Platform,
-  Switch,
+  Pressable,
   Alert,
-  Share,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useTheme, type ThemePreference } from '../../src/providers/ThemeProvider';
-import { spacing, fontSize, fontWeight, radius, shadow } from '../../src/theme/spacing';
-import { membership as membershipColors, type Colors } from '../../src/theme/colors';
-import { useAuthStore } from '../../src/store';
-import { useRatingStore } from '../../src/store/ratingStore';
-import { TRatingBadge } from '../../src/components/common';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
-  getMyElo,
-  getMyReferral,
-  getMyAchievements,
-  createMyReferralCode,
-} from '../../src/api/v2';
+  NCScreen,
+  NCCard,
+  NCAvatar,
+  NCSection,
+  NCButton,
+  NCIcon,
+  NC,
+  type IconName,
+} from '../../src/components/nightcourt';
+import { fontFamily } from '../../src/theme/typography';
+import { useAuthStore } from '../../src/store/authStore';
+import { getMyElo, getMyAchievements, type EloTier } from '../../src/api/v2';
 
-// ─── Section Item ────────────────────────────────────────────
-function SectionItem({
-  icon,
-  title,
-  subtitle,
-  onPress,
-  colors,
-  trailing,
-  danger,
-}: {
-  icon: string;
-  title: string;
-  subtitle?: string;
-  onPress?: () => void;
-  colors: Colors;
-  trailing?: React.ReactNode;
-  danger?: boolean;
-}) {
-  return (
-    <TouchableOpacity
-      style={[styles.sectionItem, { borderBottomColor: colors.divider }]}
-      activeOpacity={onPress ? 0.6 : 1}
-      onPress={onPress}
-    >
-      <View style={[styles.sectionItemIcon, { backgroundColor: danger ? colors.errorBg : colors.surfaceSecondary }]}>
-        <Text style={styles.sectionItemIconText}>{icon}</Text>
-      </View>
-      <View style={styles.sectionItemContent}>
-        <Text style={[styles.sectionItemTitle, { color: danger ? colors.error : colors.textPrimary }]}>
-          {title}
-        </Text>
-        {subtitle && (
-          <Text style={[styles.sectionItemSubtitle, { color: colors.textTertiary }]}>{subtitle}</Text>
-        )}
-      </View>
-      {trailing || (
-        <Text style={[styles.sectionItemArrow, { color: colors.textTertiary }]}>›</Text>
-      )}
-    </TouchableOpacity>
-  );
-}
-
-// ─── Theme Picker ────────────────────────────────────────────
-function ThemePicker({
-  colors,
-  preference,
-  onSelect,
-}: {
-  colors: Colors;
-  preference: ThemePreference;
-  onSelect: (pref: ThemePreference) => void;
-}) {
-  const options: { key: ThemePreference; label: string; icon: string }[] = [
-    { key: 'system', label: 'System', icon: '📱' },
-    { key: 'light', label: 'Hell', icon: '☀️' },
-    { key: 'dark', label: 'Dunkel', icon: '🌙' },
-  ];
-
-  return (
-    <View style={styles.themePicker}>
-      {options.map((opt) => {
-        const isActive = preference === opt.key;
-        return (
-          <TouchableOpacity
-            key={opt.key}
-            style={[
-              styles.themeOption,
-              {
-                backgroundColor: isActive ? colors.primaryLight : colors.surfaceSecondary,
-                borderColor: isActive ? colors.primary : colors.cardBorder,
-              },
-            ]}
-            activeOpacity={0.7}
-            onPress={() => onSelect(opt.key)}
-          >
-            <Text style={styles.themeOptionIcon}>{opt.icon}</Text>
-            <Text
-              style={[
-                styles.themeOptionLabel,
-                { color: isActive ? colors.primary : colors.textSecondary },
-              ]}
-            >
-              {opt.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
-// ─── ELO column ──────────────────────────────────────────────
-const TIER_COLOR: Record<string, string> = {
-  bronze: '#A16207',
-  silver: '#94A3B8',
-  gold: '#F59E0B',
-  platinum: '#38BDF8',
-  diamond: '#818CF8',
-  elite: '#EC4899',
-};
-const TIER_LABEL: Record<string, string> = {
-  bronze: 'Bronze',
-  silver: 'Silber',
-  gold: 'Gold',
-  platinum: 'Platin',
-  diamond: 'Diamant',
-  elite: 'Elite',
-};
-
-function EloColumn({
-  label,
-  icon,
-  elo,
-  peak,
-  tier,
-  colors,
-}: {
-  label: string;
-  icon: string;
+interface EloPart {
   elo: number;
   peak: number;
-  tier: string;
-  colors: Colors;
-}) {
-  const tierColor = TIER_COLOR[tier] || colors.textSecondary;
-  return (
-    <View style={styles.eloCol}>
-      <Text style={styles.eloIcon}>{icon}</Text>
-      <Text style={[styles.eloLabel, { color: colors.textTertiary }]}>{label}</Text>
-      <Text style={[styles.eloValue, { color: colors.textPrimary }]}>{elo}</Text>
-      <View style={[styles.tierPill, { backgroundColor: tierColor + '22', borderColor: tierColor }]}>
-        <Text style={[styles.tierPillText, { color: tierColor }]}>{TIER_LABEL[tier] || tier}</Text>
-      </View>
-      <Text style={[styles.eloPeak, { color: colors.textTertiary }]}>Peak {peak}</Text>
-    </View>
-  );
+  tier: EloTier;
 }
-
-const ACHIEVEMENT_ICON: Record<string, string> = {
-  first_win: '🥇',
-  first_tournament: '🎯',
-  podium: '🏆',
-  veteran: '🎖️',
-  streak_3: '🔥',
-  streak_5: '⚡',
-  streak_10: '💎',
-  elo_1000: '📈',
-  elo_1200: '🚀',
-};
 
 const ACHIEVEMENT_LABEL: Record<string, string> = {
-  first_win: 'Erster Sieg',
-  first_tournament: 'Erstes Turnier',
+  first_win: 'First Trophy',
+  first_tournament: 'Debut',
   podium: 'Podium',
   veteran: 'Veteran',
-  streak_3: '3er Serie',
-  streak_5: '5er Serie',
-  streak_10: '10er Serie',
-  elo_1000: 'Gold erreicht',
-  elo_1200: 'Diamant',
+  streak_3: '3-Win Streak',
+  streak_5: '5-Win Streak',
+  streak_10: 'Iron Will',
+  elo_1000: 'Gold Tier',
+  elo_1200: 'Diamond Tier',
 };
 
-// ─── Stat Pill ───────────────────────────────────────────────
-function StatPill({
-  label,
-  value,
-  colors,
-}: {
-  label: string;
-  value: string;
-  colors: Colors;
-}) {
-  return (
-    <View style={[styles.statPill, { backgroundColor: colors.surfaceSecondary }]}>
-      <Text style={[styles.statValue, { color: colors.textPrimary }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: colors.textTertiary }]}>{label}</Text>
-    </View>
-  );
-}
+const ACHIEVEMENT_HUE: Record<string, number> = {
+  first_win: 45,
+  first_tournament: 200,
+  podium: 280,
+  veteran: 30,
+  streak_3: 15,
+  streak_5: 15,
+  streak_10: 0,
+  elo_1000: 45,
+  elo_1200: 240,
+};
 
-// ─── Main Profil Screen ──────────────────────────────────────
+const ACHIEVEMENT_ICON: Record<string, IconName> = {
+  first_win: 'crown',
+  first_tournament: 'target',
+  podium: 'trophy',
+  veteran: 'shield',
+  streak_3: 'flame',
+  streak_5: 'flame',
+  streak_10: 'bolt',
+  elo_1000: 'medal',
+  elo_1200: 'star',
+};
+
 export default function ProfilScreen() {
-  const { colors } = useTheme();
-  const { preference, setPreference, isDark } = useTheme();
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const { myRating, fetchMyRating } = useRatingStore();
+  const [elo, setElo] = useState<{ padel: EloPart; matches: number } | null>(null);
+  const [achievements, setAchievements] = useState<{ id: number; type: string }[]>([]);
 
-  // ── V2: ELO / referral / achievements ─────────────
-  type EloResp = Awaited<ReturnType<typeof getMyElo>>;
-  type ReferralResp = Awaited<ReturnType<typeof getMyReferral>>;
-  type AchievementsResp = Awaited<ReturnType<typeof getMyAchievements>>;
-
-  const [elo, setElo] = useState<EloResp | null>(null);
-  const [referral, setReferral] = useState<ReferralResp | null>(null);
-  const [achievements, setAchievements] = useState<AchievementsResp>([]);
-  const [referralBusy, setReferralBusy] = useState(false);
-
-  React.useEffect(() => {
-    fetchMyRating();
+  useEffect(() => {
     (async () => {
       try {
-        const [eloRes, refRes, achRes] = await Promise.all([
-          getMyElo().catch(() => null),
-          getMyReferral().catch(() => null),
-          getMyAchievements().catch(() => [] as AchievementsResp),
-        ]);
-        setElo(eloRes);
-        setReferral(refRes);
-        setAchievements(achRes);
+        const e = await getMyElo();
+        setElo({ padel: e.padel, matches: e.matches_played });
       } catch {
-        // non-fatal
+        // ignore
+      }
+      try {
+        const a = await getMyAchievements();
+        setAchievements(a.map((x) => ({ id: x.id, type: x.achievement_type })));
+      } catch {
+        // ignore
       }
     })();
   }, []);
 
-  const handleShareReferral = async () => {
-    let code: string = referral?.code || '';
-    if (!code) {
-      try {
-        setReferralBusy(true);
-        const res = await createMyReferralCode();
-        code = res.code;
-        const finalCode = code;
-        setReferral((prev) =>
-          prev ? { ...prev, code: finalCode } : { total: 0, rewarded: 0, code: finalCode }
-        );
-      } catch {
-        Alert.alert('Fehler', 'Referral-Code konnte nicht erstellt werden.');
-        return;
-      } finally {
-        setReferralBusy(false);
-      }
-    }
-    try {
-      await Share.share({
-        message: `Komm zu Tourneo! Nutze meinen Code ${code} bei der Anmeldung. #tourneo`,
-      });
-    } catch {
-      /* silent */
-    }
-  };
+  const memberTier: 'free' | 'plus' | 'club' = ((user as any)?.membership_tier ?? 'free') as
+    | 'free'
+    | 'plus'
+    | 'club';
+  const isPlus = memberTier === 'plus';
+  const isClub = memberTier === 'club';
 
-  const displayName = user?.first_name
-    ? `${user.first_name} ${user.last_name || ''}`
-    : 'Tourneo Spieler';
-  const email = user?.email || 'spieler@tourneo.app';
-  const memberTier = (user as any)?.membership_tier || 'free';
-  const initials = displayName
-    .split(' ')
-    .map((n: string) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const displayName = user?.display_name || user?.first_name || 'Tourneo Spieler';
+  const handle = user?.email ? `@${user.email.split('@')[0]}` : '@tourneo';
 
-  const tierColor =
-    memberTier === 'club'
-      ? membershipColors.club
-      : memberTier === 'plus'
-      ? membershipColors.plus
-      : membershipColors.free;
-
-  const tierLabel =
-    memberTier === 'club' ? 'Club' : memberTier === 'plus' ? 'Plus' : 'Free';
+  const winrate = 0; // backend exposes /me/stats but isn't surfaced in v2 yet
+  const streak = 0;
 
   const handleLogout = () => {
     Alert.alert('Abmelden', 'Möchtest du dich wirklich abmelden?', [
@@ -296,8 +117,8 @@ export default function ProfilScreen() {
       {
         text: 'Abmelden',
         style: 'destructive',
-        onPress: () => {
-          logout();
+        onPress: async () => {
+          await logout();
           router.replace('/(auth)/login');
         },
       },
@@ -305,673 +126,374 @@ export default function ProfilScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]} edges={['top']}>
+    <NCScreen>
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Profil</Text>
+        <View style={s.topBar}>
+          <Text style={s.screenTitle}>Profil</Text>
+          <Pressable
+            style={s.iconBtn}
+            accessibilityLabel="Einstellungen"
+            onPress={() => router.push('/settings')}
+          >
+            <NCIcon name="settings" size={18} color={NC.textP} />
+          </Pressable>
         </View>
 
-        {/* Profile Card */}
-        <View
-          style={[
-            styles.profileCard,
-            {
-              backgroundColor: colors.cardBg,
-              borderColor: colors.cardBorder,
-              shadowColor: colors.shadowColor,
-              shadowOpacity: colors.cardShadowOpacity,
-            },
-          ]}
-        >
-          <View style={styles.profileTop}>
-            <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
-              <Text style={[styles.avatarText, { color: colors.primary }]}>{initials}</Text>
-            </View>
-            <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, { color: colors.textPrimary }]}>{displayName}</Text>
-              <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>{email}</Text>
-              <View style={styles.badgeRow}>
-                <View style={[styles.tierBadge, { backgroundColor: tierColor + '18' }]}>
-                  <View style={[styles.tierDot, { backgroundColor: tierColor }]} />
-                  <Text style={[styles.tierLabel, { color: tierColor }]}>Tourneo {tierLabel}</Text>
-                </View>
-                {myRating && (
-                  <TRatingBadge elo={myRating.elo} tier={myRating.tier} size="sm" />
-                )}
-              </View>
-            </View>
-          </View>
-
-          {/* Stats Row */}
-          <View style={styles.statsRow}>
-            <StatPill label="Turniere" value="12" colors={colors} />
-            <StatPill label="Siege" value="5" colors={colors} />
-            <StatPill label="Punkte" value="840" colors={colors} />
-            <StatPill label="Platz" value="#23" colors={colors} />
-          </View>
-        </View>
-
-        {/* V2: ELO card */}
-        {elo && (
-          <View
-            style={[
-              styles.eloCard,
-              {
-                backgroundColor: colors.cardBg,
-                borderColor: colors.cardBorder,
-              },
-            ]}
-          >
-            <Text style={[styles.eloTitle, { color: colors.textTertiary }]}>SKILL RATING</Text>
-            <View style={styles.eloRow}>
-              <EloColumn
-                label="Padel"
-                icon="🎾"
-                elo={elo.padel.elo}
-                peak={elo.padel.peak}
-                tier={elo.padel.tier}
-                colors={colors}
-              />
-              <View style={[styles.eloDivider, { backgroundColor: colors.divider }]} />
-              <EloColumn
-                label="FIFA"
-                icon="🎮"
-                elo={elo.fifa.elo}
-                peak={elo.fifa.peak}
-                tier={elo.fifa.tier}
-                colors={colors}
-              />
-            </View>
-            <Text style={[styles.eloMeta, { color: colors.textTertiary }]}>
-              {elo.matches_played} Matches gespielt
-            </Text>
-          </View>
-        )}
-
-        {/* V2: Achievements grid */}
-        {achievements.length > 0 && (
-          <View
-            style={[
-              styles.achCard,
-              {
-                backgroundColor: colors.cardBg,
-                borderColor: colors.cardBorder,
-              },
-            ]}
-          >
-            <Text style={[styles.achTitle, { color: colors.textPrimary }]}>
-              🏅 Erfolge ({achievements.length})
-            </Text>
-            <View style={styles.achGrid}>
-              {achievements.slice(0, 8).map((a) => (
-                <View
-                  key={a.id}
-                  style={[
-                    styles.achBadge,
-                    { backgroundColor: colors.surfaceSecondary, borderColor: colors.cardBorder },
-                  ]}
-                >
-                  <Text style={styles.achIcon}>{ACHIEVEMENT_ICON[a.achievement_type] || '⭐'}</Text>
-                  <Text
-                    style={[styles.achLabel, { color: colors.textSecondary }]}
-                    numberOfLines={1}
-                  >
-                    {ACHIEVEMENT_LABEL[a.achievement_type] || a.achievement_type}
+        {/* Identity card */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+          <NCCard padded={false} style={{ overflow: 'hidden' }}>
+            <LinearGradient
+              colors={['rgba(99,102,241,0.18)', NC.bgCard]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ padding: 22, alignItems: 'center' }}
+            >
+              <NCAvatar name={displayName} hue={250} size={96} ring />
+              <Text style={s.identityName}>{displayName}</Text>
+              <Text style={s.identityHandle}>{handle}</Text>
+              {memberTier !== 'free' ? (
+                <View style={[s.tierBadge, isClub ? s.tierClub : s.tierPlus]}>
+                  <NCIcon name={isClub ? 'crown' : 'sparkle'} size={12} color={isClub ? NC.gold : NC.primaryLight} />
+                  <Text style={[s.tierLabel, { color: isClub ? NC.gold : NC.primaryLight }]}>
+                    {isClub ? 'TOURNEO CLUB' : 'TOURNEO PLUS'}
                   </Text>
                 </View>
+              ) : null}
+            </LinearGradient>
+          </NCCard>
+        </View>
+
+        {/* Stat grid */}
+        <View style={s.statGrid}>
+          <StatBig value={elo?.padel?.elo ?? '—'} label="ELO" mono />
+          <StatBig value={`${winrate}%`} label="Winrate" />
+          <StatBig value={streak} label="Streak" icon="flame" />
+        </View>
+
+        {/* Achievements */}
+        {achievements.length > 0 ? (
+          <NCSection title="Achievements" style={{ marginTop: 22 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}
+            >
+              {achievements.slice(0, 8).map((a) => (
+                <AchievementTile
+                  key={a.id}
+                  type={a.type}
+                />
               ))}
-            </View>
+            </ScrollView>
+          </NCSection>
+        ) : null}
+
+        {/* Membership upsell */}
+        {!isClub ? (
+          <View style={{ paddingHorizontal: 20, marginTop: 6 }}>
+            <NCCard
+              padded={false}
+              onPress={() => router.push('/membership')}
+              style={{ overflow: 'hidden', borderColor: 'rgba(245,158,11,0.25)' }}
+            >
+              <LinearGradient
+                colors={['rgba(245,158,11,0.18)', NC.bgCard]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={s.membershipRow}
+              >
+                <LinearGradient
+                  colors={[NC.goldLight, NC.gold]}
+                  style={s.membershipIcon}
+                >
+                  <NCIcon name="crown" size={24} color="#1A120B" strokeWidth={2.2} />
+                </LinearGradient>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.membershipTitle}>
+                    {isPlus ? 'Upgrade auf Club' : 'Upgrade auf Plus'}
+                  </Text>
+                  <Text style={s.membershipSub}>
+                    {isPlus
+                      ? '−20% Gebühren · 48 h Early Access · Club-Events'
+                      : '−10% Gebühren · 24 h Early Access · Plus Badge'}
+                  </Text>
+                </View>
+                <NCIcon name="chevron" size={18} color={NC.gold} />
+              </LinearGradient>
+            </NCCard>
           </View>
-        )}
+        ) : null}
 
-        {/* V2: Referral box */}
-        <View
-          style={[
-            styles.referralCard,
-            {
-              backgroundColor: colors.cardBg,
-              borderColor: colors.cardBorder,
-            },
-          ]}
-        >
-          <Text style={[styles.referralTitle, { color: colors.textPrimary }]}>
-            🎁 Freunde einladen
-          </Text>
-          <Text style={[styles.referralSub, { color: colors.textSecondary }]}>
-            Teile Tourneo mit Freunden und sichere dir Belohnungen für jede erfolgreiche Anmeldung.
-          </Text>
-          {referral?.code ? (
-            <View style={[styles.codeBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.cardBorder }]}>
-              <Text style={[styles.codeLabel, { color: colors.textTertiary }]}>Dein Code</Text>
-              <Text style={[styles.codeValue, { color: colors.primary }]}>{referral.code}</Text>
-            </View>
-          ) : null}
-          {referral && (
-            <View style={styles.referralStats}>
-              <View style={styles.referralStat}>
-                <Text style={[styles.referralStatValue, { color: colors.textPrimary }]}>
-                  {referral.total}
-                </Text>
-                <Text style={[styles.referralStatLabel, { color: colors.textTertiary }]}>
-                  Eingeladen
-                </Text>
-              </View>
-              <View style={styles.referralStat}>
-                <Text style={[styles.referralStatValue, { color: colors.textPrimary }]}>
-                  {referral.rewarded}
-                </Text>
-                <Text style={[styles.referralStatLabel, { color: colors.textTertiary }]}>
-                  Belohnt
-                </Text>
-              </View>
-            </View>
-          )}
-          <TouchableOpacity
-            onPress={handleShareReferral}
-            disabled={referralBusy}
-            style={[styles.referralBtn, { backgroundColor: colors.primary, opacity: referralBusy ? 0.6 : 1 }]}
-          >
-            <Text style={styles.referralBtnText}>
-              {referral?.code ? 'Einladung teilen' : 'Code erstellen'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Membership Upsell (if not club) */}
-        {memberTier !== 'club' && (
-          <TouchableOpacity
-            style={[styles.membershipBanner, { backgroundColor: colors.primaryLight }]}
-            activeOpacity={0.8}
-            onPress={() => router.push('/membership')}
-          >
-            <View style={styles.membershipContent}>
-              <Text style={styles.membershipIcon}>⭐</Text>
-              <View style={styles.membershipText}>
-                <Text style={[styles.membershipTitle, { color: colors.textPrimary }]}>
-                  {memberTier === 'free' ? 'Upgrade auf Tourneo Plus' : 'Upgrade auf Tourneo Club'}
-                </Text>
-                <Text style={[styles.membershipSubtitle, { color: colors.textSecondary }]}>
-                  Mehr Features, exklusive Turniere & Vorteile
-                </Text>
-              </View>
-            </View>
-            <Text style={[styles.membershipArrow, { color: colors.primary }]}>→</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Appearance Section */}
-        <View style={styles.sectionGroup}>
-          <Text style={[styles.sectionGroupTitle, { color: colors.textTertiary }]}>DARSTELLUNG</Text>
-          <View
-            style={[
-              styles.sectionCard,
-              {
-                backgroundColor: colors.cardBg,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.shadowColor,
-                shadowOpacity: colors.cardShadowOpacity,
-              },
-            ]}
-          >
-            <Text style={[styles.themeLabel, { color: colors.textPrimary }]}>Erscheinungsbild</Text>
-            <ThemePicker colors={colors} preference={preference} onSelect={setPreference} />
-          </View>
-        </View>
-
-        {/* Activity Section */}
-        <View style={styles.sectionGroup}>
-          <Text style={[styles.sectionGroupTitle, { color: colors.textTertiary }]}>AKTIVITÄT</Text>
-          <View
-            style={[
-              styles.sectionCard,
-              {
-                backgroundColor: colors.cardBg,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.shadowColor,
-                shadowOpacity: colors.cardShadowOpacity,
-              },
-            ]}
-          >
-            <SectionItem
-              icon="📋"
-              title="Meine Buchungen"
-              subtitle="Vergangene & aktuelle Buchungen"
-              colors={colors}
-              onPress={() => Alert.alert('Bald verfügbar', 'Buchungen werden in einem kommenden Update hinzugefügt.')}
-            />
-            <SectionItem
-              icon="📅"
-              title="Mein Kalender"
-              subtitle="Termine & Turnierplan"
-              colors={colors}
-              onPress={() => {}}
-            />
-            <SectionItem
-              icon="🏆"
-              title="Turnier-Verlauf"
-              subtitle="Ergebnisse & Statistiken"
-              colors={colors}
-              onPress={() => {}}
-            />
-            <SectionItem
-              icon="👥"
-              title="Meine Teams"
-              subtitle="Teamverwaltung & Einladungen"
-              colors={colors}
-              onPress={() => router.push('/(tabs)/community')}
-            />
-          </View>
-        </View>
-
-        {/* Account Section */}
-        <View style={styles.sectionGroup}>
-          <Text style={[styles.sectionGroupTitle, { color: colors.textTertiary }]}>KONTO</Text>
-          <View
-            style={[
-              styles.sectionCard,
-              {
-                backgroundColor: colors.cardBg,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.shadowColor,
-                shadowOpacity: colors.cardShadowOpacity,
-              },
-            ]}
-          >
-            <SectionItem
-              icon="💳"
-              title="Mitgliedschaft"
-              subtitle={`Tourneo ${tierLabel}`}
-              colors={colors}
+        {/* Settings list */}
+        <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+          <NCCard padded={false} style={{ overflow: 'hidden' }}>
+            <SettingRow
+              icon="ticket"
+              label="Mitgliedschaft"
+              hint={`Tourneo ${memberTier === 'club' ? 'Club' : memberTier === 'plus' ? 'Plus' : 'Free'}`}
               onPress={() => router.push('/membership')}
             />
-            <SectionItem
-              icon="⚙️"
-              title="Einstellungen"
-              subtitle="Benachrichtigungen, Datenschutz & mehr"
-              colors={colors}
-              onPress={() => router.push('/settings')}
+            <SettingRow
+              icon="bell"
+              label="Benachrichtigungen"
+              onPress={() => router.push('/notifications')}
             />
-            <SectionItem
-              icon="❓"
-              title="Hilfe & Support"
-              colors={colors}
-              onPress={() => router.push('/support')}
-            />
-            <SectionItem
-              icon="📜"
-              title="Rechtliches"
-              subtitle="AGB, Datenschutz, Impressum"
-              colors={colors}
-              onPress={() => router.push('/legal/privacy')}
-            />
-          </View>
+            <SettingRow icon="settings" label="Einstellungen" onPress={() => router.push('/settings')} />
+            <SettingRow icon="shield" label="Rechtliches" onPress={() => router.push('/legal/privacy')} />
+            <SettingRow icon="close" label="Abmelden" onPress={handleLogout} danger last />
+          </NCCard>
         </View>
 
-        {/* Logout */}
-        <View style={styles.sectionGroup}>
-          <View
-            style={[
-              styles.sectionCard,
-              {
-                backgroundColor: colors.cardBg,
-                borderColor: colors.cardBorder,
-                shadowColor: colors.shadowColor,
-                shadowOpacity: colors.cardShadowOpacity,
-              },
-            ]}
-          >
-            <SectionItem
-              icon="🚪"
-              title="Abmelden"
-              colors={colors}
-              onPress={handleLogout}
-              danger
-            />
-          </View>
-        </View>
-
-        {/* App Version */}
-        <Text style={[styles.appVersion, { color: colors.textTertiary }]}>Tourneo v1.0.0 · Made with ❤️</Text>
-
-        {/* Bottom spacer for tab bar */}
-        <View style={{ height: 100 }} />
+        {/* App version */}
+        <Text style={s.version}>Tourneo · Night Court</Text>
       </ScrollView>
-    </SafeAreaView>
+    </NCScreen>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.lg,
-  },
+// ─── Sub-components ─────────────────────────────────────────
+const StatBig: React.FC<{
+  value: string | number;
+  label: string;
+  mono?: boolean;
+  icon?: IconName;
+}> = ({ value, label, mono, icon }) => (
+  <NCCard padded={false} style={{ flex: 1, padding: 14, alignItems: 'center' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      {icon ? <NCIcon name={icon} size={18} color={NC.gold} /> : null}
+      <Text
+        style={{
+          fontFamily: mono ? fontFamily.monoBold : fontFamily.displayExtra,
+          fontWeight: '800',
+          fontSize: 22,
+          color: NC.textP,
+          letterSpacing: -0.5,
+          lineHeight: 24,
+        }}
+      >
+        {value}
+      </Text>
+    </View>
+    <Text style={s.statLabel}>{label}</Text>
+  </NCCard>
+);
 
-  // Header
-  header: {
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: '700' as '700',
-    letterSpacing: -0.5,
-  },
+const AchievementTile: React.FC<{ type: string }> = ({ type }) => {
+  const label = ACHIEVEMENT_LABEL[type] ?? type;
+  const hue = ACHIEVEMENT_HUE[type] ?? 240;
+  const icon: IconName = ACHIEVEMENT_ICON[type] ?? 'star';
+  return (
+    <View style={s.achTile}>
+      <LinearGradient
+        colors={[`hsl(${hue}, 65%, 55%)`, `hsl(${(hue + 340) % 360}, 60%, 35%)`]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={s.achIcon}
+      >
+        <NCIcon name={icon} size={24} color="#FFFFFF" strokeWidth={2} />
+      </LinearGradient>
+      <Text style={s.achLabel} numberOfLines={2}>
+        {label}
+      </Text>
+    </View>
+  );
+};
 
-  // Profile Card
-  profileCard: {
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    padding: spacing.lg,
-    marginTop: spacing.md,
-    ...shadow.md,
-  },
-  profileTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 24,
-    fontWeight: '700' as '700',
-  },
-  profileInfo: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  profileName: {
-    fontSize: fontSize.lg,
-    fontWeight: '700' as '700',
-    letterSpacing: -0.3,
-  },
-  profileEmail: {
-    fontSize: fontSize.sm,
-    marginTop: 2,
-  },
-  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
-  tierBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-    marginTop: spacing.xs,
-    gap: 6,
-  },
-  tierDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  tierLabel: {
-    fontSize: fontSize.xs,
-    fontWeight: '600' as '600',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    marginTop: spacing.lg,
-    gap: spacing.sm,
-  },
-  statPill: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-  },
-  statValue: {
-    fontSize: fontSize.lg,
-    fontWeight: '700' as '700',
-  },
-  statLabel: {
-    fontSize: fontSize.xxs,
-    marginTop: 2,
-  },
+const SettingRow: React.FC<{
+  icon: IconName;
+  label: string;
+  hint?: string;
+  onPress: () => void;
+  danger?: boolean;
+  last?: boolean;
+}> = ({ icon, label, hint, onPress, danger, last }) => {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        s.settingRow,
+        !last && { borderBottomColor: NC.divider, borderBottomWidth: 1 },
+        pressed && { backgroundColor: NC.bgHover },
+      ]}
+    >
+      <View style={[s.settingIconWrap, danger && { backgroundColor: 'rgba(255,71,87,0.12)' }]}>
+        <NCIcon name={icon} size={16} color={danger ? NC.coral : NC.primaryLight} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[s.settingLabel, danger && { color: NC.coral }]}>{label}</Text>
+        {hint ? <Text style={s.settingHint}>{hint}</Text> : null}
+      </View>
+      {!danger ? <NCIcon name="chevron" size={16} color={NC.textT} /> : null}
+    </Pressable>
+  );
+};
 
-  // V2: ELO card
-  eloCard: {
-    marginTop: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-  },
-  eloTitle: {
-    fontSize: fontSize.xxs,
-    fontWeight: '700' as '700',
-    letterSpacing: 1.2,
-    marginBottom: spacing.sm,
-  },
-  eloRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  eloCol: { flex: 1, alignItems: 'center' },
-  eloDivider: { width: 1, height: 90, marginHorizontal: spacing.sm },
-  eloIcon: { fontSize: 28, marginBottom: 2 },
-  eloLabel: { fontSize: fontSize.xxs, textTransform: 'uppercase', letterSpacing: 1 },
-  eloValue: { fontSize: 28, fontWeight: '800' as '800', marginTop: 2 },
-  tierPill: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    marginTop: 4,
-  },
-  tierPillText: { fontSize: fontSize.xxs, fontWeight: '700' as '700' },
-  eloPeak: { fontSize: fontSize.xxs, marginTop: 4 },
-  eloMeta: { fontSize: fontSize.xs, textAlign: 'center', marginTop: spacing.sm },
-
-  // V2: Achievements card
-  achCard: {
-    marginTop: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-  },
-  achTitle: {
-    fontSize: fontSize.md,
-    fontWeight: '700' as '700',
-    marginBottom: spacing.md,
-  },
-  achGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  achBadge: {
-    width: '22%',
-    minHeight: 68,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 4,
-  },
-  achIcon: { fontSize: 22 },
-  achLabel: {
-    fontSize: 10,
-    textAlign: 'center',
-    marginTop: 2,
-  },
-
-  // V2: Referral card
-  referralCard: {
-    marginTop: spacing.md,
-    padding: spacing.lg,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-  },
-  referralTitle: {
-    fontSize: fontSize.md,
-    fontWeight: '700' as '700',
-  },
-  referralSub: {
-    fontSize: fontSize.sm,
-    marginTop: 4,
-    lineHeight: 20,
-  },
-  codeBox: {
-    marginTop: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  codeLabel: { fontSize: fontSize.xxs, textTransform: 'uppercase', letterSpacing: 1 },
-  codeValue: { fontSize: fontSize.xxl, fontWeight: '800' as '800', marginTop: 2, letterSpacing: 2 },
-  referralStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: spacing.md,
-  },
-  referralStat: { alignItems: 'center' },
-  referralStatValue: { fontSize: fontSize.xl, fontWeight: '800' as '800' },
-  referralStatLabel: { fontSize: fontSize.xxs, marginTop: 2 },
-  referralBtn: {
-    marginTop: spacing.md,
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
-  },
-  referralBtnText: { color: '#fff', fontSize: fontSize.sm, fontWeight: '700' as '700' },
-
-  // Membership Banner
-  membershipBanner: {
-    marginTop: spacing.md,
-    borderRadius: radius.lg,
-    padding: spacing.md,
+// ─── Styles ─────────────────────────────────────────────────
+const s = StyleSheet.create({
+  topBar: {
+    paddingHorizontal: 20,
+    paddingTop: 62,
+    paddingBottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  membershipContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+  screenTitle: {
+    fontFamily: fontFamily.displayExtra,
+    fontSize: 24,
+    fontWeight: '800',
+    color: NC.textP,
+    letterSpacing: -0.6,
   },
-  membershipIcon: {
-    fontSize: 28,
-    marginRight: spacing.md,
-  },
-  membershipText: {
-    flex: 1,
-  },
-  membershipTitle: {
-    fontSize: fontSize.md,
-    fontWeight: '600' as '600',
-  },
-  membershipSubtitle: {
-    fontSize: fontSize.xs,
-    marginTop: 2,
-  },
-  membershipArrow: {
-    fontSize: 20,
-    fontWeight: '600' as '600',
-  },
-
-  // Section Groups
-  sectionGroup: {
-    marginTop: spacing.xl,
-  },
-  sectionGroupTitle: {
-    fontSize: fontSize.xs,
-    fontWeight: '600' as '600',
-    letterSpacing: 1,
-    marginBottom: spacing.sm,
-    marginLeft: spacing.xs,
-  },
-  sectionCard: {
-    borderRadius: radius.xl,
+  iconBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 999,
+    backgroundColor: NC.bgCard,
     borderWidth: 1,
-    overflow: 'hidden',
-    ...shadow.sm,
-  },
-
-  // Section Item
-  sectionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  sectionItemIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
+    borderColor: NC.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionItemIconText: {
-    fontSize: 18,
-  },
-  sectionItemContent: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  sectionItemTitle: {
-    fontSize: fontSize.md,
-    fontWeight: '500' as '500',
-  },
-  sectionItemSubtitle: {
-    fontSize: fontSize.xs,
-    marginTop: 2,
-  },
-  sectionItemArrow: {
+  identityName: {
+    marginTop: 12,
+    fontFamily: fontFamily.displayExtra,
     fontSize: 22,
-    fontWeight: '300' as '300',
-    marginLeft: spacing.sm,
+    fontWeight: '800',
+    color: NC.textP,
+    letterSpacing: -0.5,
   },
-
-  // Theme Picker
-  themeLabel: {
-    fontSize: fontSize.md,
-    fontWeight: '500' as '500',
-    padding: spacing.md,
-    paddingBottom: spacing.sm,
+  identityHandle: {
+    marginTop: 2,
+    fontFamily: fontFamily.monoMedium,
+    fontSize: 12,
+    color: NC.textS,
   },
-  themePicker: {
+  tierBadge: {
+    marginTop: 10,
     flexDirection: 'row',
-    padding: spacing.md,
-    paddingTop: 0,
-    gap: spacing.sm,
-  },
-  themeOption: {
-    flex: 1,
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
     gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
   },
-  themeOptionIcon: {
-    fontSize: 24,
+  tierPlus: {
+    backgroundColor: 'rgba(129,140,248,0.18)',
+    borderColor: 'rgba(129,140,248,0.35)',
   },
-  themeOptionLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: '600' as '600',
+  tierClub: {
+    backgroundColor: 'rgba(245,158,11,0.18)',
+    borderColor: 'rgba(245,158,11,0.35)',
+  },
+  tierLabel: {
+    fontFamily: fontFamily.displayBold,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  statGrid: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    gap: 10,
+  },
+  statLabel: {
+    marginTop: 6,
+    fontFamily: fontFamily.uiSemibold,
+    fontSize: 10.5,
+    color: NC.textT,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
 
-  // App Version
-  appVersion: {
+  membershipRow: { padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  membershipIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  membershipTitle: {
+    fontFamily: fontFamily.displayBold,
+    fontSize: 15,
+    fontWeight: '700',
+    color: NC.textP,
+    letterSpacing: -0.3,
+  },
+  membershipSub: {
+    marginTop: 2,
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 12,
+    color: NC.textS,
+  },
+
+  achTile: {
+    width: 96,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: NC.bgCard,
+    borderWidth: 1,
+    borderColor: NC.border,
+    alignItems: 'center',
+  },
+  achIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  achLabel: {
     textAlign: 'center',
-    fontSize: fontSize.xs,
-    marginTop: spacing.xl,
-    paddingBottom: spacing.md,
+    fontFamily: fontFamily.uiSemibold,
+    fontSize: 10.5,
+    color: NC.textP,
+    fontWeight: '600',
+    lineHeight: 13,
+  },
+
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  settingIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: NC.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingLabel: {
+    fontFamily: fontFamily.displaySemibold,
+    fontSize: 14,
+    fontWeight: '600',
+    color: NC.textP,
+    letterSpacing: -0.2,
+  },
+  settingHint: {
+    marginTop: 2,
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 11.5,
+    color: NC.textS,
+  },
+
+  version: {
+    textAlign: 'center',
+    marginTop: 22,
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 11,
+    color: NC.textT,
   },
 });

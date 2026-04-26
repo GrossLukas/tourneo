@@ -139,6 +139,7 @@ export default function RootLayout() {
       <Stack.Screen name="event/bracket/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="event/checkout/[id]" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="event/referee/[matchId]" options={{ headerShown: false }} />
+      <Stack.Screen name="event/live/[matchId]" options={{ headerShown: false }} />
       <Stack.Screen name="event/partners/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="event/chat/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="event/recap/[id]" options={{ headerShown: false }} />

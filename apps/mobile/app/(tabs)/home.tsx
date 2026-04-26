@@ -1,273 +1,265 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+/**
+ * Night Court — Home screen.
+ *
+ * Layout (top → bottom):
+ *   1. NCTopBar  (greeting + avatar + bell badge)
+ *   2. ELO summary card with sparkline + Siege/Niederlagen/Winrate/Streak
+ *   3. "Live jetzt" horizontal carousel (only when there are in_progress events)
+ *   4. "Nächstes Turnier" hero card (gradient + court diagram + capacity bar)
+ *   5. "Deine Termine" upcoming registrations list
+ *   6. "Schnellzugriff" 2×2 grid of QuickTile entry-points
+ */
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
   RefreshControl,
-  TouchableOpacity,
-  Platform,
-  Dimensions,
-  Animated,
+  Pressable,
 } from 'react-native';
-import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { useTheme } from '../../src/providers/ThemeProvider';
+import { LinearGradient } from 'expo-linear-gradient';
+import {
+  NCScreen,
+  NCTopBar,
+  NCCard,
+  NCPill,
+  NCButton,
+  NCSection,
+  NCSparkline,
+  NCQuickTile,
+  NCCapacityBar,
+  NCCourtBackdrop,
+  NCLivePulse,
+  NCIcon,
+  NC,
+} from '../../src/components/nightcourt';
+import { fontFamily } from '../../src/theme/typography';
 import { useAuthStore } from '../../src/store/authStore';
 import { useEventStore, type Event } from '../../src/store/eventStore';
 import { useRegistrationStore } from '../../src/store/registrationStore';
-import { useMembershipStore } from '../../src/store/membershipStore';
 import { useNotificationStore } from '../../src/store/notificationStore';
-import { spacing, fontSize, fontWeight, radius, shadow } from '../../src/theme/spacing';
-import { SkeletonHomeScreen, ToastContainer, useToast, TRatingChart, type RatingPoint } from '../../src/components/common';
 import { getMyElo, getMyEloHistory } from '../../src/api/v2';
-import type { Colors } from '../../src/theme/colors';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-
-// ── Hero Event Card ──────────────────────────────
-const HeroEventCard = React.memo(function HeroEventCard({
-  event,
-  colors,
-  memberTier,
-  onPress,
-}: {
-  event: Event;
-  colors: Colors;
-  memberTier?: string;
-  onPress: () => void;
-}) {
-  const feeAmount = event.entry_fee_cents / 100;
-  const spotsLeft = event.spots_remaining ?? (event.max_participants - event.participant_count);
-  const hasDiscount = memberTier && memberTier !== 'free';
-
-  return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={[styles.heroCard, { backgroundColor: colors.surface }]}>
-      {event.banner_image_url ? (
-        <Image
-          source={{ uri: event.banner_image_url }}
-          style={styles.heroImage}
-          placeholder="L6PZfSi_.AyE_3t7t7R**0o#DgR4"
-          contentFit="cover"
-          transition={300}
-        />
-      ) : (
-        <View style={[styles.heroImage, { backgroundColor: colors.primaryDark }]}>
-          <Text style={styles.heroPlaceholder}>🏆</Text>
-        </View>
-      )}
-      <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.7)']}
-        style={styles.heroGradient}
-      />
-      <View style={styles.heroOverlay}>
-        <View style={styles.heroBadgeRow}>
-          <View style={[styles.heroBadge, { backgroundColor: colors.primary }]}>
-            <Text style={styles.heroBadgeText}>NÄCHSTES TURNIER</Text>
-          </View>
-          {hasDiscount && (
-            <View style={[styles.heroBadge, { backgroundColor: colors.membership.plus }]}>
-              <Text style={styles.heroBadgeText}>MEMBER PREIS</Text>
-            </View>
-          )}
-        </View>
-        <Text style={styles.heroTitle} numberOfLines={2}>{event.title}</Text>
-        <View style={styles.heroMeta}>
-          <Text style={styles.heroMetaText}>📅 {event.start_date?.substring(0, 10)}</Text>
-          {event.venue?.name && <Text style={styles.heroMetaText}>📍 {event.venue.name}</Text>}
-        </View>
-        <View style={styles.heroFooter}>
-          <Text style={styles.heroPrice}>
-            {feeAmount > 0 ? `${feeAmount.toFixed(0)}€` : 'Kostenlos'}
-          </Text>
-          <View style={[
-            styles.heroSpots,
-            { backgroundColor: spotsLeft <= 4 ? 'rgba(251,191,36,0.25)' : 'rgba(255,255,255,0.15)' },
-          ]}>
-            <Text style={styles.heroSpotsText}>
-              {spotsLeft <= 0 ? '⏳ Warteliste' : `${spotsLeft} Plätze frei`}
-            </Text>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-});
-
-// ── Termin Card (horizontal scroll) ──────────────
-const TerminCard = React.memo(function TerminCard({
-  reg,
-  colors,
-  onPress,
-}: {
-  reg: any;
-  colors: Colors;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={[styles.terminCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-      <View style={[styles.terminDate, { backgroundColor: colors.primaryLight }]}>
-        <Text style={[styles.terminDay, { color: colors.primary }]}>
-          {reg.event_date ? new Date(reg.event_date).getDate() : '?'}
-        </Text>
-        <Text style={[styles.terminMonth, { color: colors.primary }]}>
-          {reg.event_date ? new Date(reg.event_date).toLocaleString('de', { month: 'short' }).toUpperCase() : ''}
-        </Text>
-      </View>
-      <View style={styles.terminContent}>
-        <Text style={[styles.terminTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-          {reg.event_title || 'Turnier'}
-        </Text>
-        <Text style={[styles.terminMeta, { color: colors.textTertiary }]} numberOfLines={1}>
-          {reg.venue_name || ''}
-        </Text>
-      </View>
-      <View style={[
-        styles.terminStatus,
-        { backgroundColor: reg.status === 'confirmed' ? colors.successBg : colors.warningBg },
-      ]}>
-        <Text style={{
-          fontSize: 10,
-          color: reg.status === 'confirmed' ? colors.success : colors.warning,
-          fontWeight: '600',
-        }}>
-          {reg.status === 'confirmed' ? '✓' : '⏳'}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-});
-
-// ── Quick Action ─────────────────────────────────
-const QuickAction = React.memo(function QuickAction({
-  icon,
-  label,
-  colors,
-  onPress,
-}: {
-  icon: string;
-  label: string;
-  colors: Colors;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={[styles.quickAction, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-      <Text style={styles.quickIcon}>{icon}</Text>
-      <Text style={[styles.quickLabel, { color: colors.textSecondary }]}>{label}</Text>
-    </TouchableOpacity>
-  );
-});
-
-// ── Event Mini Card ──────────────────────────────
-const EventMiniCard = React.memo(function EventMiniCard({
-  event,
-  colors,
-  memberTier,
-  onPress,
-}: {
-  event: Event;
-  colors: Colors;
-  memberTier?: string;
-  onPress: () => void;
-}) {
-  const feeAmount = event.entry_fee_cents / 100;
-  const spotsLeft = event.spots_remaining ?? (event.max_participants - event.participant_count);
-  const isAlmostFull = spotsLeft <= 3 && spotsLeft > 0;
-
-  return (
-    <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={[styles.eventMini, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-      <View style={styles.eventMiniLeft}>
-        <View style={styles.eventMiniTitleRow}>
-          <Text style={[styles.eventMiniTitle, { color: colors.textPrimary }]} numberOfLines={1}>{event.title}</Text>
-          {isAlmostFull && (
-            <View style={[styles.almostFullBadge, { backgroundColor: colors.warningBg }]}>
-              <Text style={[styles.almostFullText, { color: colors.warning }]}>Fast voll</Text>
-            </View>
-          )}
-        </View>
-        <Text style={[styles.eventMiniMeta, { color: colors.textTertiary }]}>
-          📅 {event.start_date?.substring(0, 10)} {event.venue?.city ? `· ${event.venue.city}` : ''}
-        </Text>
-      </View>
-      <View style={styles.eventMiniRight}>
-        <Text style={[styles.eventMiniPrice, { color: colors.primary }]}>
-          {feeAmount > 0 ? `${feeAmount.toFixed(0)}€` : 'Frei'}
-        </Text>
-        <Text style={[styles.eventMiniSpots, { color: colors.textTertiary }]}>
-          {event.participant_count}/{event.max_participants}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-});
-
-// ── Stats Row ────────────────────────────────────
-function StatsRow({ colors, eventCount, regCount }: { colors: Colors; eventCount: number; regCount: number }) {
-  return (
-    <View style={styles.statsRow}>
-      <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-        <Text style={[styles.statNumber, { color: colors.primary }]}>{eventCount}</Text>
-        <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Turniere</Text>
-      </View>
-      <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-        <Text style={[styles.statNumber, { color: colors.accent }]}>{regCount}</Text>
-        <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Anmeldungen</Text>
-      </View>
-      <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-        <Text style={[styles.statNumber, { color: colors.success }]}>🔥</Text>
-        <Text style={[styles.statLabel, { color: colors.textTertiary }]}>Aktiv</Text>
-      </View>
-    </View>
-  );
+interface EloSummary {
+  elo: number;
+  delta: number;
+  rank: string;
+  wins: number;
+  losses: number;
+  wr: number;
+  streak: number;
+  history: number[];
 }
 
-// ── Main Home Screen ─────────────────────────────
+const FALLBACK_HISTORY = [1620, 1648, 1605, 1670, 1712, 1689, 1735, 1768, 1742, 1790, 1815, 1842];
+
+// ─── Stat cell (Siege / Niederlagen / Winrate / Streak) ─────
+const Stat: React.FC<{ value: string | number; label: string; color?: string; fire?: boolean }> = ({
+  value,
+  label,
+  color,
+  fire,
+}) => (
+  <View>
+    <View style={s.statValueRow}>
+      {fire ? <NCIcon name="flame" size={14} color={color || NC.gold} /> : null}
+      <Text style={[s.statValue, { color: color || NC.textP }]}>{value}</Text>
+    </View>
+    <Text style={s.statLabel}>{label}</Text>
+  </View>
+);
+
+// ─── Live match card (horizontal scroll) ─────────────────────
+const LiveMatchCard: React.FC<{ event: Event; onPress: () => void }> = ({ event, onPress }) => {
+  return (
+    <NCCard onPress={onPress} padded={false} style={{ width: 280, padding: 14 }}>
+      <View style={s.liveHeader}>
+        <NCLivePulse />
+        <Text style={s.liveSubtitle} numberOfLines={1}>
+          {event.format ? event.format.toUpperCase() : 'MATCH'} · {event.venue?.name || ''}
+        </Text>
+      </View>
+      <Text style={s.liveTitle} numberOfLines={2}>
+        {event.title}
+      </Text>
+      <View style={s.liveFooter}>
+        <Text style={s.liveFooterMeta}>
+          {event.participant_count}/{event.max_participants} Teilnehmer
+        </Text>
+        <Text style={s.liveFooterScore}>JETZT</Text>
+      </View>
+    </NCCard>
+  );
+};
+
+// ─── Hero card (Nächstes Turnier) ────────────────────────────
+const HeroCard: React.FC<{
+  event: Event;
+  isMember: boolean;
+  onPress: () => void;
+  onRegister: () => void;
+}> = ({ event, isMember, onPress, onRegister }) => {
+  const fee = event.entry_fee_cents / 100;
+  const prizeTotal = event.total_prize_pool_cents / 100;
+  const filled = event.participant_count;
+  const spots = event.max_participants;
+  const fillPct = spots > 0 ? (filled / spots) * 100 : 0;
+  const dateLabel = formatShortDate(event.start_date);
+  const memberFee = isMember ? fee * 0.9 : fee;
+
+  return (
+    <View style={{ paddingHorizontal: 20 }}>
+      <NCCard onPress={onPress} padded={false} glow>
+        <View style={{ position: 'relative' }}>
+          <NCCourtBackdrop height={160} />
+          <View style={s.heroPills}>
+            <NCPill color="#FFFFFF" bg="rgba(99,102,241,0.9)">
+              NÄCHSTES TURNIER
+            </NCPill>
+            {isMember ? (
+              <NCPill color={NC.goldLight} bg="rgba(245,158,11,0.18)" dot>
+                MEMBER −10%
+              </NCPill>
+            ) : null}
+          </View>
+          {prizeTotal > 0 ? (
+            <View style={s.heroPrizeBlock}>
+              <Text style={s.heroPrizeLabel}>GARANTIERT</Text>
+              <Text style={s.heroPrizeAmount}>{formatEuro(prizeTotal, 0)}</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={{ padding: 16 }}>
+          <Text style={s.heroTitle} numberOfLines={2}>
+            {event.title}
+          </Text>
+          <Text style={s.heroSub} numberOfLines={1}>
+            {labelLevel(event.level)} · {labelFormat(event.format)}
+          </Text>
+          <View style={s.heroMeta}>
+            <View style={s.metaRow}>
+              <NCIcon name="calendar" size={14} color={NC.textS} />
+              <Text style={s.metaText}>{dateLabel}</Text>
+            </View>
+            {event.venue?.name ? (
+              <View style={s.metaRow}>
+                <NCIcon name="pin" size={14} color={NC.textS} />
+                <Text style={s.metaText} numberOfLines={1}>
+                  {event.venue.name}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <View style={{ marginTop: 14 }}>
+            <View style={s.capacityHeader}>
+              <Text style={s.capacityLabel}>PLÄTZE</Text>
+              <Text style={s.capacityCount}>
+                {filled}/{spots}
+              </Text>
+            </View>
+            <NCCapacityBar fill={fillPct} />
+          </View>
+          <View style={s.heroCtaRow}>
+            <View>
+              <Text style={s.heroFeeLabel}>{isMember ? 'PLUS-PREIS' : 'GEBÜHR'}</Text>
+              <View style={s.feeRow}>
+                <Text style={s.feeAmount}>{formatEuro(memberFee, 2)}</Text>
+                {isMember && fee !== memberFee ? (
+                  <Text style={s.feeStrike}>{formatEuro(fee, 0)}</Text>
+                ) : null}
+              </View>
+            </View>
+            <NCButton variant="primary" size="md" iconRight="arrowR" onPress={onRegister}>
+              Anmelden
+            </NCButton>
+          </View>
+        </View>
+      </NCCard>
+    </View>
+  );
+};
+
+// ─── Termine row ─────────────────────────────────────────────
+const TermineRow: React.FC<{
+  date: { d: string; m: string };
+  title: string;
+  meta: string;
+  onPress: () => void;
+}> = ({ date, title, meta, onPress }) => {
+  return (
+    <NCCard onPress={onPress} padded={false} style={s.termineRow}>
+      <View style={s.termineDate}>
+        <Text style={s.termineDay}>{date.d}</Text>
+        <Text style={s.termineMonth}>{date.m}</Text>
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={s.termineTitle} numberOfLines={1}>
+          {title}
+        </Text>
+        <Text style={s.termineMeta} numberOfLines={1}>
+          {meta}
+        </Text>
+      </View>
+      <NCIcon name="chevron" size={16} color={NC.textT} />
+    </NCCard>
+  );
+};
+
+// ─── Helpers ────────────────────────────────────────────────
+function formatShortDate(iso: string): string {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('de', { weekday: 'short', day: 'numeric', month: 'short' });
+  } catch {
+    return iso.substring(0, 10);
+  }
+}
+function formatEuro(amount: number, frac = 2): string {
+  return amount.toLocaleString('de', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: frac,
+    maximumFractionDigits: frac,
+  });
+}
+function labelLevel(level?: string): string {
+  return ({ beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', pro: 'Pro', open: 'Offen' } as Record<string, string>)[level || ''] || 'Open';
+}
+function labelFormat(format?: string): string {
+  return ({ singles: 'Einzel', doubles: 'Duo', team: 'Team' } as Record<string, string>)[format || ''] || 'Padel';
+}
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Guten Morgen';
+  if (h < 18) return 'Guten Tag';
+  return 'Guten Abend';
+}
+
+// ─── Main screen ────────────────────────────────────────────
 export default function HomeScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
-  const { colors, isDark } = useTheme();
   const { user } = useAuthStore();
-  const { events, fetchEvents, loading } = useEventStore();
+  const { events, fetchEvents } = useEventStore();
   const { myRegistrations, fetchMyRegistrations } = useRegistrationStore();
-  const { currentMembership, fetchCurrentMembership } = useMembershipStore();
-  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const unreadCount = useNotificationStore((st) => st.unreadCount);
   const [refreshing, setRefreshing] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
-  const [eloSummary, setEloSummary] = useState<{ padel: number; fifa: number; tier: string } | null>(null);
-  const [eloHistory, setEloHistory] = useState<RatingPoint[]>([]);
-  const toast = useToast();
-
-  useEffect(() => {
-    loadData().then(() => setInitialLoad(false));
-  }, []);
+  const [elo, setElo] = useState<EloSummary | null>(null);
 
   const loadData = useCallback(async () => {
-    try {
-      await Promise.all([
-        fetchEvents(),
-        user ? fetchMyRegistrations() : Promise.resolve(),
-        user ? fetchCurrentMembership() : Promise.resolve(),
-        user
-          ? getMyElo()
-              .then((e) =>
-                setEloSummary({ padel: e.padel.elo, fifa: e.fifa.elo, tier: e.padel.tier })
-              )
-              .catch(() => {})
-          : Promise.resolve(),
-        user
-          ? getMyEloHistory('padel', 30)
-              .then((points) =>
-                setEloHistory(points.map((p) => ({ elo: p.elo, recorded_at: p.recorded_at })))
-              )
-              .catch(() => {})
-          : Promise.resolve(),
-      ]);
-    } catch (err) {
-      toast.show('error', 'Fehler', 'Daten konnten nicht geladen werden.');
+    const tasks: Promise<unknown>[] = [fetchEvents()];
+    if (user) {
+      tasks.push(fetchMyRegistrations());
+      tasks.push(loadEloSummary().then(setElo).catch(() => {}));
     }
-  }, [user]);
+    await Promise.all(tasks);
+  }, [user, fetchEvents, fetchMyRegistrations]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -275,461 +267,442 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [loadData]);
 
-  // Memoized data
+  const heroEvent = useMemo<Event | undefined>(() => {
+    return events.find((e) => e.status === 'published' || e.status === 'registration_open') ?? events[0];
+  }, [events]);
+
+  const liveEvents = useMemo(
+    () => events.filter((e) => e.status === 'in_progress').slice(0, 4),
+    [events]
+  );
+
   const upcomingRegs = useMemo(
-    () => myRegistrations
-      .filter((r) => r.status === 'confirmed' || r.status === 'waitlisted')
-      .slice(0, 5),
+    () =>
+      myRegistrations
+        .filter((r) => r.status === 'confirmed' || r.status === 'waitlisted')
+        .slice(0, 5),
     [myRegistrations]
   );
 
-  const featuredEvents = useMemo(() => events.slice(0, 6), [events]);
-  const heroEvent = events[0];
-  const memberTier = currentMembership?.tier;
-
-  const getGreeting = (): string => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Guten Morgen';
-    if (h < 18) return 'Guten Tag';
-    return 'Guten Abend';
-  };
-
-  const getMemberBadge = () => {
-    if (!memberTier || memberTier === 'free') return null;
-    const badgeColor = memberTier === 'club' ? colors.membership.club : colors.membership.plus;
-    const badgeBg = memberTier === 'club' ? colors.membership.clubLight : colors.membership.plusLight;
-    const label = memberTier === 'club' ? 'CLUB' : 'PLUS';
-    return { badgeColor, badgeBg, label };
-  };
-
-  // Show skeleton on initial load
-  if (initialLoad && loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.bg }]}>
-        <SkeletonHomeScreen />
-      </View>
-    );
-  }
-
-  const memberBadge = getMemberBadge();
+  const isMember = !!user && (user as any).membership_tier && (user as any).membership_tier !== 'free';
+  const displayName = user?.display_name || user?.first_name || 'Spieler';
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+    <NCScreen>
       <ScrollView
+        contentContainerStyle={{ paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
+            tintColor={NC.primaryLight}
           />
         }
-        contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {/* ── Header ───────────────────── */}
-        <View style={[styles.header, { backgroundColor: colors.bg }]}>
-          <View style={styles.headerLeft}>
-            <Text style={[styles.brandName, { color: colors.primary }]}>tourneo</Text>
-          </View>
-          <View style={styles.headerRight}>
-            {memberBadge && (
-              <View style={[styles.memberBadgeChip, { backgroundColor: memberBadge.badgeBg }]}>
-                <Text style={[styles.memberBadgeChipText, { color: memberBadge.badgeColor }]}>
-                  {memberBadge.label}
-                </Text>
-              </View>
-            )}
-            <TouchableOpacity
-              style={[styles.notifBtn, { backgroundColor: colors.surface }]}
-              onPress={() => router.push('/notifications')}
+        <NCTopBar
+          greeting={getGreeting()}
+          name={displayName}
+          badge={unreadCount}
+          onAvatar={() => router.push('/(tabs)/profil')}
+          onBell={() => router.push('/notifications')}
+        />
+
+        {/* ── ELO summary card ───────────────────── */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
+          <NCCard padded={false} style={{ overflow: 'hidden' }}>
+            <LinearGradient
+              colors={[NC.bgCard, 'rgba(79,70,229,0.18)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ padding: 18 }}
             >
-              <Text style={{ fontSize: 18 }}>🔔</Text>
-              {unreadCount > 0 && (
-                <View style={[styles.notifBadge, { backgroundColor: colors.error }]}>
-                  <Text style={styles.notifBadgeText}>
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </Text>
+              <View style={s.eloHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.eloLabel}>DEINE WERTUNG</Text>
+                  <View style={s.eloValueRow}>
+                    <Text style={s.eloBig}>{elo?.elo ?? '—'}</Text>
+                    {elo && elo.delta !== 0 ? (
+                      <View style={s.eloDelta}>
+                        <NCIcon
+                          name={elo.delta >= 0 ? 'arrowU' : 'arrowD'}
+                          size={12}
+                          color={elo.delta >= 0 ? NC.green : NC.coral}
+                          strokeWidth={2.5}
+                        />
+                        <Text
+                          style={[s.eloDeltaText, { color: elo.delta >= 0 ? NC.green : NC.coral }]}
+                        >
+                          {elo.delta > 0 ? '+' : ''}{elo.delta}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                 </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push(user ? '/(tabs)/profil' : '/(auth)/login')}>
-              <View style={[styles.avatar, { backgroundColor: colors.primaryLight }]}>
-                {user?.avatar_url ? (
-                  <Image
-                    source={{ uri: user.avatar_url }}
-                    style={styles.avatarImg}
-                    contentFit="cover"
-                    transition={200}
-                  />
-                ) : (
-                  <Text style={[styles.avatarText, { color: colors.primary }]}>
-                    {user?.first_name?.[0]?.toUpperCase() || '?'}
-                  </Text>
-                )}
+                <View style={s.rankPill}>
+                  <NCIcon name="crown" size={14} color={NC.gold} />
+                  <Text style={s.rankText}>Rang {elo?.rank || 'A'}</Text>
+                </View>
               </View>
-            </TouchableOpacity>
-          </View>
+
+              <NCSparkline data={elo?.history?.length ? elo.history : FALLBACK_HISTORY} width={310} height={50} />
+
+              <View style={s.statsRow}>
+                <Stat value={elo?.wins ?? 0} label="Siege" color={NC.green} />
+                <Stat value={elo?.losses ?? 0} label="Niederlagen" />
+                <Stat value={`${elo?.wr ?? 0}%`} label="Winrate" color={NC.primaryLight} />
+                <Stat value={elo?.streak ?? 0} label="Streak" color={NC.gold} fire />
+              </View>
+            </LinearGradient>
+          </NCCard>
         </View>
 
-        {/* ── Greeting ─────────────────── */}
-        <View style={styles.greetingSection}>
-          <Text style={[styles.greeting, { color: colors.textTertiary }]}>{getGreeting()}</Text>
-          <Text style={[styles.userName, { color: colors.textPrimary }]}>
-            {user?.first_name || 'Willkommen bei Tourneo'}
-          </Text>
-        </View>
-
-        {/* ── Stats Row (for logged-in users) */}
-        {user && upcomingRegs.length > 0 && (
-          <StatsRow colors={colors} eventCount={featuredEvents.length} regCount={upcomingRegs.length} />
-        )}
-
-        {/* ── Hero Event Card ────────── */}
-        {heroEvent && (
-          <View style={styles.heroSection}>
-            <HeroEventCard
-              event={heroEvent}
-              colors={colors}
-              memberTier={memberTier}
-              onPress={() => router.push(`/event/${heroEvent.id}`)}
-            />
-          </View>
-        )}
-
-        {/* ── Meine Termine ────────────── */}
-        {user && upcomingRegs.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Meine Termine</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/turniere')}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>Alle →</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg }}>
-              {upcomingRegs.map((reg) => (
-                <TerminCard
-                  key={reg.id}
-                  reg={reg}
-                  colors={colors}
-                  onPress={() => router.push(`/event/${reg.event_id}`)}
+        {/* ── Live now ───────────────────────────── */}
+        {liveEvents.length > 0 ? (
+          <NCSection title="Live jetzt" onAction={() => router.push('/(tabs)/turniere')}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}
+            >
+              {liveEvents.map((e) => (
+                <LiveMatchCard
+                  key={e.id}
+                  event={e}
+                  onPress={() => router.push(`/event/${e.id}`)}
                 />
               ))}
             </ScrollView>
-          </View>
-        )}
+          </NCSection>
+        ) : null}
 
-        {/* ── Empty State (no user or no regs) ── */}
-        {(!user || upcomingRegs.length === 0) && (
-          <View style={styles.section}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => router.push(user ? '/(tabs)/turniere' : '/(auth)/register')}
-              style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-            >
-              <Text style={styles.emptyIcon}>🏆</Text>
-              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
-                {user ? 'Noch keine Termine' : 'Werde Teil von Tourneo!'}
-              </Text>
-              <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
-                {user
-                  ? 'Finde dein nächstes Turnier und melde dich an.'
-                  : 'Entdecke Turniere, tritt Teams bei und werde Teil der Community.'}
-              </Text>
-              <View style={[styles.emptyCta, { backgroundColor: colors.primary }]}>
-                <Text style={styles.emptyCtaText}>
-                  {user ? 'Turniere entdecken' : 'Jetzt registrieren'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── Quick Actions ────────────── */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary, paddingHorizontal: spacing.lg }]}>
-            Jetzt loslegen
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, paddingTop: spacing.sm }}>
-            <QuickAction icon="🎾" label="Padel" colors={colors} onPress={() => router.push('/(tabs)/spielen')} />
-            <QuickAction icon="🎮" label="FIFA" colors={colors} onPress={() => router.push('/(tabs)/spielen')} />
-            <QuickAction icon="📍" label="Platz finden" colors={colors} onPress={() => router.push('/(tabs)/spielen')} />
-            <QuickAction icon="👥" label="Team erstellen" colors={colors} onPress={() => router.push('/(tabs)/community')} />
-            <QuickAction icon="🏆" label="Turniere" colors={colors} onPress={() => router.push('/(tabs)/turniere')} />
-          </ScrollView>
-        </View>
-
-        {/* ── Rating Widget (ELO chart + matchmaking CTA) ── */}
-        {user && eloSummary && (
-          <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.lg }}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => router.push('/matchmaking')}
-              style={[styles.ratingWidget, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-            >
-              <View style={styles.ratingWidgetHeader}>
-                <View>
-                  <Text style={[styles.ratingWidgetLabel, { color: colors.textTertiary }]}>Dein Rating</Text>
-                  <Text style={[styles.ratingWidgetValue, { color: colors.textPrimary }]}>
-                    {eloSummary.padel}
-                  </Text>
-                </View>
-                <View style={[styles.ratingWidgetCta, { backgroundColor: colors.primaryLight }]}>
-                  <Text style={[styles.ratingWidgetCtaText, { color: colors.primary }]}>Mitspieler finden →</Text>
-                </View>
-              </View>
-              {eloHistory.length > 1 ? (
-                <TRatingChart
-                  points={eloHistory}
-                  height={90}
-                  showAxis={false}
-                  showDelta
-                />
-              ) : (
-                <Text style={[styles.ratingWidgetHint, { color: colors.textTertiary }]}>
-                  Spiele dein erstes Match, um deinen Verlauf zu sehen.
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── Anstehende Turniere ──────── */}
-        {featuredEvents.length > 1 && (
-          <View style={styles.section}>
-            <View style={[styles.sectionHeader, { paddingHorizontal: spacing.lg }]}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Anstehende Turniere</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/turniere')}>
-                <Text style={[styles.seeAll, { color: colors.primary }]}>Alle →</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}>
-              {featuredEvents.slice(1, 5).map((event) => (
-                <EventMiniCard
-                  key={event.id}
-                  event={event}
-                  colors={colors}
-                  memberTier={memberTier}
-                  onPress={() => router.push(`/event/${event.id}`)}
-                />
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* ── Membership Upsell ──────── */}
-        {user && (!currentMembership || currentMembership.tier === 'free') && (
-          <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xxl }}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => router.push('/membership')}
-              style={[styles.membershipBanner, {
-                backgroundColor: isDark ? colors.surfaceSecondary : colors.primaryDark,
-              }]}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.memberBannerTitle}>Tourneo Plus & Club</Text>
-                <Text style={styles.memberBannerDesc}>Early Access, Rabatte & exklusive Turniere</Text>
-                <View style={styles.memberBannerPerks}>
-                  <Text style={styles.memberBannerPerk}>✓ 10-20% Rabatt</Text>
-                  <Text style={styles.memberBannerPerk}>✓ Priority Check-In</Text>
-                </View>
-              </View>
-              <View style={[styles.memberBannerBtn, { backgroundColor: colors.primary }]}>
-                <Text style={styles.memberBannerBtnText}>Mehr →</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── Community Teaser ───────── */}
-        <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xxl, marginBottom: spacing.lg }}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => router.push('/(tabs)/community')}
-            style={[styles.communityTeaser, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+        {/* ── Hero ───────────────────────────────── */}
+        {heroEvent ? (
+          <NCSection
+            title="Nächstes Turnier"
+            onAction={() => router.push('/(tabs)/turniere')}
           >
-            <Text style={styles.communityIcon}>👥</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.communityTitle, { color: colors.textPrimary }]}>Community</Text>
-              <Text style={[styles.communityDesc, { color: colors.textTertiary }]}>
-                Finde Mitspieler & tausche dich aus
-              </Text>
-            </View>
-            <Text style={[styles.communityArrow, { color: colors.textTertiary }]}>→</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+            <HeroCard
+              event={heroEvent}
+              isMember={isMember}
+              onPress={() => router.push(`/event/${heroEvent.id}`)}
+              onRegister={() => router.push(`/event/${heroEvent.id}`)}
+            />
+          </NCSection>
+        ) : null}
 
-      {/* Toast Container at root level */}
-      <ToastContainer />
-    </View>
+        {/* ── Deine Termine ──────────────────────── */}
+        {upcomingRegs.length > 0 ? (
+          <NCSection title="Deine Termine" onAction={() => router.push('/(tabs)/turniere')}>
+            <View style={{ paddingHorizontal: 20, gap: 10 }}>
+              {upcomingRegs.map((r) => {
+                const date = parseDateParts(r.event_date);
+                return (
+                  <TermineRow
+                    key={r.id}
+                    date={date}
+                    title={r.event_title || 'Turnier'}
+                    meta={r.event_location || (r.partner_name ? `Partner: ${r.partner_name}` : '')}
+                    onPress={() => router.push(`/event/${r.event_id}`)}
+                  />
+                );
+              })}
+            </View>
+          </NCSection>
+        ) : null}
+
+        {/* ── Quick access ───────────────────────── */}
+        <NCSection title="Schnellzugriff">
+          <View style={{ paddingHorizontal: 20, gap: 10 }}>
+            <View style={s.tileRow}>
+              <NCQuickTile
+                icon="bolt"
+                label="Matchmaking"
+                sub="Finde einen Gegner"
+                hue={260}
+                onPress={() => router.push('/matchmaking')}
+              />
+              <NCQuickTile
+                icon="users"
+                label="Community"
+                sub="Spieler & Teams"
+                hue={140}
+                onPress={() => router.push('/(tabs)/community')}
+              />
+            </View>
+            <View style={s.tileRow}>
+              <NCQuickTile
+                icon="pin"
+                label="Courts"
+                sub="Venues entdecken"
+                hue={200}
+                onPress={() => router.push('/(tabs)/turniere')}
+              />
+              <NCQuickTile
+                icon="medal"
+                label="Leaderboard"
+                sub="Top 100"
+                hue={40}
+                onPress={() => router.push('/leaderboard')}
+              />
+            </View>
+          </View>
+        </NCSection>
+
+        <View style={{ height: 20 }} />
+      </ScrollView>
+    </NCScreen>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
+// ─── ELO loader ────────────────────────────────────────────
+async function loadEloSummary(): Promise<EloSummary> {
+  const [eloRes, history] = await Promise.all([
+    getMyElo().catch(() => null),
+    getMyEloHistory('padel', 12).catch(() => [] as { elo: number }[]),
+  ]);
+  const points = history.map((h) => h.elo);
+  const ranked = eloRes?.padel?.tier;
+  const rank = ranked ? ranked.charAt(0).toUpperCase() : 'A';
+  // Win/loss/streak aren't returned by /me/elo; default to 0 until the
+  // backend exposes them via /me/stats.  Keep the design's slot rather than
+  // hiding the row.
+  return {
+    elo: eloRes?.padel?.elo ?? 0,
+    delta: points.length > 1 ? points[points.length - 1] - points[points.length - 2] : 0,
+    rank,
+    wins: 0,
+    losses: 0,
+    wr: 0,
+    streak: 0,
+    history: points,
+  };
+}
 
-  // Header
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg, paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: spacing.sm,
-  },
-  headerLeft: {},
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  brandName: {
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    fontSize: 26, fontWeight: '700', letterSpacing: -0.5,
-  },
-  notifBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', position: 'relative' as const },
-  notifBadge: { position: 'absolute' as const, top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center' as const, justifyContent: 'center' as const, paddingHorizontal: 4 },
-  notifBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' as const },
-  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  avatarImg: { width: 40, height: 40, borderRadius: 20 },
-  avatarText: { fontSize: 16, fontWeight: '700' },
+function parseDateParts(iso?: string): { d: string; m: string } {
+  if (!iso) return { d: '?', m: '' };
+  try {
+    const d = new Date(iso);
+    return {
+      d: String(d.getDate()),
+      m: d.toLocaleDateString('de', { month: 'short' }).replace('.', '').toUpperCase(),
+    };
+  } catch {
+    return { d: '?', m: '' };
+  }
+}
 
-  // Member badge chip
-  memberBadgeChip: {
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+// ─── Styles ────────────────────────────────────────────────
+const s = StyleSheet.create({
+  eloHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 14,
   },
-  memberBadgeChipText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-
-  // Greeting
-  greetingSection: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.lg },
-  greeting: { fontSize: fontSize.sm, fontWeight: fontWeight.medium },
-  userName: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, letterSpacing: -0.5, marginTop: 2 },
-
-  // Stats Row
-  statsRow: {
-    flexDirection: 'row', paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.lg,
+  eloLabel: {
+    fontFamily: fontFamily.uiSemibold,
+    fontSize: 11,
+    color: NC.textS,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
-  statCard: {
-    flex: 1, alignItems: 'center', paddingVertical: spacing.md,
-    borderRadius: radius.lg, borderWidth: 1,
+  eloValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 4 },
+  eloBig: {
+    fontFamily: fontFamily.monoBold,
+    fontSize: 38,
+    fontWeight: '700',
+    color: NC.textP,
+    letterSpacing: -1.5,
+    lineHeight: 40,
+    includeFontPadding: false,
   },
-  statNumber: { fontSize: fontSize.xl, fontWeight: fontWeight.bold },
-  statLabel: { fontSize: fontSize.xxs, fontWeight: fontWeight.medium, marginTop: 2 },
-
-  // Rating Widget
-  ratingWidget: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.md,
-  },
-  ratingWidgetHeader: {
+  eloDelta: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  eloDeltaText: { fontFamily: fontFamily.uiBold, fontSize: 13, fontWeight: '700' },
+  rankPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: 'rgba(245,158,11,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.3)',
+  },
+  rankText: {
+    fontFamily: fontFamily.displayBold,
+    fontSize: 13,
+    fontWeight: '700',
+    color: NC.gold,
+  },
+  statsRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: NC.border,
   },
-  ratingWidgetLabel: { fontSize: fontSize.xs, fontWeight: fontWeight.medium as any },
-  ratingWidgetValue: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold as any, marginTop: 2 },
-  ratingWidgetCta: { paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: 999 },
-  ratingWidgetCtaText: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold as any },
-  ratingWidgetHint: { fontSize: fontSize.xs, textAlign: 'center', paddingVertical: spacing.md },
+  statValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statValue: {
+    fontFamily: fontFamily.monoBold,
+    fontSize: 17,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  statLabel: {
+    marginTop: 4,
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 10.5,
+    color: NC.textT,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    fontWeight: '500',
+  },
 
-  // Hero
-  heroSection: { paddingHorizontal: spacing.lg },
-  heroCard: {
-    borderRadius: radius.xl, overflow: 'hidden', height: 220,
-    ...shadow.lg,
+  // hero
+  heroPills: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    flexDirection: 'row',
+    gap: 6,
   },
-  heroImage: {
-    width: '100%', height: '100%', position: 'absolute',
-    alignItems: 'center', justifyContent: 'center',
+  heroPrizeBlock: { position: 'absolute', bottom: 14, right: 14, alignItems: 'flex-end' },
+  heroPrizeLabel: {
+    fontFamily: fontFamily.monoBold,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: NC.gold,
   },
-  heroPlaceholder: { fontSize: 60 },
-  heroGradient: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '75%' },
-  heroOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.lg },
-  heroBadgeRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
-  heroBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
-  heroBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
-  heroTitle: { color: '#FFF', fontSize: fontSize.xl, fontWeight: fontWeight.bold, letterSpacing: -0.3, marginBottom: 6 },
-  heroMeta: { flexDirection: 'row', gap: 12, marginBottom: 8 },
-  heroMetaText: { color: 'rgba(255,255,255,0.85)', fontSize: fontSize.xs },
-  heroFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  heroPrice: { color: '#FFF', fontSize: fontSize.lg, fontWeight: fontWeight.bold },
-  heroSpots: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  heroSpotsText: { color: '#FFF', fontSize: fontSize.xxs, fontWeight: '600' },
+  heroPrizeAmount: {
+    fontFamily: fontFamily.displayExtra,
+    fontSize: 24,
+    fontWeight: '800',
+    color: NC.gold,
+    letterSpacing: -0.5,
+    lineHeight: 26,
+  },
+  heroTitle: {
+    fontFamily: fontFamily.displayBold,
+    fontSize: 20,
+    fontWeight: '700',
+    color: NC.textP,
+    letterSpacing: -0.4,
+    lineHeight: 23,
+  },
+  heroSub: { marginTop: 4, fontFamily: fontFamily.uiMedium, fontSize: 13, color: NC.textS },
+  heroMeta: { flexDirection: 'row', gap: 14, marginTop: 14 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metaText: { fontFamily: fontFamily.uiMedium, fontSize: 12.5, color: NC.textS, maxWidth: 160 },
+  capacityHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  capacityLabel: {
+    fontFamily: fontFamily.uiSemibold,
+    fontSize: 11,
+    color: NC.textT,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  capacityCount: { fontFamily: fontFamily.monoBold, fontSize: 11.5, fontWeight: '700', color: NC.textP },
+  heroCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
+  heroFeeLabel: {
+    fontFamily: fontFamily.uiSemibold,
+    fontSize: 10.5,
+    color: NC.textT,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  feeRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  feeAmount: {
+    fontFamily: fontFamily.displayBold,
+    fontSize: 20,
+    fontWeight: '700',
+    color: NC.textP,
+  },
+  feeStrike: {
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 12,
+    color: NC.textT,
+    textDecorationLine: 'line-through',
+  },
 
-  // Section
-  section: { marginTop: spacing.xxl },
-  sectionHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg, marginBottom: spacing.sm,
+  // live cards
+  liveHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  liveSubtitle: {
+    fontFamily: fontFamily.uiSemibold,
+    fontSize: 10.5,
+    color: NC.textS,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    flexShrink: 1,
+    marginLeft: 8,
   },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, letterSpacing: -0.3 },
-  seeAll: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  liveTitle: {
+    fontFamily: fontFamily.displayBold,
+    fontSize: 14,
+    fontWeight: '700',
+    color: NC.textP,
+    letterSpacing: -0.2,
+  },
+  liveFooter: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: NC.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  liveFooterMeta: { fontFamily: fontFamily.uiMedium, fontSize: 11, color: NC.textS },
+  liveFooterScore: {
+    fontFamily: fontFamily.monoBold,
+    fontSize: 12,
+    fontWeight: '700',
+    color: NC.coral,
+  },
 
-  // Termin Card
-  terminCard: {
-    flexDirection: 'row', alignItems: 'center', padding: spacing.md,
-    borderRadius: radius.lg, borderWidth: 1, marginRight: spacing.sm, width: 240,
+  // termine
+  termineRow: { padding: 12, flexDirection: 'row', alignItems: 'center', gap: 14 },
+  termineDate: {
+    width: 54,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: NC.primaryBg,
+    borderWidth: 1,
+    borderColor: NC.borderStr,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  terminDate: {
-    width: 48, height: 48, borderRadius: radius.md,
-    alignItems: 'center', justifyContent: 'center', marginRight: spacing.md,
+  termineDay: {
+    fontFamily: fontFamily.displayExtra,
+    fontSize: 22,
+    fontWeight: '800',
+    color: NC.primaryLight,
+    lineHeight: 23,
   },
-  terminDay: { fontSize: fontSize.lg, fontWeight: fontWeight.bold },
-  terminMonth: { fontSize: fontSize.xxs, fontWeight: fontWeight.semibold },
-  terminContent: { flex: 1 },
-  terminTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  terminMeta: { fontSize: fontSize.xxs, marginTop: 2 },
-  terminStatus: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  termineMonth: {
+    marginTop: 2,
+    fontFamily: fontFamily.uiBold,
+    fontSize: 9,
+    fontWeight: '700',
+    color: NC.primaryLight,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  termineTitle: {
+    fontFamily: fontFamily.displaySemibold,
+    fontSize: 15,
+    fontWeight: '600',
+    color: NC.textP,
+    letterSpacing: -0.2,
+  },
+  termineMeta: { marginTop: 2, fontFamily: fontFamily.uiMedium, fontSize: 12, color: NC.textS },
 
-  // Quick Actions
-  quickAction: {
-    width: 80, height: 80, borderRadius: radius.lg, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  quickIcon: { fontSize: 28, marginBottom: 4 },
-  quickLabel: { fontSize: fontSize.xxs, fontWeight: fontWeight.medium },
-
-  // Event Mini
-  eventMini: {
-    flexDirection: 'row', alignItems: 'center', padding: spacing.md,
-    borderRadius: radius.lg, borderWidth: 1,
-  },
-  eventMiniLeft: { flex: 1 },
-  eventMiniTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  eventMiniTitle: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, flex: 1 },
-  eventMiniMeta: { fontSize: fontSize.xs, marginTop: 2 },
-  eventMiniRight: { alignItems: 'flex-end', marginLeft: spacing.md },
-  eventMiniPrice: { fontSize: fontSize.base, fontWeight: fontWeight.bold },
-  eventMiniSpots: { fontSize: fontSize.xxs, marginTop: 2 },
-  almostFullBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  almostFullText: { fontSize: 9, fontWeight: '700' },
-
-  // Empty State
-  emptyCard: {
-    marginHorizontal: spacing.lg, padding: spacing.xxl,
-    borderRadius: radius.xl, borderWidth: 1, alignItems: 'center',
-  },
-  emptyIcon: { fontSize: 48, marginBottom: spacing.md },
-  emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, textAlign: 'center', marginBottom: spacing.xs },
-  emptyText: { fontSize: fontSize.sm, textAlign: 'center', lineHeight: 20, marginBottom: spacing.lg },
-  emptyCta: { paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md },
-  emptyCtaText: { color: '#FFF', fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-
-  // Membership Banner
-  membershipBanner: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: spacing.lg, borderRadius: radius.xl,
-  },
-  memberBannerTitle: { color: '#FFF', fontSize: fontSize.base, fontWeight: fontWeight.bold },
-  memberBannerDesc: { color: 'rgba(255,255,255,0.7)', fontSize: fontSize.xs, marginTop: 2 },
-  memberBannerPerks: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  memberBannerPerk: { color: 'rgba(255,255,255,0.85)', fontSize: fontSize.xxs, fontWeight: '500' },
-  memberBannerBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm },
-  memberBannerBtnText: { color: '#FFF', fontSize: fontSize.xs, fontWeight: fontWeight.bold },
-
-  // Community Teaser
-  communityTeaser: {
-    flexDirection: 'row', alignItems: 'center', padding: spacing.lg,
-    borderRadius: radius.xl, borderWidth: 1, gap: spacing.md,
-  },
-  communityIcon: { fontSize: 32 },
-  communityTitle: { fontSize: fontSize.base, fontWeight: fontWeight.semibold },
-  communityDesc: { fontSize: fontSize.xs, marginTop: 2 },
-  communityArrow: { fontSize: fontSize.xl },
+  // tiles
+  tileRow: { flexDirection: 'row', gap: 10 },
 });
