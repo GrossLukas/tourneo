@@ -2,7 +2,7 @@ import React, { useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Animated, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../providers/ThemeProvider';
-import { spacing, radius, shadow } from '../../theme/spacing';
+import { spacing } from '../../theme/spacing';
 
 interface TCardProps {
   children: React.ReactNode;
@@ -12,11 +12,15 @@ interface TCardProps {
   style?: ViewStyle;
 }
 
+/**
+ * Night Court card.  18 px radius, 1 px border, dark surface.  `elevated`
+ * adds a subtle indigo halo via shadow / border tint.
+ */
 export const TCard: React.FC<TCardProps> = ({
   children,
   onPress,
   variant = 'default',
-  padding = 'md',
+  padding = 'lg',
   style,
 }) => {
   const { colors } = useTheme();
@@ -25,28 +29,35 @@ export const TCard: React.FC<TCardProps> = ({
   const getCardStyle = (): ViewStyle => {
     const base: ViewStyle = {
       backgroundColor: colors.surface,
-      borderRadius: radius.lg,
+      borderRadius: 18,
       padding: spacing[padding],
-      borderWidth: StyleSheet.hairlineWidth,
+      borderWidth: 1,
       borderColor: colors.border,
+      overflow: 'hidden',
     };
 
-    switch (variant) {
-      case 'elevated':
-        return { ...base, borderColor: colors.borderFocus + '33' };
-      case 'outlined':
-        return { ...base, borderWidth: 1, borderColor: colors.cardBorder };
-      default:
-        return base;
+    if (variant === 'elevated') {
+      return {
+        ...base,
+        shadowColor: '#6366F1',
+        shadowOpacity: 0.35,
+        shadowRadius: 24,
+        shadowOffset: { width: 0, height: 10 },
+        elevation: 12,
+      };
     }
+    if (variant === 'outlined') {
+      return { ...base, borderColor: colors.borderFocus + '4D' };
+    }
+    return base;
   };
 
   const handlePressIn = useCallback(() => {
     Animated.spring(scale, {
       toValue: 0.97,
       useNativeDriver: true,
-      tension: 150,
-      friction: 8,
+      tension: 200,
+      friction: 6,
     }).start();
   }, [scale]);
 
@@ -54,23 +65,19 @@ export const TCard: React.FC<TCardProps> = ({
     Animated.spring(scale, {
       toValue: 1,
       useNativeDriver: true,
-      tension: 150,
-      friction: 8,
+      tension: 200,
+      friction: 5,
     }).start();
   }, [scale]);
 
   const handlePress = useCallback(() => {
-    Haptics.selectionAsync();
+    Haptics.selectionAsync().catch(() => {});
     onPress?.();
   }, [onPress]);
 
   if (onPress) {
     return (
-      <Pressable
-        onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-      >
+      <Pressable onPress={handlePress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
         <Animated.View style={[getCardStyle(), style, { transform: [{ scale }] }]}>
           {children}
         </Animated.View>

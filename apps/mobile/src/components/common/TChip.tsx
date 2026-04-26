@@ -1,7 +1,7 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
-import { useTheme } from '../../providers/ThemeProvider';
-import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
+import { Pressable, Text, StyleSheet, ViewStyle } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { fontFamily } from '../../theme/typography';
 
 interface TChipProps {
   label: string;
@@ -10,24 +10,26 @@ interface TChipProps {
   style?: ViewStyle;
 }
 
-export const TChip: React.FC<TChipProps> = ({
-  label,
-  selected = false,
-  onPress,
-  style,
-}) => {
-  const { colors } = useTheme();
+/**
+ * Night Court level/filter chip.  Active = indigo fill, inactive = card
+ * surface with thin border.  Always rounded-full.
+ */
+export const TChip: React.FC<TChipProps> = ({ label, selected = false, onPress, style }) => {
+  const handlePress = () => {
+    if (!onPress) return;
+    Haptics.selectionAsync().catch(() => {});
+    onPress();
+  };
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
+    <Pressable
+      onPress={handlePress}
       disabled={!onPress}
-      activeOpacity={0.7}
       style={[
         styles.chip,
         {
-          backgroundColor: selected ? 'rgba(99,102,241,0.12)' : '#111127',
-          borderColor: selected ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.08)',
+          backgroundColor: selected ? '#6366F1' : '#111127',
+          borderColor: selected ? '#6366F1' : 'rgba(255,255,255,0.08)',
         },
         style,
       ]}
@@ -35,28 +37,28 @@ export const TChip: React.FC<TChipProps> = ({
       <Text
         style={[
           styles.label,
-          {
-            color: selected ? '#818CF8' : 'rgba(255,255,255,0.5)',
-          },
+          { color: selected ? '#FFFFFF' : 'rgba(255,255,255,0.6)' },
         ]}
       >
         {label}
       </Text>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
   chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.full,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginRight: spacing.xs,
-    marginBottom: spacing.xs,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    marginRight: 8,
+    marginBottom: 8,
   },
   label: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium as any,
+    fontFamily: fontFamily.uiSemibold,
+    fontSize: 12.5,
+    fontWeight: '600' as const,
+    letterSpacing: -0.1,
   },
 });

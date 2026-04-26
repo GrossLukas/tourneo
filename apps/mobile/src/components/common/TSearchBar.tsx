@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, TextInput, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { View, TextInput, StyleSheet, Pressable, Text } from 'react-native';
 import { useTheme } from '../../providers/ThemeProvider';
-import { spacing, fontSize, radius } from '../../theme/spacing';
+import { fontFamily } from '../../theme/typography';
 
 interface TSearchBarProps {
   placeholder?: string;
@@ -11,17 +11,24 @@ interface TSearchBarProps {
   onClear?: () => void;
 }
 
+/**
+ * Night Court search input.  48 px tall, 14 px radius, magnifier icon.
+ */
 export const TSearchBar: React.FC<TSearchBarProps> = ({
-  placeholder = 'Suchen...',
+  placeholder = 'Suchen…',
   value,
   onChangeText,
   onSubmit,
   onClear,
 }) => {
   const { colors } = useTheme();
-
   return (
-    <View style={[styles.container, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: '#16162A', borderColor: 'rgba(255,255,255,0.08)' },
+      ]}
+    >
       <Text style={[styles.icon, { color: colors.textTertiary }]}>🔍</Text>
       <TextInput
         style={[styles.input, { color: colors.textPrimary }]}
@@ -34,8 +41,8 @@ export const TSearchBar: React.FC<TSearchBarProps> = ({
         autoCapitalize="none"
         autoCorrect={false}
       />
-      {value.length > 0 && (
-        <TouchableOpacity
+      {value.length > 0 ? (
+        <Pressable
           onPress={() => {
             onChangeText('');
             onClear?.();
@@ -43,8 +50,8 @@ export const TSearchBar: React.FC<TSearchBarProps> = ({
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Text style={[styles.clearIcon, { color: colors.textTertiary }]}>✕</Text>
-        </TouchableOpacity>
-      )}
+        </Pressable>
+      ) : null}
     </View>
   );
 };
@@ -53,24 +60,20 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.lg,
+    borderRadius: 14,
     borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    height: 44,
-    marginHorizontal: spacing.md,
-    marginVertical: spacing.sm,
+    paddingHorizontal: 14,
+    height: 48,
+    marginHorizontal: 20,
+    marginVertical: 8,
+    gap: 10,
   },
-  icon: {
-    marginRight: spacing.sm,
-    fontSize: 16,
-  },
+  icon: { fontSize: 16 },
   input: {
     flex: 1,
-    fontSize: fontSize.md,
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 14,
     paddingVertical: 0,
   },
-  clearIcon: {
-    fontSize: 14,
-    padding: spacing.xxs,
-  },
+  clearIcon: { fontSize: 14, padding: 2 },
 });
