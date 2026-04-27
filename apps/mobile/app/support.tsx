@@ -88,13 +88,13 @@ export default function SupportScreen() {
         {/* FAQ Quick Links */}
         <TCard variant="outlined" style={styles.faqCard}>
           <Text style={[styles.faqTitle, { color: colors.textPrimary }]}>Häufige Themen</Text>
-          <Text style={[styles.faqItem, { color: (colors.primary as string) }]} onPress={() => router.push('/legal/terms')}>
+          <Text style={[styles.faqItem, { color: (colors.primary as string) }]} onPress={() => router.push('/legal/agb')}>
             📄 Stornierungsrichtlinie
           </Text>
           <Text style={[styles.faqItem, { color: (colors.primary as string) }]} onPress={() => router.push('/membership')}>
             ⭐ Mitgliedschaft & Abos
           </Text>
-          <Text style={[styles.faqItem, { color: (colors.primary as string) }]} onPress={() => router.push('/legal/privacy')}>
+          <Text style={[styles.faqItem, { color: (colors.primary as string) }]} onPress={() => router.push('/legal/datenschutz')}>
             🔒 Datenschutz
           </Text>
         </TCard>

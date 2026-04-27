@@ -242,7 +242,7 @@ export default function ProfilScreen() {
               onPress={() => router.push('/notifications')}
             />
             <SettingRow icon="settings" label="Einstellungen" onPress={() => router.push('/settings')} />
-            <SettingRow icon="shield" label="Rechtliches" onPress={() => router.push('/legal/privacy')} />
+            <SettingRow icon="shield" label="Rechtliches" onPress={() => router.push('/legal/datenschutz')} />
             <SettingRow icon="close" label="Abmelden" onPress={handleLogout} danger last />
           </NCCard>
         </View>
