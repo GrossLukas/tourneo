@@ -152,7 +152,17 @@ export class PlayerProfileService {
     let won = 0;
     const form: Array<'W' | 'L'> = [];
     for (const m of matches) {
-      const myReg = regs.includes(m.participant_1_registration_id) ? m.participant_1_registration_id : m.participant_2_registration_id;
+      // Determine which side this player was on. If neither registration
+      // belongs to the user (shouldn't happen given the SQL filter, but a
+      // null on either column would silently flip the win/loss otherwise),
+      // skip the row instead of mis-attributing the result.
+      let myReg: number | null = null;
+      if (m.participant_1_registration_id != null && regs.includes(m.participant_1_registration_id)) {
+        myReg = m.participant_1_registration_id;
+      } else if (m.participant_2_registration_id != null && regs.includes(m.participant_2_registration_id)) {
+        myReg = m.participant_2_registration_id;
+      }
+      if (myReg === null) continue;
       const wonMatch = m.winner_registration_id === myReg;
       if (wonMatch) won += 1;
       form.push(wonMatch ? 'W' : 'L');
@@ -240,26 +250,37 @@ export class PlayerProfileService {
 
     let myWins = 0;
     let oppWins = 0;
-    const recent = matches.map((m: any) => {
-      const myReg = viewerRegs.includes(m.participant_1_registration_id)
-        ? m.participant_1_registration_id
-        : m.participant_2_registration_id;
+    const recent: HeadToHead['recent_matches'] = [];
+    for (const m of matches) {
+      let myReg: number | null = null;
+      if (
+        m.participant_1_registration_id != null &&
+        viewerRegs.includes(m.participant_1_registration_id)
+      ) {
+        myReg = m.participant_1_registration_id;
+      } else if (
+        m.participant_2_registration_id != null &&
+        viewerRegs.includes(m.participant_2_registration_id)
+      ) {
+        myReg = m.participant_2_registration_id;
+      }
+      if (myReg === null) continue;
       const won = m.winner_registration_id === myReg;
       if (won) myWins += 1;
       else oppWins += 1;
-      return {
+      recent.push({
         match_id: m.match_id,
         event_title: m.event_title,
         completed_at: m.completed_at ? new Date(m.completed_at).toISOString() : '',
         won,
-      };
-    });
+      });
+    }
 
     return {
       opponent_user_id: targetUserId,
       opponent_name: target.display_name ?? `${target.first_name ?? 'Spieler'}`,
       opponent_avatar: target.avatar_url ?? null,
-      total_matches: matches.length,
+      total_matches: myWins + oppWins,
       my_wins: myWins,
       opponent_wins: oppWins,
       recent_matches: recent,

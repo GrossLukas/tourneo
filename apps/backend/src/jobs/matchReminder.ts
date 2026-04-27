@@ -31,7 +31,7 @@ export async function sendMatchReminders(now: Date = new Date()): Promise<number
       const participantRegIds = [
         match.participant_1_registration_id,
         match.participant_2_registration_id,
-      ].filter(Boolean);
+      ].filter((id): id is number => typeof id === 'number');
       if (participantRegIds.length !== 2) continue;
 
       const registrations = await db(t('registrations'))
@@ -40,7 +40,9 @@ export async function sendMatchReminders(now: Date = new Date()): Promise<number
 
       // Build name lookup for opponents
       const allUserIds = registrations.flatMap((r: any) =>
-        [r.user_id, r.partner_user_id].filter(Boolean)
+        [r.user_id, r.partner_user_id].filter(
+          (id: unknown): id is number => typeof id === 'number'
+        )
       );
       const profiles = await db(t('profiles'))
         .whereIn('user_id', allUserIds)
@@ -62,7 +64,9 @@ export async function sendMatchReminders(now: Date = new Date()): Promise<number
         const title = 'Dein Match beginnt gleich!';
         const body = `Du spielst in ~15 Min auf ${courtName} gegen ${opponentName}`;
 
-        for (const uid of [reg.user_id, reg.partner_user_id].filter(Boolean) as number[]) {
+        for (const uid of [reg.user_id, reg.partner_user_id].filter(
+          (id: unknown): id is number => typeof id === 'number'
+        )) {
           await NotificationService.send(uid, 'match_upcoming', title, body, {
             match_id: match.id,
             event_id: event?.id ?? null,

@@ -21,7 +21,7 @@ export class PaymentController {
         return res.status(400).send('Missing signature');
       }
 
-      const stripe = new Stripe(env.stripe.secretKey, { apiVersion: '2023-10-16' as any });
+      const stripe = new Stripe(env.stripe.secretKey, { apiVersion: env.stripe.apiVersion as any });
       const event = stripe.webhooks.constructEvent(req.body, sig, env.stripe.webhookSecret);
 
       await PaymentService.handleStripeWebhook(event);

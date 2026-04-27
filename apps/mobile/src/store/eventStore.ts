@@ -5,14 +5,14 @@ export interface Event {
   id: number;
   uuid: string;
   title: string;
-  description: string;
+  description: string | null;
   sport_category: string;
   start_date: string;
   end_date: string;
   registration_opens_at: string;
   registration_closes_at: string;
-  club_early_access_at: string;
-  plus_early_access_at: string;
+  club_early_access_at: string | null;
+  plus_early_access_at: string | null;
   is_indoor: boolean;
   is_outdoor: boolean;
   format: string;
@@ -24,21 +24,22 @@ export interface Event {
   access_type: string;
   has_food_drinks: boolean;
   has_streaming: boolean;
-  special_notes: string;
-  banner_image_url: string;
+  special_notes: string | null;
+  rules_summary?: string | null;
+  banner_image_url: string | null;
   status: string;
   participant_count: number;
   spots_remaining: number;
   venue: {
-    name: string;
-    city: string;
-    latitude?: number;
-    longitude?: number;
+    name: string | null;
+    city: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
   };
   prize_distribution?: Array<{
     place: number;
     amount_cents: number;
-    label: string;
+    label: string | null;
   }>;
 }
 
@@ -70,9 +71,14 @@ export const useEventStore = create<EventState>((set, get) => ({
     try {
       const params = { ...get().filters, ...filters };
       const response = await apiClient.get('/events', { params });
+      // The backend always returns { data: Event[], meta: {...} } for the
+      // listing endpoint, but be defensive: if data is missing/null we
+      // fall back to an empty list so consumers can safely .map() it.
+      const data = Array.isArray(response.data?.data) ? response.data.data : [];
+      const meta = response.data?.meta ?? { page: 1, total: 0, total_pages: 0 };
       set({
-        events: response.data.data,
-        meta: response.data.meta,
+        events: data,
+        meta,
         loading: false,
       });
     } catch (error) {

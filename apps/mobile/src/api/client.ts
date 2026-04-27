@@ -31,30 +31,59 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Single-flight refresh promise so multiple concurrent 401s don't each
+// fire their own /auth/refresh — they all await the same in-flight call.
+let refreshInFlight: Promise<{ access_token: string; refresh_token: string } | null> | null = null;
+
+async function performTokenRefresh(): Promise<{ access_token: string; refresh_token: string } | null> {
+  const refreshToken = await SecureStore.getItemAsync('refresh_token');
+  if (!refreshToken) return null;
+  // Use a bare axios instance so this call does NOT pass through our
+  // own interceptor — that prevented the original infinite-loop risk
+  // when /auth/refresh itself returned 401.
+  const response = await axios.post(
+    `${API_BASE_URL}/auth/refresh`,
+    { refresh_token: refreshToken },
+    { timeout: 15000 }
+  );
+  const tokens = response?.data?.data;
+  if (!tokens?.access_token || !tokens?.refresh_token) {
+    throw new Error('Invalid refresh response');
+  }
+  await SecureStore.setItemAsync('access_token', tokens.access_token);
+  await SecureStore.setItemAsync('refresh_token', tokens.refresh_token);
+  return tokens;
+}
+
 // Response interceptor - handle token refresh
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const isRefreshCall =
+      typeof originalRequest?.url === 'string' && originalRequest.url.includes('/auth/refresh');
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !isRefreshCall
+    ) {
       originalRequest._retry = true;
       try {
-        const refreshToken = await SecureStore.getItemAsync('refresh_token');
-        if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refresh_token: refreshToken,
+        if (!refreshInFlight) {
+          refreshInFlight = performTokenRefresh().finally(() => {
+            refreshInFlight = null;
           });
-          const tokens = response?.data?.data;
-          if (!tokens?.access_token || !tokens?.refresh_token) {
-            throw new Error('Invalid refresh response');
-          }
-          await SecureStore.setItemAsync('access_token', tokens.access_token);
-          await SecureStore.setItemAsync('refresh_token', tokens.refresh_token);
+        }
+        const tokens = await refreshInFlight;
+        if (tokens) {
+          originalRequest.headers = originalRequest.headers || {};
           originalRequest.headers.Authorization = `Bearer ${tokens.access_token}`;
           return apiClient(originalRequest);
         }
       } catch {
-        // Refresh failed - clear tokens
+        // Refresh failed - clear tokens so the app drops back to login.
         await SecureStore.deleteItemAsync('access_token');
         await SecureStore.deleteItemAsync('refresh_token');
       }

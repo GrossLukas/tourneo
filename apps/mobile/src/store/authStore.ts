@@ -5,6 +5,8 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import apiClient from '../api/client';
+import { useBiometricStore } from './biometricStore';
+import { resetAllUserStores } from './storeReset';
 
 export interface User {
   id: number;
@@ -139,16 +141,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch { /* best effort */ }
     await SecureStore.deleteItemAsync('access_token');
     await SecureStore.deleteItemAsync('refresh_token');
-    // Also disable biometrics on logout
+    // Also disable biometrics on logout — best effort.
     try {
-      const { useBiometricStore } = require('./biometricStore');
       await useBiometricStore.getState().disable();
-    } catch { /* ignore if store not available */ }
+    } catch (err) {
+      if (__DEV__) console.warn('[auth] biometric disable failed:', err);
+    }
     // Wipe all per-user caches so the next login does not leak data.
-    // Lazy require avoids circular-import issues between authStore and
-    // store/index.ts, which aggregates all stores.
     try {
-      const { resetAllUserStores } = require('./index');
       await resetAllUserStores();
     } catch (err) {
       if (__DEV__) console.warn('[auth] resetAllUserStores failed:', err);

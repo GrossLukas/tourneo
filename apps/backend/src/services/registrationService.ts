@@ -135,7 +135,8 @@ export class RegistrationService {
 
     if (!registration) throw AppError.notFound('Registration');
 
-    if (!['confirmed', 'pending_payment', 'waitlisted'].includes(registration.status)) {
+    const cancellableStatuses = ['confirmed', 'pending_payment', 'waitlisted'] as const;
+    if (!cancellableStatuses.includes(registration.status)) {
       throw AppError.badRequest('This registration cannot be cancelled');
     }
 
@@ -146,15 +147,17 @@ export class RegistrationService {
     const eventStart = new Date(event.start_date);
     const daysUntilEvent = dayjs(eventStart).diff(dayjs(now), 'day');
 
+    // Default to no refund. Each branch must explicitly opt-in so a future
+    // status added to the enum cannot accidentally inherit a refund.
     let refundPercentage = 0;
-    let refundReason = 'user_cancellation_14d';
+    const refundReason: 'user_cancellation_14d' | 'user_cancellation_late' = 'user_cancellation_14d';
 
     if (registration.status === 'waitlisted') {
-      // Waitlisted users get full refund if they paid
+      // Waitlisted users get a full refund if they paid (rare case where
+      // someone pre-paid before being demoted to the waitlist).
       refundPercentage = 100;
-    } else if (daysUntilEvent >= 14) {
+    } else if (registration.status === 'confirmed' && daysUntilEvent >= 14) {
       refundPercentage = 75;
-      refundReason = 'user_cancellation_14d';
     } else {
       refundPercentage = 0;
     }
@@ -295,6 +298,8 @@ export class RegistrationService {
       const promotedUserId = nextInLine.user_id as number;
       const promotedRegId = nextInLine.id as number;
       setImmediate(() => {
+        // The notification row was already inserted in the transaction
+        // above; tell NotificationService to dispatch the push only.
         import('./notificationService')
           .then(({ NotificationService }) =>
             NotificationService.send(
@@ -302,7 +307,8 @@ export class RegistrationService {
               'waitlist_promoted',
               'Du bist dabei!',
               'Ein Platz ist frei geworden. Bitte schließe deine Zahlung innerhalb von 24 Stunden ab.',
-              { event_id: eventId, registration_id: promotedRegId }
+              { event_id: eventId, registration_id: promotedRegId },
+              { skipDbInsert: true }
             )
           )
           .catch((err) => {
