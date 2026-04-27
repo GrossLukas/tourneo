@@ -9,7 +9,8 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useTheme } from '../../providers/ThemeProvider';
-import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
+import { spacing } from '../../theme/spacing';
+import { fontFamily } from '../../theme/typography';
 
 interface TInputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
@@ -22,6 +23,10 @@ interface TInputProps extends Omit<TextInputProps, 'style'> {
   containerStyle?: ViewStyle;
 }
 
+/**
+ * Night Court text input.  48 px tall, 14 px radius, dark `bgInput`
+ * surface, indigo focus ring.
+ */
 export const TInput: React.FC<TInputProps> = ({
   label,
   error,
@@ -36,39 +41,36 @@ export const TInput: React.FC<TInputProps> = ({
   const { colors } = useTheme();
   const [focused, setFocused] = useState(false);
 
-  const getBorderColor = (): string => {
-    if (error) return colors.error;
-    if (focused) return colors.borderFocus;
-    return colors.border;
-  };
+  const borderColor = error
+    ? colors.error
+    : focused
+    ? '#6366F1'
+    : 'rgba(255,255,255,0.08)';
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && (
+      {label ? (
         <Text style={[styles.label, { color: colors.textSecondary }]}>
           {label}
-          {required && <Text style={{ color: colors.error }}> *</Text>}
+          {required ? <Text style={{ color: colors.error }}> *</Text> : null}
         </Text>
-      )}
+      ) : null}
       <View
         style={[
           styles.inputContainer,
           {
-            borderColor: getBorderColor(),
-            backgroundColor: colors.surfaceSecondary,
+            borderColor,
+            backgroundColor: '#16162A',
+            borderWidth: focused || error ? 1 : 1,
           },
-          focused && styles.inputFocused,
-          error ? styles.inputError : null,
         ]}
       >
-        {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
+        {leftIcon ? <View style={styles.leftIcon}>{leftIcon}</View> : null}
         <TextInput
           {...inputProps}
           style={[
             styles.input,
-            {
-              color: colors.textPrimary,
-            },
+            { color: colors.textPrimary },
             leftIcon ? { paddingLeft: 0 } : null,
           ]}
           placeholderTextColor={colors.textTertiary}
@@ -81,7 +83,7 @@ export const TInput: React.FC<TInputProps> = ({
             inputProps.onBlur?.(e);
           }}
         />
-        {rightIcon && (
+        {rightIcon ? (
           <TouchableOpacity
             onPress={onRightIconPress}
             disabled={!onRightIconPress}
@@ -89,59 +91,48 @@ export const TInput: React.FC<TInputProps> = ({
           >
             {rightIcon}
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
-      {error && (
-        <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-      )}
-      {hint && !error && (
+      {error ? <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text> : null}
+      {hint && !error ? (
         <Text style={[styles.hintText, { color: colors.textTertiary }]}>{hint}</Text>
-      )}
+      ) : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginBottom: spacing.md,
-  },
+  container: { marginBottom: spacing.md },
   label: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium as any,
+    fontFamily: fontFamily.uiSemibold,
+    fontSize: 13,
+    fontWeight: '600' as const,
     marginBottom: spacing.xs,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
+    borderRadius: 14,
+    paddingHorizontal: 14,
     height: 48,
-  },
-  inputFocused: {
-    borderWidth: 1,
-  },
-  inputError: {
-    borderWidth: 1,
   },
   input: {
     flex: 1,
-    fontSize: fontSize.md,
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 14,
     paddingVertical: 0,
     height: '100%',
   },
-  leftIcon: {
-    marginRight: spacing.sm,
-  },
-  rightIcon: {
-    marginLeft: spacing.sm,
-  },
+  leftIcon: { marginRight: 10 },
+  rightIcon: { marginLeft: 10 },
   errorText: {
-    fontSize: fontSize.xs,
-    marginTop: spacing.xxs,
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 12,
+    marginTop: 4,
   },
   hintText: {
-    fontSize: fontSize.xs,
-    marginTop: spacing.xxs,
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 12,
+    marginTop: 4,
   },
 });

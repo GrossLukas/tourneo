@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ViewStyle } from 'react-native';
 import { useTheme } from '../../providers/ThemeProvider';
-import { spacing, fontSize, fontWeight } from '../../theme/spacing';
+import { fontFamily } from '../../theme/typography';
 
 interface TListItemProps {
   title: string;
@@ -14,6 +14,10 @@ interface TListItemProps {
   style?: ViewStyle;
 }
 
+/**
+ * Settings-style row used inside grouped cards.  Title in Outfit-semibold,
+ * subtitle in Inter, chevron in textTertiary.
+ */
 export const TListItem: React.FC<TListItemProps> = ({
   title,
   subtitle,
@@ -28,34 +32,34 @@ export const TListItem: React.FC<TListItemProps> = ({
 
   const content = (
     <View style={[styles.container, { borderBottomColor: colors.divider }, style]}>
-      {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
+      {leftIcon ? <View style={styles.leftIcon}>{leftIcon}</View> : null}
       <View style={styles.textContainer}>
         <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
           {title}
         </Text>
-        {subtitle && (
+        {subtitle ? (
           <Text style={[styles.subtitle, { color: colors.textTertiary }]} numberOfLines={1}>
             {subtitle}
           </Text>
-        )}
+        ) : null}
       </View>
       <View style={styles.right}>
-        {rightText && (
+        {rightText ? (
           <Text style={[styles.rightText, { color: colors.textTertiary }]}>{rightText}</Text>
-        )}
-        {rightIcon && <View style={styles.rightIcon}>{rightIcon}</View>}
-        {showChevron && onPress && (
+        ) : null}
+        {rightIcon ? <View style={styles.rightIcon}>{rightIcon}</View> : null}
+        {showChevron && onPress ? (
           <Text style={[styles.chevron, { color: colors.textTertiary }]}>›</Text>
-        )}
+        ) : null}
       </View>
     </View>
   );
 
   if (onPress) {
     return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.6}>
+      <Pressable onPress={onPress} android_ripple={{ color: 'rgba(255,255,255,0.06)' }}>
         {content}
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 
@@ -66,42 +70,29 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    minHeight: 52,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    minHeight: 56,
   },
-  leftIcon: {
-    marginRight: spacing.md,
-    width: 32,
-    alignItems: 'center',
-  },
-  textContainer: {
-    flex: 1,
-    justifyContent: 'center',
-  },
+  leftIcon: { marginRight: 12, width: 32, alignItems: 'center' },
+  textContainer: { flex: 1, justifyContent: 'center' },
   title: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium as any,
+    fontFamily: fontFamily.displaySemibold,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: fontSize.sm,
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 11.5,
     marginTop: 2,
   },
-  right: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: spacing.sm,
-  },
+  right: { flexDirection: 'row', alignItems: 'center', marginLeft: 8, gap: 6 },
   rightText: {
-    fontSize: fontSize.sm,
-    marginRight: spacing.xs,
+    fontFamily: fontFamily.uiSemibold,
+    fontSize: 13,
   },
-  rightIcon: {
-    marginRight: spacing.xs,
-  },
-  chevron: {
-    fontSize: 22,
-    fontWeight: fontWeight.light as any,
-  },
+  rightIcon: {},
+  chevron: { fontSize: 22, fontWeight: '300' as const },
 });

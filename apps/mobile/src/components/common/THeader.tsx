@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform, StatusBar } from 'react-native';
 import { useTheme } from '../../providers/ThemeProvider';
-import { spacing, fontSize, fontWeight } from '../../theme/spacing';
+import { spacing } from '../../theme/spacing';
+import { fontFamily } from '../../theme/typography';
 
 interface THeaderProps {
   title: string;
@@ -12,6 +13,10 @@ interface THeaderProps {
   transparent?: boolean;
 }
 
+/**
+ * Night Court header bar — used by detail screens.  62 px top padding for
+ * the notch, glass back button (40 px circle), Outfit-bold title.
+ */
 export const THeader: React.FC<THeaderProps> = ({
   title,
   subtitle,
@@ -28,79 +33,79 @@ export const THeader: React.FC<THeaderProps> = ({
         styles.container,
         {
           backgroundColor: transparent ? 'transparent' : colors.bg,
-          borderBottomColor: transparent ? 'transparent' : colors.divider,
-          paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 0) + spacing.sm,
+          paddingTop: Platform.OS === 'ios' ? 56 : (StatusBar.currentHeight || 0) + spacing.sm,
         },
       ]}
     >
       <View style={styles.content}>
         <View style={styles.left}>
-          {showBack && onBack && (
-            <TouchableOpacity onPress={onBack} style={styles.backButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={[styles.backArrow, { color: colors.textLink }]}>‹</Text>
-            </TouchableOpacity>
-          )}
-          <View style={styles.titleContainer}>
-            <Text
-              style={[styles.title, { color: colors.textPrimary }]}
-              numberOfLines={1}
+          {showBack && onBack ? (
+            <Pressable
+              onPress={onBack}
+              style={styles.backBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Zurück"
             >
+              <Text style={[styles.backArrow, { color: colors.textPrimary }]}>‹</Text>
+            </Pressable>
+          ) : null}
+          <View style={styles.titleContainer}>
+            <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
               {title}
             </Text>
-            {subtitle && (
-              <Text
-                style={[styles.subtitle, { color: colors.textSecondary }]}
-                numberOfLines={1}
-              >
+            {subtitle ? (
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={1}>
                 {subtitle}
               </Text>
-            )}
+            ) : null}
           </View>
         </View>
-        {rightAction && <View style={styles.right}>{rightAction}</View>}
+        {rightAction ? <View style={styles.right}>{rightAction}</View> : null}
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingBottom: spacing.sm,
-  },
+  container: { paddingBottom: spacing.sm },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 20,
     minHeight: 44,
+    gap: 12,
   },
-  left: {
-    flexDirection: 'row',
+  left: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: 'rgba(10,10,20,0.55)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
-    flex: 1,
-  },
-  backButton: {
-    marginRight: spacing.sm,
-    padding: spacing.xxs,
+    justifyContent: 'center',
   },
   backArrow: {
-    fontSize: 32,
-    fontWeight: fontWeight.light as any,
-    lineHeight: 32,
+    fontSize: 24,
+    fontFamily: fontFamily.displayBold,
+    fontWeight: '700' as const,
+    lineHeight: 26,
+    marginTop: -2,
   },
-  titleContainer: {
-    flex: 1,
-  },
+  titleContainer: { flex: 1, minWidth: 0 },
   title: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold as any,
+    fontFamily: fontFamily.displayExtra,
+    fontSize: 22,
+    fontWeight: '800' as const,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: fontSize.xs,
-    marginTop: 1,
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 12,
+    marginTop: 2,
   },
-  right: {
-    marginLeft: spacing.md,
-  },
+  right: { marginLeft: 12, flexShrink: 0 },
 });

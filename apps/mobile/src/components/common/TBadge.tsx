@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { useTheme } from '../../providers/ThemeProvider';
-import { spacing, fontSize, fontWeight, radius } from '../../theme/spacing';
+import { fontFamily } from '../../theme/typography';
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'error' | 'info' | 'membership' | 'live' | 'prize';
 type BadgeSize = 'sm' | 'md';
@@ -14,6 +14,11 @@ interface TBadgeProps {
   style?: ViewStyle;
 }
 
+/**
+ * Night Court pill badge.  10-px uppercase label, rounded-full, subtle
+ * tinted background per variant.  Drop-in replacement for legacy `TBadge`
+ * call sites — accepts the same props.
+ */
 export const TBadge: React.FC<TBadgeProps> = ({
   label,
   variant = 'default',
@@ -23,47 +28,38 @@ export const TBadge: React.FC<TBadgeProps> = ({
 }) => {
   const { colors } = useTheme();
 
-  const getBadgeColors = (): { bg: string; text: string } => {
+  const palette = (() => {
     if (variant === 'membership' && membershipTier) {
       switch (membershipTier) {
         case 'plus':
-          return { bg: colors.membership.plusLight, text: colors.membership.plus };
+          return { bg: 'rgba(129,140,248,0.18)', fg: '#818CF8' };
         case 'club':
-          return { bg: colors.membership.clubLight, text: colors.membership.club };
+          return { bg: 'rgba(245,158,11,0.18)', fg: '#F59E0B' };
         default:
-          return { bg: colors.surfaceSecondary, text: colors.textSecondary };
+          return { bg: 'rgba(255,255,255,0.08)', fg: colors.textSecondary };
       }
     }
-
     switch (variant) {
-      case 'success':
-        return { bg: colors.successBg, text: colors.success };
-      case 'warning':
-        return { bg: colors.warningBg, text: colors.warning };
-      case 'error':
-        return { bg: colors.errorBg, text: colors.error };
-      case 'info':
-        return { bg: colors.infoBg, text: colors.info };
-      case 'live':
-        return { bg: colors.error, text: colors.white };
-      case 'prize':
-        return { bg: colors.accent, text: '#1A1000' };
-      default:
-        return { bg: colors.surfaceSecondary, text: colors.textSecondary };
+      case 'success': return { bg: colors.successBg, fg: colors.success };
+      case 'warning': return { bg: colors.warningBg, fg: colors.warning };
+      case 'error':   return { bg: colors.errorBg, fg: colors.error };
+      case 'info':    return { bg: colors.infoBg, fg: colors.info };
+      case 'live':    return { bg: 'rgba(255,71,87,0.12)', fg: '#FF4757' };
+      case 'prize':   return { bg: 'rgba(245,158,11,0.18)', fg: '#F59E0B' };
+      default:        return { bg: 'rgba(255,255,255,0.08)', fg: colors.textSecondary };
     }
-  };
+  })();
 
-  const { bg, text } = getBadgeColors();
-  const isSmall = size === 'sm';
+  const isSm = size === 'sm';
 
   return (
     <View
       style={[
         styles.badge,
         {
-          backgroundColor: bg,
-          paddingHorizontal: isSmall ? spacing.sm : spacing.md,
-          paddingVertical: isSmall ? 2 : spacing.xxs,
+          backgroundColor: palette.bg,
+          paddingHorizontal: isSm ? 9 : 12,
+          paddingVertical: isSm ? 5 : 6,
         },
         style,
       ]}
@@ -72,8 +68,8 @@ export const TBadge: React.FC<TBadgeProps> = ({
         style={[
           styles.text,
           {
-            color: text,
-            fontSize: isSmall ? fontSize.xxs : fontSize.xs,
+            color: palette.fg,
+            fontSize: isSm ? 10 : 11,
           },
         ]}
       >
@@ -85,12 +81,14 @@ export const TBadge: React.FC<TBadgeProps> = ({
 
 const styles = StyleSheet.create({
   badge: {
-    borderRadius: radius.full,
+    borderRadius: 999,
     alignSelf: 'flex-start',
   },
   text: {
-    fontWeight: fontWeight.semibold as any,
+    fontFamily: fontFamily.uiSemibold,
+    fontWeight: '700' as const,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    lineHeight: 12,
   },
 });
