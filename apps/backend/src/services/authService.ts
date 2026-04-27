@@ -122,13 +122,16 @@ export class AuthService {
 
       await trx(t('consents')).insert(consents);
 
-      // Audit log
+      // Audit log — do NOT log the raw email here. The user_id already
+      // identifies the actor and the email is reachable via JOIN if a
+      // legitimate audit needs it. Avoiding plaintext PII in the audit
+      // table reduces blast radius if logs get exfiltrated.
       await trx(t('audit_log')).insert({
         user_id: userId,
         action: 'user.registered',
         entity_type: 'user',
         entity_id: userId,
-        new_values: JSON.stringify({ email: input.email, locale: input.locale }),
+        new_values: JSON.stringify({ locale: input.locale }),
         created_at: now,
       });
 

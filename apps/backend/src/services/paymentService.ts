@@ -5,7 +5,7 @@ import { env } from '../config/environment';
 import { AppError } from '../middleware/errorHandler';
 
 const stripe = env.stripe.secretKey
-  ? new Stripe(env.stripe.secretKey, { apiVersion: '2023-10-16' as any })
+  ? new Stripe(env.stripe.secretKey, { apiVersion: env.stripe.apiVersion as any })
   : null;
 
 export class PaymentService {
@@ -193,18 +193,19 @@ export class PaymentService {
       });
     });
 
-    // Push notification (best-effort, outside the transaction)
+    // Push notification (best-effort, outside the transaction).
+    // The notification row was already inserted inside the transaction
+    // above, so we skip the duplicate DB insert and only fire the push.
     if (pushTitle && pushBody) {
       try {
         const { NotificationService } = await import('./notificationService');
-        // Skip the DB insert (already done) – call sendPushOnly via send() will create
-        // a duplicate row. Instead, send via FCM only by importing the module guarded.
         await NotificationService.send(
           recipientUserId,
           'registration_confirmed',
           pushTitle,
           pushBody,
-          pushData || undefined
+          pushData || undefined,
+          { skipDbInsert: true }
         );
       } catch (err) {
         console.error('[payment] Push notification failed:', err);
@@ -328,7 +329,6 @@ export class PaymentService {
     }
 
     const refundedAmount = charge.amount_refunded;
-    const isFullRefund = refundedAmount >= initialPayment.net_amount_cents;
     const stripeRefundId = charge.refunds?.data?.[0]?.id || null;
 
     let promotedEventId: number | null = null;
@@ -338,11 +338,16 @@ export class PaymentService {
         // Lock the payment row so two concurrent charge.refunded webhooks
         // for the same payment serialize. Without the lock both could read
         // alreadyRefundedCents = 0 and create duplicate refund rows.
+        // We deliberately re-read every state field (status, net_amount_cents,
+        // registration_id) AFTER acquiring the lock — relying on initialPayment
+        // would race with a concurrent webhook that already mutated the row.
         const payment = await trx(t('payments'))
           .where('id', initialPayment.id)
           .forUpdate()
           .first();
         if (!payment) return;
+
+        const isFullRefund = refundedAmount >= payment.net_amount_cents;
 
         // Second idempotency check: if we have already inserted a refund
         // for this exact Stripe refund id, we are done.
@@ -473,6 +478,18 @@ export class PaymentService {
 
   static async processRefund(refundId: number, adminUserId: number) {
     if (!stripe) throw AppError.internal('Payment system not configured');
+
+    // Defense-in-depth: even though the route is gated by adminOnly, the
+    // service refuses to process a refund unless the caller is currently a
+    // user with admin/superadmin role. This protects against accidental
+    // middleware misconfiguration and direct internal callers.
+    const adminUser = await db(t('users'))
+      .where('id', adminUserId)
+      .where('status', 'active')
+      .first();
+    if (!adminUser || (adminUser.role !== 'admin' && adminUser.role !== 'superadmin')) {
+      throw AppError.forbidden('Only administrators can process refunds');
+    }
 
     const refund = await db(t('refunds')).where('id', refundId).first();
     if (!refund) throw AppError.notFound('Refund');

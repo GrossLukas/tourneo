@@ -79,8 +79,8 @@ describe('createEventSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('should reject more than 128 participants', () => {
-    const result = createEventSchema.safeParse({ ...validEvent, max_participants: 256 });
+  it('should reject more than 1024 participants', () => {
+    const result = createEventSchema.safeParse({ ...validEvent, max_participants: 2048 });
     expect(result.success).toBe(false);
   });
 
@@ -89,8 +89,8 @@ describe('createEventSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('should accept 128 participants (maximum)', () => {
-    const result = createEventSchema.safeParse({ ...validEvent, max_participants: 128 });
+  it('should accept 1024 participants (maximum)', () => {
+    const result = createEventSchema.safeParse({ ...validEvent, max_participants: 1024 });
     expect(result.success).toBe(true);
   });
 

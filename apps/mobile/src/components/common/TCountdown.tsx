@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../../providers/ThemeProvider';
 import type { Colors } from '../../theme/colors';
@@ -34,21 +34,35 @@ export const TCountdown: React.FC<TCountdownProps> = ({
   onExpired,
 }) => {
   const { colors } = useTheme();
-  const target = targetDate instanceof Date ? targetDate : new Date(targetDate);
+  // Memoize the resolved Date by its numeric value so prop identity
+  // changes (a new Date() with the same time) don't restart the timer.
+  const targetTime = targetDate instanceof Date
+    ? targetDate.getTime()
+    : new Date(targetDate).getTime();
+  const target = useMemo(() => new Date(targetTime), [targetTime]);
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(() => calcTimeLeft(target));
 
+  // Always read the latest onExpired handler from a ref so the effect
+  // doesn't need to be in the dependency list — that would otherwise
+  // cause the interval to be torn down and recreated on every render.
+  const onExpiredRef = useRef(onExpired);
   useEffect(() => {
+    onExpiredRef.current = onExpired;
+  }, [onExpired]);
+
+  useEffect(() => {
+    setTimeLeft(calcTimeLeft(target));
     const interval = setInterval(() => {
       const next = calcTimeLeft(target);
       setTimeLeft(next);
       if (!next) {
         clearInterval(interval);
-        onExpired?.();
+        onExpiredRef.current?.();
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [target.getTime()]);
+  }, [target]);
 
   const sizeConfig = {
     sm: {

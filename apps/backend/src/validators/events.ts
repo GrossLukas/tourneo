@@ -15,7 +15,7 @@ const eventBaseFields = {
   format: z.enum(['singles', 'doubles']).default('doubles'),
   elimination_type: z.enum(['single_elimination', 'double_elimination', 'round_robin']).default('single_elimination'),
   has_third_place_match: z.boolean().default(true),
-  max_participants: z.number().int().min(4).max(128),
+  max_participants: z.number().int().min(4).max(1024),
   entry_fee_cents: z.number().int().min(0),
   currency: z.string().length(3).default('EUR'),
   total_prize_pool_cents: z.number().int().min(0).default(0),

@@ -147,7 +147,10 @@ export class EventService {
       query = query.where(`${t('events')}.sport_category`, filters.sport_category);
     }
     if (filters.city) {
-      query = query.where(`${t('venues')}.address_city`, 'LIKE', `%${filters.city}%`);
+      // Escape LIKE wildcards in user input so a city of "Berlin%" doesn't
+      // match every city containing "Berlin".
+      const escaped = filters.city.replace(/[\\%_]/g, (m) => `\\${m}`);
+      query = query.where(`${t('venues')}.address_city`, 'LIKE', `%${escaped}%`);
     }
     if (filters.date_from) {
       query = query.where(`${t('events')}.start_date`, '>=', filters.date_from);
@@ -323,53 +326,40 @@ export class EventService {
       return { canRegister: false, reason: 'This event is exclusive to members' };
     }
 
-    // Check early access windows
-    if (membershipTier === 'club' && event.club_early_access_at) {
-      if (new Date(event.club_early_access_at) <= now) {
-        return { canRegister: true };
+    // Determine the earliest moment this tier is allowed to register.
+    // Higher tiers fall back to the regular open date when their early-
+    // access window is missing or accidentally set later than the
+    // public open. The minimum guarantees we never block a member who
+    // could already register through the public window.
+    const regularOpensAt = new Date(event.registration_opens_at);
+    const tierOpensAt = ((): Date => {
+      if (membershipTier === 'club' && event.club_early_access_at) {
+        const club = new Date(event.club_early_access_at);
+        return club < regularOpensAt ? club : regularOpensAt;
       }
-    }
-
-    if (membershipTier === 'plus' && event.plus_early_access_at) {
-      if (new Date(event.plus_early_access_at) <= now) {
-        return { canRegister: true };
+      if (membershipTier === 'plus' && event.plus_early_access_at) {
+        const plus = new Date(event.plus_early_access_at);
+        return plus < regularOpensAt ? plus : regularOpensAt;
       }
-      return {
-        canRegister: false,
-        reason: 'Registration opens for Plus members soon',
-        opensAt: new Date(event.plus_early_access_at),
-      };
-    }
+      return regularOpensAt;
+    })();
 
-    if (membershipTier === 'free') {
-      if (new Date(event.registration_opens_at) <= now) {
-        return { canRegister: true };
-      }
-      return {
-        canRegister: false,
-        reason: 'Registration not yet open',
-        opensAt: new Date(event.registration_opens_at),
-      };
-    }
-
-    // Club/Plus member within their early access window
-    if (new Date(event.registration_opens_at) <= now) {
+    if (tierOpensAt <= now) {
       return { canRegister: true };
     }
 
-    // Check club/plus early access
-    if (membershipTier === 'club' && event.club_early_access_at) {
-      return {
-        canRegister: false,
-        reason: 'Club early access opens soon',
-        opensAt: new Date(event.club_early_access_at),
-      };
+    const usedEarlyWindow = tierOpensAt.getTime() < regularOpensAt.getTime();
+    let reason = 'Registration not yet open';
+    if (usedEarlyWindow && membershipTier === 'club') {
+      reason = 'Club early access opens soon';
+    } else if (usedEarlyWindow && membershipTier === 'plus') {
+      reason = 'Registration opens for Plus members soon';
     }
 
     return {
       canRegister: false,
-      reason: 'Registration not yet open',
-      opensAt: new Date(event.registration_opens_at),
+      reason,
+      opensAt: tierOpensAt,
     };
   }
 

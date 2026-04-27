@@ -50,28 +50,38 @@ function initFirebase(): boolean {
  */
 export class NotificationService {
   /**
-   * Send a single notification to a user. Always inserts the row so that
-   * the in-app notification list works even when push delivery fails.
+   * Send a single notification to a user. By default inserts a row in
+   * `notifications` so the in-app inbox stays in sync, then dispatches a
+   * Firebase push.
+   *
+   * Pass `skipDbInsert: true` when the caller has already persisted the
+   * notification row in their own transaction (e.g. waitlist promotion,
+   * payment success) and only the push should be fired.
    */
   static async send(
     userId: number,
     type: NotificationType,
     title: string,
     body: string,
-    data?: Record<string, any>
+    data?: Record<string, any>,
+    options: { skipDbInsert?: boolean } = {}
   ): Promise<void> {
     const now = new Date();
 
-    // 1) Persist the notification
-    const [notificationId] = await db(t('notifications')).insert({
-      user_id: userId,
-      type,
-      title,
-      body,
-      data: data ? JSON.stringify(data) : null,
-      is_read: false,
-      created_at: now,
-    });
+    // 1) Persist the notification (unless caller already did it)
+    let notificationId: number | null = null;
+    if (!options.skipDbInsert) {
+      const [insertedId] = await db(t('notifications')).insert({
+        user_id: userId,
+        type,
+        title,
+        body,
+        data: data ? JSON.stringify(data) : null,
+        is_read: false,
+        created_at: now,
+      });
+      notificationId = insertedId;
+    }
 
     // 2) Try to send a push if Firebase is configured
     const fcmReady = initFirebase();
@@ -87,9 +97,11 @@ export class NotificationService {
     try {
       const messaging = admin.messaging();
       const stringifiedData: Record<string, string> = {
-        notification_id: String(notificationId),
         type,
       };
+      if (notificationId !== null) {
+        stringifiedData.notification_id = String(notificationId);
+      }
       if (data) {
         for (const [key, value] of Object.entries(data)) {
           stringifiedData[key] = String(value);
@@ -102,7 +114,10 @@ export class NotificationService {
         data: stringifiedData,
       });
 
-      // Deactivate dead tokens
+      // Deactivate dead tokens in a single batched update so a slow
+      // database does not leave the response hanging on N parallel
+      // .catch() promises and so failures are surfaced via await.
+      const deadTokens: string[] = [];
       response.responses.forEach((resp, idx) => {
         if (!resp.success) {
           const code = resp.error?.code || '';
@@ -110,20 +125,26 @@ export class NotificationService {
             code === 'messaging/registration-token-not-registered' ||
             code === 'messaging/invalid-registration-token'
           ) {
-            db(t('push_tokens'))
-              .where('token', tokens[idx])
-              .update({ is_active: false, updated_at: new Date() })
-              .catch((e) => {
-                console.warn('[notifications] Failed to deactivate dead token:', e?.message || e);
-              });
+            deadTokens.push(tokens[idx]);
           }
         }
       });
+      if (deadTokens.length) {
+        try {
+          await db(t('push_tokens'))
+            .whereIn('token', deadTokens)
+            .update({ is_active: false, updated_at: new Date() });
+        } catch (e: any) {
+          console.warn('[notifications] Failed to deactivate dead tokens:', e?.message || e);
+        }
+      }
 
-      await db(t('notifications')).where('id', notificationId).update({
-        is_push_sent: true,
-        push_sent_at: new Date(),
-      });
+      if (notificationId !== null) {
+        await db(t('notifications')).where('id', notificationId).update({
+          is_push_sent: true,
+          push_sent_at: new Date(),
+        });
+      }
     } catch (err) {
       console.error('[notifications] Push delivery failed:', err);
     }
@@ -160,23 +181,59 @@ export class NotificationService {
 
   /**
    * Notify all registered users that a new event has been published.
+   *
+   * Streams users in pages and dispatches notifications in concurrent
+   * batches so a 100k-user fan-out does not block the event-loop or
+   * exhaust memory. Each batch shares a single in-app notification
+   * insert and one FCM multicast.
    */
-  static async notifyEventPublished(eventId: number): Promise<void> {
+  static async notifyEventPublished(
+    eventId: number,
+    options: { pageSize?: number; concurrency?: number } = {}
+  ): Promise<{ notified: number }> {
     const event = await db(t('events')).where('id', eventId).first();
-    if (!event) return;
+    if (!event) return { notified: 0 };
 
-    // Notify all active users (could be filtered by city / preferences in the future)
-    const users = await db(t('users'))
-      .where('status', 'active')
-      .select('id');
+    const pageSize = options.pageSize ?? 500;
+    const concurrency = options.concurrency ?? 25;
 
     const title = 'Neues Turnier verfügbar';
     const body = `"${event.title}" ist jetzt zur Anmeldung freigegeben.`;
+    const data = { event_id: eventId };
 
-    for (const user of users) {
-      await this.send(user.id, 'event_published', title, body, {
-        event_id: eventId,
-      });
+    let lastId = 0;
+    let totalNotified = 0;
+
+    while (true) {
+      const users: Array<{ id: number }> = await db(t('users'))
+        .where('status', 'active')
+        .where('id', '>', lastId)
+        .orderBy('id', 'asc')
+        .limit(pageSize)
+        .select('id');
+
+      if (!users.length) break;
+      lastId = users[users.length - 1].id;
+
+      // Dispatch within the page in capped-concurrency chunks so a slow
+      // FCM call from one user does not stall the rest.
+      for (let i = 0; i < users.length; i += concurrency) {
+        const chunk = users.slice(i, i + concurrency);
+        await Promise.all(
+          chunk.map((u) =>
+            this.send(u.id, 'event_published', title, body, data).catch((err) => {
+              console.warn(
+                '[notifications] event_published failed for user',
+                u.id,
+                err?.message || err
+              );
+            })
+          )
+        );
+        totalNotified += chunk.length;
+      }
     }
+
+    return { notified: totalNotified };
   }
 }

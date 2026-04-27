@@ -203,24 +203,37 @@ export class BracketService {
       scoreMap.get(s.match_id)!.push(s);
     });
 
+    const composeName = (
+      displayName: string | null | undefined,
+      first: string | null | undefined,
+      last: string | null | undefined
+    ): string => {
+      if (displayName) return displayName;
+      const composed = [first, last].filter(Boolean).join(' ').trim();
+      return composed || 'Spieler';
+    };
+
     const enrichedMatches = matches.map((match: any) => ({
       id: match.id,
       uuid: match.uuid,
       round_number: match.round_number,
       match_number: match.match_number,
       round_name: match.round_name,
-      court_name: match.court_name,
-      scheduled_at: match.scheduled_at,
+      court_name: match.court_name ?? null,
+      // scheduled_at remains null until the match is scheduled — the
+      // mobile client treats null as "TBD" and renders a placeholder.
+      // We surface the null explicitly rather than silently coercing.
+      scheduled_at: match.scheduled_at ?? null,
       is_third_place_match: match.is_third_place_match,
       is_final: match.is_final,
       status: match.status,
       participant_1: match.participant_1_registration_id ? {
         registration_id: match.participant_1_registration_id,
-        name: match.p1_display_name || `${match.p1_first_name} ${match.p1_last_name}`,
+        name: composeName(match.p1_display_name, match.p1_first_name, match.p1_last_name),
       } : null,
       participant_2: match.participant_2_registration_id ? {
         registration_id: match.participant_2_registration_id,
-        name: match.p2_display_name || `${match.p2_first_name} ${match.p2_last_name}`,
+        name: composeName(match.p2_display_name, match.p2_first_name, match.p2_last_name),
       } : null,
       winner_registration_id: match.winner_registration_id,
       scores: scoreMap.get(match.id) || [],
