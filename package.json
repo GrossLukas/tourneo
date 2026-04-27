@@ -20,7 +20,12 @@
   "author": "Lukas Gross <gross.lukas01@web.de>",
   "license": "UNLICENSED",
   "overrides": {
-    "react": "19.1.0"
+    "react": "19.1.0",
+    "protobufjs": "^7.5.5",
+    "@xmldom/xmldom": "^0.8.13",
+    "fast-xml-parser": "^5.7.0",
+    "follow-redirects": "^1.15.12",
+    "postcss": "^8.5.10"
   },
   "dependencies": {
     "react-native-worklets": "^0.8.1"

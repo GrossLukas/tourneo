@@ -1,9 +1,15 @@
 describe('validateEnv', () => {
   const ORIGINAL_ENV = { ...process.env };
+  let consoleErrorSpy: jest.SpyInstance;
 
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...ORIGINAL_ENV };
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   afterAll(() => {

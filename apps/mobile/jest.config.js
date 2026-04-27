@@ -6,9 +6,6 @@ module.exports = {
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   moduleDirectories: ['node_modules', '../../node_modules'],
-  moduleNameMapper: {
-    '^react$': '<rootDir>/node_modules/react',
-  },
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',

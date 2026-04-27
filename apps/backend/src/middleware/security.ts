@@ -78,6 +78,7 @@ export function requestSizeLimiter(maxSizeKB: number = 512) {
 // ─────────────────────────────────────────────────────────────
 type AttemptRecord = { count: number; lastAttempt: number; blockedUntil: number };
 const loginAttempts = new Map<string, AttemptRecord>();
+let cleanupTimerStarted = false;
 
 const COUNT_KEY = (ip: string) => `brute:count:${ip}`;
 const BLOCK_KEY = (ip: string) => `brute:block:${ip}`;
@@ -140,14 +141,68 @@ async function clearAttempts(ip: string): Promise<void> {
   loginAttempts.delete(ip);
 }
 
+function getMemoryRecord(ip: string, windowMs: number): AttemptRecord {
+  const rec = loginAttempts.get(ip);
+  if (!rec) return { count: 0, lastAttempt: 0, blockedUntil: 0 };
+  if (Date.now() - rec.lastAttempt > windowMs) {
+    loginAttempts.delete(ip);
+    return { count: 0, lastAttempt: 0, blockedUntil: 0 };
+  }
+  return rec;
+}
+
+function incrementMemoryAttempts(
+  ip: string,
+  maxAttempts: number,
+  blockDurationMs: number
+): void {
+  const now = Date.now();
+  const current = loginAttempts.get(ip) || { count: 0, lastAttempt: now, blockedUntil: 0 };
+  current.count += 1;
+  current.lastAttempt = now;
+  if (current.count >= maxAttempts) {
+    current.blockedUntil = now + blockDurationMs;
+    current.count = 0;
+  }
+  loginAttempts.set(ip, current);
+}
+
+function attachBruteForceHelpers(
+  req: Request,
+  ip: string,
+  maxAttempts: number,
+  windowMs: number,
+  blockDurationMs: number
+): void {
+  (req as any).trackFailedLogin = () => {
+    if (!redis) {
+      incrementMemoryAttempts(ip, maxAttempts, blockDurationMs);
+      return;
+    }
+    incrementAttempts(ip, maxAttempts, windowMs, blockDurationMs).catch((err) => {
+      console.error('[security] trackFailedLogin error:', err);
+    });
+  };
+  (req as any).resetLoginAttempts = () => {
+    if (!redis) {
+      loginAttempts.delete(ip);
+      return;
+    }
+    clearAttempts(ip).catch((err) => {
+      console.error('[security] resetLoginAttempts error:', err);
+    });
+  };
+}
+
 export function bruteForceProtection(
   maxAttempts: number = 5,
   windowMs: number = 15 * 60 * 1000,
   blockDurationMs: number = 30 * 60 * 1000
 ) {
   // In-memory cleanup (only if no Redis)
-  if (!redis) {
-    setInterval(() => {
+  if (!redis && !cleanupTimerStarted) {
+    cleanupTimerStarted = true;
+    const cleanupTimer = setInterval(() => {
       const now = Date.now();
       for (const [key, value] of loginAttempts.entries()) {
         if (now - value.lastAttempt > windowMs * 2) {
@@ -155,12 +210,29 @@ export function bruteForceProtection(
         }
       }
     }, 10 * 60 * 1000);
+    cleanupTimer.unref?.();
   }
 
   return async (req: Request, res: Response, next: NextFunction) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
 
     try {
+      if (!redis) {
+        const record = getMemoryRecord(ip, windowMs);
+        const now = Date.now();
+
+        if (record.blockedUntil > now) {
+          const remainingSec = Math.ceil((record.blockedUntil - now) / 1000);
+          return res.status(429).json({
+            success: false,
+            message: `Too many failed attempts. Try again in ${remainingSec} seconds.`,
+          });
+        }
+
+        attachBruteForceHelpers(req, ip, maxAttempts, windowMs, blockDurationMs);
+        return next();
+      }
+
       const record = await getRecord(ip, windowMs);
       const now = Date.now();
 
@@ -172,18 +244,7 @@ export function bruteForceProtection(
         });
       }
 
-      // Attach helpers (kept synchronous in interface, but use promises internally)
-      (req as any).trackFailedLogin = () => {
-        incrementAttempts(ip, maxAttempts, windowMs, blockDurationMs).catch((err) => {
-          console.error('[security] trackFailedLogin error:', err);
-        });
-      };
-      (req as any).resetLoginAttempts = () => {
-        clearAttempts(ip).catch((err) => {
-          console.error('[security] resetLoginAttempts error:', err);
-        });
-      };
-
+      attachBruteForceHelpers(req, ip, maxAttempts, windowMs, blockDurationMs);
       next();
     } catch (err) {
       console.error('[security] bruteForceProtection error:', err);

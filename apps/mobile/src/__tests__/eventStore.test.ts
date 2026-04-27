@@ -6,7 +6,10 @@ jest.mock('../api/client', () => ({
 }));
 
 describe('eventStore', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
   beforeEach(() => {
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     useEventStore.setState({
       events: [],
       currentEvent: null,
@@ -16,6 +19,10 @@ describe('eventStore', () => {
       meta: { page: 1, total: 0, total_pages: 0 },
     });
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
   });
 
   describe('fetchEvents', () => {
