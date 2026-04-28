@@ -8,13 +8,21 @@
     "apps/backend"
   ],
   "scripts": {
+    "test": "npm run backend:test && npm run mobile:test && npm run admin:check",
+    "build": "npm run backend:build && npm run mobile:build",
+    "ci:verify": "npm run mobile:typecheck && npm test && npm run build",
     "mobile": "npm run --workspace=apps/mobile",
     "backend": "npm run --workspace=apps/backend",
     "mobile:start": "npm run start --workspace=apps/mobile",
     "mobile:ios": "npm run ios --workspace=apps/mobile",
+    "mobile:typecheck": "npm run typecheck --workspace=apps/mobile",
+    "mobile:test": "npm test --workspace=apps/mobile",
+    "mobile:build": "npm run build --workspace=apps/mobile",
     "backend:dev": "npm run dev --workspace=apps/backend",
     "backend:build": "npm run build --workspace=apps/backend",
+    "backend:test": "npm test --workspace=apps/backend",
     "backend:migrate": "npm run migrate --workspace=apps/backend",
+    "admin:check": "node scripts/check-admin-dashboard.mjs",
     "install:all": "npm install"
   },
   "author": "Lukas Gross <gross.lukas01@web.de>",

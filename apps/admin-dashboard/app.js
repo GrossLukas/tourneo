@@ -835,4 +835,3 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('refund-badge').textContent = pending;
   }
 });
-</script>
