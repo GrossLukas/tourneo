@@ -1,5 +1,6 @@
 import { db, t } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
+import { ModerationService } from './moderationService';
 
 export interface VenueReviewRow {
   id: number;
@@ -33,10 +34,16 @@ export class VenueReviewService {
   /**
    * List reviews for a venue, joined with profile info, newest first.
    */
-  static async listReviews(venueId: number): Promise<VenueReviewRow[]> {
-    return db(t('venue_reviews') + ' as r')
+  static async listReviews(venueId: number, viewerUserId?: number): Promise<VenueReviewRow[]> {
+    const blockedIds = viewerUserId
+      ? await ModerationService.getBlockedUserIds(viewerUserId)
+      : [];
+    const query = db(t('venue_reviews') + ' as r')
       .leftJoin(t('profiles') + ' as p', 'r.user_id', 'p.user_id')
       .where('r.venue_id', venueId)
+      .where(function () {
+        this.where('r.moderation_status', 'visible').orWhereNull('r.moderation_status');
+      })
       .orderBy('r.created_at', 'desc')
       .select(
         'r.id',
@@ -51,6 +58,8 @@ export class VenueReviewService {
         'p.first_name',
         'p.last_name',
       );
+    if (blockedIds.length > 0) query.whereNotIn('r.user_id', blockedIds);
+    return query;
   }
 
   /**
@@ -132,9 +141,17 @@ export class VenueReviewService {
   /**
    * List photos for a venue, newest first.
    */
-  static async listPhotos(venueId: number): Promise<VenuePhotoRow[]> {
-    return db(t('venue_photos'))
+  static async listPhotos(venueId: number, viewerUserId?: number): Promise<VenuePhotoRow[]> {
+    const blockedIds = viewerUserId
+      ? await ModerationService.getBlockedUserIds(viewerUserId)
+      : [];
+    const query = db(t('venue_photos'))
       .where('venue_id', venueId)
+      .where(function () {
+        this.where('moderation_status', 'visible').orWhereNull('moderation_status');
+      })
       .orderBy('created_at', 'desc');
+    if (blockedIds.length > 0) query.whereNotIn('user_id', blockedIds);
+    return query;
   }
 }

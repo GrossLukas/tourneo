@@ -5,6 +5,8 @@ import { CreateEventInput, EventFiltersInput } from '../validators/events';
 import { MembershipTier } from '../types';
 import dayjs from 'dayjs';
 
+const ACTIVE_REGISTRATION_STATUSES = ['confirmed', 'pending_payment', 'pending_verification'];
+
 export class EventService {
   static async createEvent(input: CreateEventInput, createdBy: number) {
     const eventUuid = uuidv4();
@@ -16,17 +18,50 @@ export class EventService {
     const plusEarlyAccess = new Date(registrationOpensAt.getTime() - 24 * 60 * 60 * 1000);
 
     const result = await db.transaction(async (trx) => {
+      let venueId = input.venue_id;
+      if (!venueId && input.venue) {
+        const venue = input.venue;
+        const [newVenueId] = await trx(t('venues')).insert({
+          uuid: uuidv4(),
+          name: venue.name,
+          description: venue.description || null,
+          address_street: venue.address_street,
+          address_city: venue.address_city,
+          address_zip: venue.address_zip,
+          address_country: venue.address_country || 'DE',
+          latitude: venue.latitude ?? null,
+          longitude: venue.longitude ?? null,
+          is_indoor: venue.is_indoor ?? input.is_indoor,
+          is_outdoor: venue.is_outdoor ?? input.is_outdoor,
+          is_partner_venue: false,
+          partner_website_url: venue.partner_website_url || null,
+          partner_booking_url: venue.partner_booking_url || null,
+          phone: venue.phone || null,
+          email: venue.email || null,
+          image_url: venue.image_url || null,
+          operating_hours: null,
+          status: 'active',
+          created_at: now,
+          updated_at: now,
+        });
+        venueId = newVenueId;
+      }
+
+      if (!venueId) {
+        throw AppError.badRequest('Venue is required');
+      }
+
       const [eventId] = await trx(t('events')).insert({
         uuid: eventUuid,
         title: input.title,
         description: input.description || null,
         sport_category: input.sport_category,
         event_type: input.event_type,
-        venue_id: input.venue_id,
-        start_date: input.start_date,
-        end_date: input.end_date,
-        registration_opens_at: input.registration_opens_at,
-        registration_closes_at: input.registration_closes_at,
+        venue_id: venueId,
+        start_date: new Date(input.start_date),
+        end_date: new Date(input.end_date),
+        registration_opens_at: new Date(input.registration_opens_at),
+        registration_closes_at: new Date(input.registration_closes_at),
         club_early_access_at: clubEarlyAccess,
         plus_early_access_at: plusEarlyAccess,
         is_indoor: input.is_indoor,
@@ -44,6 +79,15 @@ export class EventService {
         has_streaming: input.has_streaming,
         special_notes: input.special_notes || null,
         rules_summary: input.rules_summary || null,
+        requires_playtomic_verification: input.requires_playtomic_verification,
+        min_playtomic_level: input.min_playtomic_level ?? null,
+        max_playtomic_level: input.max_playtomic_level ?? null,
+        eligibility_note: input.eligibility_note || null,
+        nearby_radius_km: input.nearby_radius_km,
+        maintenance_mode: input.maintenance_mode,
+        maintenance_message: input.maintenance_message || null,
+        checkin_opens_minutes_before: input.checkin_opens_minutes_before,
+        waitlist_payment_window_hours: input.waitlist_payment_window_hours,
         banner_image_url: input.banner_image_url || null,
         status: 'draft',
         created_by: createdBy,
@@ -103,7 +147,7 @@ export class EventService {
     // Get participant count
     const [{ count: participantCount }] = await db(t('registrations'))
       .where('event_id', eventId)
-      .whereIn('status', ['confirmed', 'pending_payment'])
+      .whereIn('status', ACTIVE_REGISTRATION_STATUSES)
       .count('* as count');
 
     // Get prize distribution
@@ -136,7 +180,9 @@ export class EventService {
       .select(
         `${t('events')}.*`,
         `${t('venues')}.name as venue_name`,
+        `${t('venues')}.address_street as venue_street`,
         `${t('venues')}.address_city as venue_city`,
+        `${t('venues')}.address_zip as venue_zip`,
         `${t('venues')}.latitude as venue_latitude`,
         `${t('venues')}.longitude as venue_longitude`
       )
@@ -179,17 +225,38 @@ export class EventService {
     if (filters.access_type) {
       query = query.where(`${t('events')}.access_type`, filters.access_type);
     }
+    const useGeoFilter = filters.lat !== undefined && filters.lng !== undefined;
+    if (useGeoFilter) {
+      const lat = Number(filters.lat);
+      const lng = Number(filters.lng);
+      const radiusKm = Number(filters.radius_km || 50);
+      query = query
+        .whereNotNull(`${t('venues')}.latitude`)
+        .whereNotNull(`${t('venues')}.longitude`)
+        .select(
+          db.raw(
+            `(6371 * ACOS(LEAST(1, GREATEST(-1,
+              COS(RADIANS(?)) * COS(RADIANS(${t('venues')}.latitude)) *
+              COS(RADIANS(${t('venues')}.longitude) - RADIANS(?)) +
+              SIN(RADIANS(?)) * SIN(RADIANS(${t('venues')}.latitude))
+            )))) AS distance_km`,
+            [lat, lng, lat]
+          )
+        )
+        .having('distance_km', '<=', radiusKm);
+    }
 
     // Count total
-    const countQuery = query.clone();
-    const [{ count: total }] = await countQuery.count('* as count');
+    const countQuery = query.clone().clearOrder();
+    const [{ count: total }] = await db.count('* as count').from(countQuery.as('filtered_events'));
 
     // Sort
-    const sortColumn = {
+    const sortColumn = filters.sort_by === 'distance' && useGeoFilter ? 'distance_km' : {
       date: `${t('events')}.start_date`,
       price: `${t('events')}.entry_fee_cents`,
       prize: `${t('events')}.total_prize_pool_cents`,
       created: `${t('events')}.created_at`,
+      distance: `${t('events')}.start_date`,
     }[filters.sort_by];
 
     query = query.orderBy(sortColumn, filters.sort_order);
@@ -202,12 +269,14 @@ export class EventService {
 
     // Get participant counts for all events
     const eventIds = events.map((e: any) => e.id);
-    const participantCounts = await db(t('registrations'))
-      .whereIn('event_id', eventIds)
-      .whereIn('status', ['confirmed', 'pending_payment'])
-      .groupBy('event_id')
-      .select('event_id')
-      .count('* as count');
+    const participantCounts = eventIds.length
+      ? await db(t('registrations'))
+          .whereIn('event_id', eventIds)
+          .whereIn('status', ACTIVE_REGISTRATION_STATUSES)
+          .groupBy('event_id')
+          .select('event_id')
+          .count('* as count')
+      : [];
 
     const countMap = new Map(participantCounts.map((pc: any) => [pc.event_id, Number(pc.count)]));
 
@@ -217,8 +286,16 @@ export class EventService {
       spots_remaining: event.max_participants - (countMap.get(event.id) || 0),
       venue: {
         name: event.venue_name,
+        address_street: event.venue_street,
         city: event.venue_city,
+        address_zip: event.venue_zip,
+        latitude: event.venue_latitude,
+        longitude: event.venue_longitude,
       },
+      distance_km:
+        event.distance_km !== undefined && event.distance_km !== null
+          ? Number(event.distance_km)
+          : null,
     }));
 
     return {
@@ -289,7 +366,7 @@ export class EventService {
       // Mark all confirmed registrations for refund
       await trx(t('registrations'))
         .where('event_id', eventId)
-        .whereIn('status', ['confirmed', 'waitlisted'])
+        .whereIn('status', [...ACTIVE_REGISTRATION_STATUSES, 'waitlisted'])
         .update({ status: 'cancelled', updated_at: new Date() });
 
       await trx(t('audit_log')).insert({
@@ -312,6 +389,13 @@ export class EventService {
 
     if (event.status === 'cancelled' || event.status === 'completed') {
       return { canRegister: false, reason: 'Event is no longer accepting registrations' };
+    }
+
+    if (event.maintenance_mode) {
+      return {
+        canRegister: false,
+        reason: event.maintenance_message || 'Dieses Turnier ist gerade im Wartungsmodus.',
+      };
     }
 
     if (new Date(event.registration_closes_at) < now) {

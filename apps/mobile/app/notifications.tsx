@@ -167,10 +167,14 @@ export default function NotificationsScreen() {
 
     const eventId = notif.data?.event_id;
     const matchId = notif.data?.match_id;
+    const registrationId = notif.data?.registration_id;
+    const paymentRequired = notif.data?.payment_required === true;
     const bracketEventId = notif.data?.bracket_event_id ?? eventId;
 
     if (matchId && bracketEventId) {
       router.push(`/event/bracket/${bracketEventId}`);
+    } else if (eventId && registrationId && (paymentRequired || notif.type === 'waitlist_promoted')) {
+      router.push(`/event/checkout/${eventId}?registrationId=${registrationId}`);
     } else if (eventId) {
       router.push(`/event/${eventId}`);
     }

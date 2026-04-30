@@ -15,12 +15,14 @@ export async function up(knex: Knex): Promise<void> {
   const hasRatingHistory = await knex.schema.hasTable(t('rating_history'));
   if (!hasRatingHistory) {
     await knex.schema.createTable(t('rating_history'), (table) => {
-      table.increments('id').primary();
-      table.integer('user_id').notNullable().references('id').inTable(t('users')).onDelete('CASCADE');
+      table.bigIncrements('id').primary();
+      table.bigInteger('user_id').unsigned().notNullable()
+        .references('id').inTable(t('users')).onDelete('CASCADE');
       table.enum('sport', ['padel', 'fifa']).notNullable();
       table.integer('elo').notNullable();
       table.integer('delta').notNullable().defaultTo(0);
-      table.integer('match_id').nullable().references('id').inTable(t('matches')).onDelete('SET NULL');
+      table.bigInteger('match_id').unsigned().nullable()
+        .references('id').inTable(t('matches')).onDelete('SET NULL');
       table.enum('reason', ['match', 'calibration', 'seed', 'admin']).notNullable().defaultTo('match');
       table.timestamp('recorded_at').notNullable().defaultTo(knex.fn.now());
       table.index(['user_id', 'sport', 'recorded_at']);

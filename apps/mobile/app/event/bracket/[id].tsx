@@ -59,7 +59,7 @@ export default function BracketScreen() {
   const fetchBracket = async (showLoader = false) => {
     if (showLoader) setLoading(true);
     try {
-      const response = await api.get(`/brackets/event/${id}`);
+      const response = await api.get(`/matches/events/${id}/bracket`);
       setBracket(response.data.data);
     } catch (error: any) {
       if (showLoader && error.response?.status !== 404) {

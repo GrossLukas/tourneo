@@ -57,46 +57,36 @@ export async function up(knex: Knex): Promise<void> {
   });
 
   // ==========================================
-  // REFUND TRACKING
+  // REFUND TRACKING EXTENSIONS
   // ==========================================
-  await knex.schema.createTable(t('refunds'), (table) => {
-    table.bigIncrements('id').primary();
-    table.string('uuid', 36).notNullable().unique();
-    table.bigInteger('payment_id').unsigned().notNullable().references('id').inTable(t('payments'));
+  // refunds is created in 001_initial_schema. Keep this migration additive so
+  // a fresh MySQL/MariaDB database can run the full chain without duplicate
+  // table errors while preserving the user_id column used by payment services.
+  await knex.schema.alterTable(t('refunds'), (table) => {
     table.bigInteger('registration_id').unsigned().nullable().references('id').inTable(t('registrations'));
     table.bigInteger('requested_by').unsigned().nullable().references('id').inTable(t('users'));
-    table.bigInteger('processed_by').unsigned().nullable().references('id').inTable(t('users'));
-    table.integer('amount_cents').notNullable();
     table.string('currency', 3).defaultTo('EUR');
-    table.enum('reason', ['user_cancellation_14d', 'organizer_cancellation', 'admin_decision', 'duplicate', 'other']).notNullable();
-    table.text('reason_detail').nullable();
-    table.enum('status', ['pending', 'approved', 'processed', 'rejected', 'failed']).defaultTo('pending');
-    table.string('stripe_refund_id', 255).nullable();
-    table.datetime('requested_at').notNullable();
-    table.datetime('processed_at').nullable();
-    table.datetime('created_at').notNullable();
-    table.datetime('updated_at').notNullable();
-    table.index(['payment_id']);
-    table.index(['status']);
+    table.datetime('requested_at').nullable();
   });
+  await knex.raw(
+    `ALTER TABLE ?? MODIFY ?? ENUM('pending', 'approved', 'processed', 'rejected', 'failed') DEFAULT 'pending'`,
+    [t('refunds'), 'status']
+  );
 
   // ==========================================
-  // HALL OF FAME
+  // HALL OF FAME EXTENSIONS
   // ==========================================
-  await knex.schema.createTable(t('hall_of_fame'), (table) => {
-    table.bigIncrements('id').primary();
-    table.bigInteger('event_id').unsigned().notNullable().references('id').inTable(t('events'));
-    table.bigInteger('user_id').unsigned().notNullable().references('id').inTable(t('users'));
-    table.integer('placement').notNullable(); // 1, 2, 3
-    table.integer('prize_amount_cents').defaultTo(0);
+  // hall_of_fame is also created in 001_initial_schema for public rankings.
+  // Add admin-managed presentation fields instead of replacing that schema.
+  await knex.raw('ALTER TABLE ?? MODIFY ?? BIGINT UNSIGNED NULL', [t('hall_of_fame'), 'registration_id']);
+  await knex.raw('ALTER TABLE ?? MODIFY ?? INT NULL', [t('hall_of_fame'), 'place']);
+  await knex.schema.alterTable(t('hall_of_fame'), (table) => {
+    table.integer('placement').nullable(); // Admin routes use this name.
     table.string('display_name', 200).nullable();
     table.string('team_name', 200).nullable();
     table.text('achievement_note').nullable(); // e.g. "Unbeaten in 5 rounds"
     table.boolean('featured').defaultTo(false); // Show on home
-    table.datetime('created_at').notNullable();
-    table.datetime('updated_at').notNullable();
-    table.index(['event_id']);
-    table.index(['user_id']);
+    table.datetime('updated_at').nullable();
     table.index(['featured']);
   });
 
@@ -118,8 +108,28 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   await knex.schema.dropTableIfExists(t('admin_messages'));
-  await knex.schema.dropTableIfExists(t('hall_of_fame'));
-  await knex.schema.dropTableIfExists(t('refunds'));
+  await knex.schema.alterTable(t('hall_of_fame'), (table) => {
+    table.dropIndex(['featured']);
+    table.dropColumn('updated_at');
+    table.dropColumn('featured');
+    table.dropColumn('achievement_note');
+    table.dropColumn('team_name');
+    table.dropColumn('display_name');
+    table.dropColumn('placement');
+  });
+  await knex.raw('ALTER TABLE ?? MODIFY ?? BIGINT UNSIGNED NOT NULL', [t('hall_of_fame'), 'registration_id']);
+  await knex.raw('ALTER TABLE ?? MODIFY ?? INT NOT NULL', [t('hall_of_fame'), 'place']);
+
+  await knex.raw(
+    `ALTER TABLE ?? MODIFY ?? ENUM('pending', 'processed', 'failed') DEFAULT 'pending'`,
+    [t('refunds'), 'status']
+  );
+  await knex.schema.alterTable(t('refunds'), (table) => {
+    table.dropColumn('requested_at');
+    table.dropColumn('currency');
+    table.dropColumn('requested_by');
+    table.dropColumn('registration_id');
+  });
   await knex.schema.dropTableIfExists(t('checkins'));
   await knex.schema.dropTableIfExists(t('audit_logs'));
   

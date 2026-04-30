@@ -1,4 +1,4 @@
-import { Share } from 'react-native';
+import { Linking, Share } from 'react-native';
 import { deepLinks } from './deepLinks';
 
 /**
@@ -64,6 +64,28 @@ export async function shareTournamentInvite(eventId: number, title: string, star
       url,
       title,
     });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function shareTournamentWhatsApp(eventId: number, title: string, startDate?: string): Promise<boolean> {
+  const url = deepLinks.event(eventId);
+  const message = [
+    `Komm zu ${title}!`,
+    startDate ? new Date(startDate).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' }) : '',
+    url,
+  ].filter(Boolean).join('\n');
+
+  try {
+    const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
+    const canOpen = await Linking.canOpenURL(whatsappUrl);
+    if (canOpen) {
+      await Linking.openURL(whatsappUrl);
+      return true;
+    }
+    await Share.share({ message, url, title });
     return true;
   } catch {
     return false;

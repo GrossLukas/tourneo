@@ -81,12 +81,12 @@ describe('createRegistrationSchema', () => {
   });
 
   // Duo requires partner
-  it('should reject duo registration without partner_user_id', () => {
+  it('should accept duo registration without partner_user_id', () => {
     const result = createRegistrationSchema.safeParse({
       ...validSolo,
       registration_type: 'duo',
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   // Team requires team_id
@@ -203,11 +203,13 @@ describe('checkinSchema', () => {
 // ─────────────────────────────────────────────────────────────
 describe('updateRegistrationStatusSchema', () => {
   const validStatuses = [
+    'pending_verification',
     'pending_payment',
     'confirmed',
     'waitlisted',
     'cancelled',
     'refunded',
+    'rejected',
     'no_show',
   ];
 

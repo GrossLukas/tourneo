@@ -7,7 +7,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { useAuthStore } from '../src/store/authStore';
 import { useConsentStore } from '../src/store/consentStore';
 import { useNotificationStore } from '../src/store/notificationStore';
@@ -18,19 +18,39 @@ import { OfflineBanner } from '../src/components/OfflineBanner';
 import { initCrashReporting, setCrashUser } from '../src/utils/crashReport';
 
 /* ── Push-notification handler (foreground) ─────────────────────── */
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+let notificationHandlerConfigured = false;
+
+function isExpoGoRuntime(): boolean {
+  return (
+    Constants.appOwnership === 'expo' ||
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient
+  );
+}
+
+async function loadNotifications() {
+  if (Platform.OS === 'web' || isExpoGoRuntime()) return null;
+  const Notifications = await import('expo-notifications');
+
+  if (!notificationHandlerConfigured) {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+    notificationHandlerConfigured = true;
+  }
+
+  return Notifications;
+}
 
 /* ── Helper: register for push notifications ─────────────────── */
 async function registerForPushNotifications(): Promise<string | null> {
-  if (Platform.OS === 'web') return null;
+  const Notifications = await loadNotifications();
+  if (!Notifications) return null;
 
   const { status: existing } = await Notifications.getPermissionsAsync();
   let finalStatus = existing;
@@ -110,6 +130,32 @@ export default function RootLayout() {
     setup();
   }, [isAuthenticated, user]);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let subscription: { remove: () => void } | null = null;
+
+    loadNotifications().then((Notifications) => {
+      if (!Notifications) return;
+      subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+        const data = response.notification.request.content.data || {};
+        const eventId = data.event_id || data.eventId;
+        const registrationId = data.registration_id || data.registrationId;
+        const paymentRequired = data.payment_required === true || data.paymentRequired === true;
+        if (eventId && registrationId && paymentRequired) {
+          router.push(`/event/checkout/${eventId}?registrationId=${registrationId}`);
+        } else if (eventId) {
+          router.push(`/event/${eventId}`);
+        } else if (registrationId) {
+          router.push('/notifications');
+        }
+      });
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [isAuthenticated, router]);
+
   /* ── Consent gate: redirect to consent if logged in but not consented ── */
   useEffect(() => {
     if (!initialised.current) return;
@@ -137,6 +183,8 @@ export default function RootLayout() {
       <Stack.Screen name="event/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="event/register/[id]" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="event/bracket/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="event/schedule/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="event/checkin/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="event/checkout/[id]" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="event/referee/[matchId]" options={{ headerShown: false }} />
       <Stack.Screen name="event/live/[matchId]" options={{ headerShown: false }} />
@@ -145,6 +193,7 @@ export default function RootLayout() {
       <Stack.Screen name="event/recap/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="event/waitlist/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="venue/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="venue/search" options={{ headerShown: false }} />
       <Stack.Screen name="venue/availability/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding/playtomic" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding/playtomic-verify" options={{ headerShown: false }} />

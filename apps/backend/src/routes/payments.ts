@@ -6,6 +6,7 @@ import { paymentLimiter } from '../middleware/rateLimiter';
 const router = Router();
 
 router.post('/create-intent', authenticate, paymentLimiter, PaymentController.createIntent);
+router.post('/create-checkout-session', authenticate, paymentLimiter, PaymentController.createCheckoutSession);
 router.get('/', authenticate, PaymentController.listUserPayments);
 router.post('/webhook', raw({ type: 'application/json' }), PaymentController.webhook);
 

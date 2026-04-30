@@ -1,5 +1,6 @@
 import { db, t } from '../config/database';
 import { EloService, type EloSport } from './eloService';
+import { ModerationService } from './moderationService';
 
 export interface PlayerProfile {
   user_id: number;
@@ -48,6 +49,11 @@ export interface HeadToHead {
  */
 export class PlayerProfileService {
   static async getPublicProfile(viewerId: number, targetUserId: number): Promise<PlayerProfile | null> {
+    if (viewerId !== targetUserId) {
+      const blockedIds = await ModerationService.getBlockedUserIds(viewerId);
+      if (blockedIds.includes(targetUserId)) return null;
+    }
+
     const profile = await db(t('profiles')).where('user_id', targetUserId).first();
     if (!profile) return null;
 
@@ -201,6 +207,8 @@ export class PlayerProfileService {
    */
   static async getHeadToHead(viewerId: number, targetUserId: number): Promise<HeadToHead | null> {
     if (viewerId === targetUserId) return null;
+    const blockedIds = await ModerationService.getBlockedUserIds(viewerId);
+    if (blockedIds.includes(targetUserId)) return null;
 
     const target = await db(t('profiles')).where('user_id', targetUserId).first();
     if (!target) return null;

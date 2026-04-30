@@ -1,6 +1,7 @@
 import { db, t } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 import { NotificationService } from './notificationService';
+import { ModerationService } from './moderationService';
 
 export interface ChatMessageRow {
   id: number;
@@ -39,7 +40,10 @@ export class ChatService {
    */
   static async assertParticipant(eventId: number, userId: number): Promise<void> {
     const reg = await db(t('registrations'))
-      .where({ event_id: eventId, user_id: userId, status: 'confirmed' })
+      .where({ event_id: eventId, status: 'confirmed' })
+      .where(function () {
+        this.where('user_id', userId).orWhere('partner_user_id', userId);
+      })
       .first();
     if (!reg) {
       // Also allow admins
@@ -56,10 +60,14 @@ export class ChatService {
   static async listMessages(eventId: number, userId: number): Promise<ChatMessageRow[]> {
     await this.assertParticipant(eventId, userId);
     const room = await this.getOrCreateRoom(eventId);
+    const blockedIds = await ModerationService.getBlockedUserIds(userId);
 
-    const rows = await db(t('chat_messages') + ' as m')
+    const query = db(t('chat_messages') + ' as m')
       .leftJoin(t('profiles') + ' as p', 'm.user_id', 'p.user_id')
       .where('m.room_id', room.id)
+      .where(function () {
+        this.where('m.moderation_status', 'visible').orWhereNull('m.moderation_status');
+      })
       .orderBy('m.created_at', 'desc')
       .limit(50)
       .select(
@@ -73,7 +81,9 @@ export class ChatService {
         'p.first_name',
         'p.last_name',
       );
+    if (blockedIds.length > 0) query.whereNotIn('m.user_id', blockedIds);
 
+    const rows = await query;
     return rows.reverse();
   }
 
@@ -133,22 +143,29 @@ export class ChatService {
       [senderProfile?.first_name, senderProfile?.last_name].filter(Boolean).join(' ') ||
       'Jemand';
 
-    const recipients: { user_id: number }[] = await db(t('registrations'))
+    const registrations: { user_id: number; partner_user_id: number | null }[] = await db(t('registrations'))
       .where({ event_id: eventId, status: 'confirmed' })
       .whereNot('user_id', senderUserId)
-      .select('user_id');
+      .select('user_id', 'partner_user_id');
+    const recipientIds = Array.from(
+      new Set(
+        registrations
+          .flatMap((r) => [r.user_id, r.partner_user_id])
+          .filter((id): id is number => Boolean(id) && Number(id) !== senderUserId)
+      )
+    );
 
     const now = new Date();
     const cutoff = new Date(now.getTime() - this.PUSH_THROTTLE_MS);
 
-    for (const r of recipients) {
+    for (const userIdToNotify of recipientIds) {
       const throttle = await db(t('chat_push_throttle'))
-        .where({ room_id: roomId, user_id: r.user_id })
+        .where({ room_id: roomId, user_id: userIdToNotify })
         .first();
       if (throttle && new Date(throttle.last_pushed_at) > cutoff) continue;
 
       await NotificationService.send(
-        r.user_id,
+        userIdToNotify,
         'general',
         `${event.title}`,
         `${senderName}: ${message.slice(0, 80)}`,
@@ -157,12 +174,12 @@ export class ChatService {
 
       if (throttle) {
         await db(t('chat_push_throttle'))
-          .where({ room_id: roomId, user_id: r.user_id })
+          .where({ room_id: roomId, user_id: userIdToNotify })
           .update({ last_pushed_at: now });
       } else {
         await db(t('chat_push_throttle')).insert({
           room_id: roomId,
-          user_id: r.user_id,
+          user_id: userIdToNotify,
           last_pushed_at: now,
         });
       }

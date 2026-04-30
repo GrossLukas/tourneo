@@ -46,7 +46,7 @@ function formatTime(t: string): string {
 }
 
 export default function CourtAvailabilityScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, mode } = useLocalSearchParams<{ id: string; mode?: 'solo' | 'friend' }>();
   const venueId = Number(id);
   const { colors } = useTheme();
 
@@ -113,7 +113,12 @@ export default function CourtAvailabilityScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <Stack.Screen options={{ title: 'Platz-Verfügbarkeit', headerShown: true }} />
+      <Stack.Screen
+        options={{
+          title: mode === 'friend' ? 'Platz mit Freund' : 'Platz für Solo',
+          headerShown: true,
+        }}
+      />
 
       {/* Date chips */}
       <ScrollView

@@ -19,6 +19,7 @@ import {
   Pressable,
   RefreshControl,
   Alert,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -40,18 +41,26 @@ import {
 import { fontFamily } from '../../src/theme/typography';
 import { useEventStore } from '../../src/store/eventStore';
 import { useAuthStore } from '../../src/store/authStore';
+import { useRegistrationStore } from '../../src/store/registrationStore';
+import { getEventIcalUrl } from '../../src/api/v2';
+import { shareTournamentInvite, shareTournamentWhatsApp } from '../../src/utils/shareMatch';
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { currentEvent, fetchEventById, loading } = useEventStore();
   const { user } = useAuthStore();
+  const { myRegistrations, fetchMyRegistrations, cancelRegistration } = useRegistrationStore();
   const [refreshing, setRefreshing] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     if (id) fetchEventById(Number(id));
   }, [id, fetchEventById]);
+
+  useEffect(() => {
+    if (user) void fetchMyRegistrations();
+  }, [user, fetchMyRegistrations]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -78,8 +87,16 @@ export default function EventDetailScreen() {
   const isMember = !!user && (user as any).membership_tier && (user as any).membership_tier !== 'free';
   const memberFee = isMember ? fee * 0.9 : fee;
   const dateFull = formatDateFull(e.start_date);
+  const maintenanceMode = Boolean((e as any).maintenance_mode);
 
   const handleRegister = () => {
+    if (maintenanceMode) {
+      Alert.alert(
+        'Wartungsmodus',
+        (e as any).maintenance_message || 'Dieses Turnier wird gerade überarbeitet.'
+      );
+      return;
+    }
     if (!user) {
       Alert.alert(
         'Anmeldung erforderlich',
@@ -93,6 +110,81 @@ export default function EventDetailScreen() {
     }
     setSheetOpen(true);
   };
+
+  const myRegistration = myRegistrations.find((reg) =>
+    Number(reg.event_id) === Number(e.id) &&
+    !['cancelled', 'refunded', 'rejected', 'no_show'].includes(reg.status)
+  );
+
+  const handleCancelRegistration = () => {
+    if (!myRegistration) return;
+    Alert.alert(
+      'Anmeldung stornieren',
+      'Bis 14 Tage vor dem Event werden 75% erstattet. Danach ist laut Richtlinie keine Erstattung vorgesehen. Wartelistenplaetze werden voll freigegeben.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        {
+          text: 'Stornieren',
+          style: 'destructive',
+          onPress: async () => {
+            await cancelRegistration(String(myRegistration.id), 'Storniert in der App');
+            await Promise.all([fetchMyRegistrations(), fetchEventById(Number(id))]);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleShare = async () => {
+    await shareTournamentInvite(e.id, e.title, e.start_date);
+  };
+
+  const handleWhatsApp = async () => {
+    await shareTournamentWhatsApp(e.id, e.title, e.start_date);
+  };
+
+  const handleCalendar = async () => {
+    const supported = await Linking.canOpenURL(getEventIcalUrl(e.id));
+    if (!supported) {
+      Alert.alert('Kalenderexport', 'Der Kalenderexport kann auf diesem Gerät nicht geöffnet werden.');
+      return;
+    }
+    await Linking.openURL(getEventIcalUrl(e.id));
+  };
+
+  const handleFooterAction = () => {
+    if (!myRegistration) {
+      handleRegister();
+      return;
+    }
+    if (myRegistration.status === 'pending_payment') {
+      router.push(`/event/checkout/${e.id}?registrationId=${myRegistration.id}`);
+      return;
+    }
+    if (myRegistration.status === 'pending_verification') {
+      Alert.alert('Pruefung ausstehend', 'Deine Playtomic-Daten werden geprueft. Sobald du zugelassen bist, bekommst du eine Benachrichtigung.');
+      return;
+    }
+    if (myRegistration.status === 'waitlisted') {
+      router.push(`/event/waitlist/${myRegistration.id}`);
+      return;
+    }
+    if (myRegistration.status === 'confirmed') {
+      handleCancelRegistration();
+    }
+  };
+
+  const footerActionLabel = !myRegistration
+    ? maintenanceMode
+      ? 'Wartungsmodus'
+      : 'Anmelden'
+    : myRegistration.status === 'pending_payment'
+      ? 'Zahlung fortsetzen'
+      : myRegistration.status === 'pending_verification'
+        ? 'Pruefung ausstehend'
+        : myRegistration.status === 'waitlisted'
+          ? 'Warteliste anzeigen'
+          : 'Anmeldung stornieren';
 
   const prizes = breakdownFor(e.prize_distribution, prizeTotal);
 
@@ -122,11 +214,11 @@ export default function EventDetailScreen() {
               <NCIcon name="chevronL" size={20} color={NC.textP} />
             </Pressable>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable style={s.glassBtn} accessibilityLabel="Teilen">
+              <Pressable onPress={handleShare} style={s.glassBtn} accessibilityLabel="Teilen">
                 <NCIcon name="share" size={17} color={NC.textP} />
               </Pressable>
-              <Pressable style={s.glassBtn} accessibilityLabel="Merken">
-                <NCIcon name="heart" size={17} color={NC.textP} />
+              <Pressable onPress={handleCalendar} style={s.glassBtn} accessibilityLabel="Kalenderexport">
+                <NCIcon name="calendar" size={17} color={NC.textP} />
               </Pressable>
             </View>
           </View>
@@ -208,6 +300,34 @@ export default function EventDetailScreen() {
           <InfoTile label="Format" value={labelFormat(e.format)} sub="Single Elim." />
         </View>
 
+        <View style={s.actionRow}>
+          <NCButton variant="secondary" size="sm" icon="live" onPress={() => router.push(`/event/schedule/${e.id}`)}>
+            Live-Spielplan
+          </NCButton>
+          <NCButton variant="ghost" size="sm" icon="share" onPress={handleWhatsApp}>
+            WhatsApp
+          </NCButton>
+          {myRegistration?.status === 'confirmed' ? (
+            <NCButton variant="ghost" size="sm" icon="ticket" onPress={() => router.push(`/event/checkin/${myRegistration.id}`)}>
+              QR-Code
+            </NCButton>
+          ) : null}
+        </View>
+
+        {maintenanceMode ? (
+          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+            <NCCard padded={false} style={{ padding: 14, borderColor: NC.gold }}>
+              <View style={s.verifyRow}>
+                <NCIcon name="settings" size={18} color={NC.gold} />
+                <Text style={s.subTitle}>Wartungsmodus</Text>
+              </View>
+              <Text style={s.body}>
+                {(e as any).maintenance_message || 'Dieses Turnier wird gerade aktualisiert. Anmeldung ist kurzzeitig pausiert.'}
+              </Text>
+            </NCCard>
+          </View>
+        ) : null}
+
         {/* Bracket */}
         <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           <View style={s.subHeader}>
@@ -230,6 +350,23 @@ export default function EventDetailScreen() {
         ) : null}
 
         {/* Notes */}
+        {e.requires_playtomic_verification ? (
+          <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+            <NCCard padded={false} style={{ padding: 14, borderColor: NC.borderStr }}>
+              <View style={s.verifyRow}>
+                <NCIcon name="shield" size={18} color={NC.primaryLight} />
+                <Text style={s.subTitle}>Playtomic-Prüfung</Text>
+              </View>
+              <Text style={s.body}>
+                Für dieses Turnier muss dein Playtomic-Screenshot Name, Level,
+                Rankingpunkte und Profil zeigen. Zugelassen wird nach Admin-Prüfung.
+                {'\n'}Level-Bereich: {formatLevelRange(e.min_playtomic_level, e.max_playtomic_level)}
+                {e.eligibility_note ? `\n${e.eligibility_note}` : ''}
+              </Text>
+            </NCCard>
+          </View>
+        ) : null}
+
         {e.special_notes ? (
           <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
             <Text style={s.subTitle}>Hinweise & Regeln</Text>
@@ -290,8 +427,14 @@ export default function EventDetailScreen() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <NCButton variant="primary" size="lg" full iconRight="arrowR" onPress={handleRegister}>
-              Anmelden
+            <NCButton
+              variant={myRegistration?.status === 'confirmed' ? 'secondary' : 'primary'}
+              size="lg"
+              full
+              iconRight={myRegistration?.status === 'confirmed' ? undefined : 'arrowR'}
+              onPress={handleFooterAction}
+            >
+              {footerActionLabel}
             </NCButton>
           </View>
         </View>
@@ -305,7 +448,14 @@ export default function EventDetailScreen() {
         eventDateLabel={dateFull}
         feeCents={e.entry_fee_cents}
         isMember={isMember}
-        onSuccess={() => fetchEventById(Number(id))}
+        requiresPlaytomicVerification={!!e.requires_playtomic_verification}
+        minPlaytomicLevel={e.min_playtomic_level}
+        maxPlaytomicLevel={e.max_playtomic_level}
+        eligibilityNote={e.eligibility_note}
+        onSuccess={() => {
+          fetchEventById(Number(id));
+          fetchMyRegistrations();
+        }}
       />
     </NCScreen>
   );
@@ -457,6 +607,12 @@ function labelSport(raw?: string): string {
   return ({ padel: 'PADEL', fifa: 'FIFA' } as Record<string, string>)[raw || ''] || 'PADEL';
 }
 
+function formatLevelRange(min?: number | null, max?: number | null): string {
+  const from = min == null ? 0 : Number(min);
+  const to = max == null ? 7 : Number(max);
+  return `${from.toFixed(1)} bis ${to.toFixed(1)}`;
+}
+
 function breakdownFor(
   dist: { place: number; amount_cents: number }[] | undefined,
   total: number
@@ -536,6 +692,13 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    flexWrap: 'wrap',
+  },
 
   subHeader: {
     flexDirection: 'row',
@@ -563,6 +726,7 @@ const s = StyleSheet.create({
     lineHeight: 21,
     marginTop: 10,
   },
+  verifyRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   orgCard: { padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
   orgTitle: {
     fontFamily: fontFamily.displayBold,

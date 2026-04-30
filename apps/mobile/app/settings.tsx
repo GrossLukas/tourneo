@@ -5,7 +5,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Alert, Switch, Platform,
+  View, Text, StyleSheet, ScrollView, Alert, Switch, Platform, TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,11 @@ import { useConsentStore } from '../src/store/consentStore';
 import { spacing, fontSize, fontWeight } from '../src/theme/spacing';
 import * as SecureStore from 'expo-secure-store';
 import api from '../src/api/client';
+import {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  type NotificationPreferences,
+} from '../src/api/v2';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -40,14 +45,28 @@ export default function SettingsScreen() {
 
   // Notification toggle (local)
   const [pushEnabled, setPushEnabled] = useState(consent?.pushNotifications ?? true);
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({
+    notify_nearby_events: true,
+    notify_radius_km: 50,
+    notify_level_filter: 'all',
+  });
 
   useEffect(() => {
     loadConsent();
+    getNotificationPreferences()
+      .then(setNotificationPrefs)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
     setPushEnabled(consent?.pushNotifications ?? true);
   }, [consent]);
+
+  useEffect(() => {
+    if (!user) {
+      router.replace('/(auth)/login');
+    }
+  }, [router, user]);
 
   /* ── Profile Save ─────────────────────────────────────────── */
   const handleSaveProfile = async () => {
@@ -86,6 +105,17 @@ export default function SettingsScreen() {
   const handleConsentToggle = async (key: 'pushNotifications' | 'personalization' | 'newsletter', value: boolean) => {
     await updateOptionalConsent(key, value);
     if (key === 'pushNotifications') setPushEnabled(value);
+  };
+
+  const saveNotificationPrefs = async (patch: Partial<NotificationPreferences>) => {
+    const optimistic = { ...notificationPrefs, ...patch };
+    setNotificationPrefs(optimistic);
+    try {
+      const saved = await updateNotificationPreferences(patch);
+      setNotificationPrefs(saved);
+    } catch {
+      Alert.alert('Fehler', 'Benachrichtigungseinstellungen konnten nicht gespeichert werden.');
+    }
   };
 
   /* ── Withdraw All Consent ─────────────────────────────────── */
@@ -131,7 +161,9 @@ export default function SettingsScreen() {
           onPress: async () => {
             try {
               await requestDataDeletion();
+              await logout();
               Alert.alert(t('settings.dataDeletionSuccess'));
+              router.replace('/(auth)/onboarding');
             } catch {
               Alert.alert(t('common.error'), t('settings.dataDeletionFailed'));
             }
@@ -162,7 +194,7 @@ export default function SettingsScreen() {
                   style: 'destructive',
                   onPress: async () => {
                     try {
-                      await api.delete('/users/account');
+                      await api.post('/me/delete-account');
                       await logout();
                       router.replace('/(auth)/onboarding');
                     } catch {
@@ -179,7 +211,6 @@ export default function SettingsScreen() {
   };
 
   if (!user) {
-    router.replace('/(auth)/login');
     return null;
   }
 
@@ -285,6 +316,54 @@ export default function SettingsScreen() {
               thumbColor={pushEnabled ? '#fff' : colors.bgTertiary}
             />
           </View>
+          <TDivider style={{ marginVertical: spacing.xs }} />
+          <View style={styles.switchRow}>
+            <View style={styles.switchInfo}>
+              <Ionicons name="location-outline" size={22} color={colors.primary as string} style={{ marginRight: spacing.sm }} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.switchLabel, { color: colors.textPrimary }]}>Turniere in der Nähe</Text>
+                <Text style={[styles.switchHint, { color: colors.textTertiary }]}>
+                  Benachrichtigung nur, wenn ein Turnier in deinen Radius passt.
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={notificationPrefs.notify_nearby_events}
+              onValueChange={(v) => void saveNotificationPrefs({ notify_nearby_events: v })}
+              trackColor={{ false: colors.border, true: colors.primary as string }}
+              thumbColor={notificationPrefs.notify_nearby_events ? '#fff' : colors.bgTertiary}
+            />
+          </View>
+          <Text style={[styles.preferenceLabel, { color: colors.textTertiary }]}>Radius</Text>
+          <View style={styles.preferenceChips}>
+            {[10, 25, 50, 100].map((radius) => (
+              <PreferenceChip
+                key={radius}
+                label={`${radius} km`}
+                active={notificationPrefs.notify_radius_km === radius}
+                colors={colors}
+                onPress={() => void saveNotificationPrefs({ notify_radius_km: radius })}
+              />
+            ))}
+          </View>
+          <Text style={[styles.preferenceLabel, { color: colors.textTertiary }]}>Level</Text>
+          <View style={styles.preferenceChips}>
+            {[
+              ['all', 'Alle'],
+              ['beginner', 'Anfänger'],
+              ['intermediate', 'Fortgeschritten'],
+              ['advanced', 'Experte'],
+              ['open', 'Offen'],
+            ].map(([key, label]) => (
+              <PreferenceChip
+                key={key}
+                label={label}
+                active={notificationPrefs.notify_level_filter === key}
+                colors={colors}
+                onPress={() => void saveNotificationPrefs({ notify_level_filter: key as NotificationPreferences['notify_level_filter'] })}
+              />
+            ))}
+          </View>
         </TCard>
 
         {/* ── Consent / DSGVO Management ─────────────────────── */}
@@ -363,6 +442,21 @@ export default function SettingsScreen() {
             leftIcon={<Ionicons name="information-circle-outline" size={20} color={colors.textSecondary as string} />}
             onPress={() => router.push('/legal/impressum')}
           />
+          <TListItem
+            title="Turnierbedingungen"
+            leftIcon={<Ionicons name="trophy-outline" size={20} color={colors.textSecondary as string} />}
+            onPress={() => router.push('/legal/turnierbedingungen')}
+          />
+          <TListItem
+            title="Stornierung & Rückerstattung"
+            leftIcon={<Ionicons name="receipt-outline" size={20} color={colors.textSecondary as string} />}
+            onPress={() => router.push('/legal/stornierung')}
+          />
+          <TListItem
+            title="Medien & Fotos"
+            leftIcon={<Ionicons name="camera-outline" size={20} color={colors.textSecondary as string} />}
+            onPress={() => router.push('/legal/medien')}
+          />
         </TCard>
 
         {/* ── Account Actions ─────────────────────────────────── */}
@@ -413,6 +507,35 @@ export default function SettingsScreen() {
   );
 }
 
+function PreferenceChip({
+  label,
+  active,
+  colors,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  colors: any;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        styles.preferenceChip,
+        {
+          backgroundColor: active ? colors.primary : colors.surfaceSecondary,
+          borderColor: active ? colors.primary : colors.cardBorder,
+        },
+      ]}
+    >
+      <Text style={[styles.preferenceChipText, { color: active ? '#FFF' : colors.textPrimary }]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: spacing.md },
@@ -428,6 +551,15 @@ const styles = StyleSheet.create({
   switchInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: spacing.sm },
   switchLabel: { fontSize: fontSize.md },
   switchHint: { fontSize: fontSize.xs, marginTop: 2 },
+  preferenceLabel: { fontSize: fontSize.xxs, fontWeight: fontWeight.bold as any, marginTop: spacing.sm, marginBottom: spacing.xs },
+  preferenceChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  preferenceChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  preferenceChipText: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold as any },
   dangerText: { fontSize: fontSize.sm, lineHeight: 20 },
   consentDate: { fontSize: fontSize.xs, marginTop: spacing.sm, textAlign: 'center' },
 });

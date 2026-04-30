@@ -185,6 +185,9 @@ export default function LegalScreen() {
       case 'agb': return t('legal.agb');
       case 'datenschutz': return t('legal.datenschutz');
       case 'impressum': return t('legal.impressum');
+      case 'turnierbedingungen': return 'Turnierbedingungen';
+      case 'stornierung': return 'Stornierung & Rückerstattung';
+      case 'medien': return 'Medien & Fotos';
       default: return t('profile.legal');
     }
   };
@@ -194,6 +197,9 @@ export default function LegalScreen() {
       case 'agb': return <AGBContent colors={colors} />;
       case 'datenschutz': return <DatenschutzContent colors={colors} />;
       case 'impressum': return <ImpressumContent colors={colors} />;
+      case 'turnierbedingungen': return <TournamentTermsContent colors={colors} />;
+      case 'stornierung': return <CancellationContent colors={colors} />;
+      case 'medien': return <MediaPolicyContent colors={colors} />;
       default: return <P colors={colors}>Inhalt nicht gefunden.</P>;
     }
   };
@@ -209,6 +215,60 @@ export default function LegalScreen() {
         <View style={{ height: 60 }} />
       </ScrollView>
     </View>
+  );
+}
+
+function TournamentTermsContent({ colors }: { colors: Colors }) {
+  return (
+    <>
+      <Section title="1. Anmeldung" colors={colors}>
+        <P colors={colors}>Eine Turnier-Anmeldung ist erst verbindlich, wenn alle notwendigen Prüfungen abgeschlossen und die Teilnahmegebühr bezahlt wurde. Bei Anfängerturnieren kann eine Playtomic-Prüfung erforderlich sein.</P>
+      </Section>
+      <Section title="2. Playtomic-Prüfung" colors={colors}>
+        <Li colors={colors}>Der Screenshot muss Name, Rankingpunkte, Level und Profilbezug erkennen lassen.</Li>
+        <Li colors={colors}>Die Daten werden nur zur Einstufung verwendet und nach der Prüfung aus dem privaten Uploadspeicher entfernt.</Li>
+        <Li colors={colors}>Bis zur Admin-Freigabe steht die Anmeldung auf „Ausstehend“.</Li>
+      </Section>
+      <Section title="3. Duo-Anmeldung" colors={colors}>
+        <P colors={colors}>Bei Duo-Anmeldungen zahlt jeder Spieler seinen eigenen Anteil. Das Duo erscheint im Turnierbaum als ein Team, sobald beide Spieler bestätigt und eingecheckt sind.</P>
+      </Section>
+      <Section title="4. Check-in & Fair Play" colors={colors}>
+        <Li colors={colors}>Teilnehmer müssen rechtzeitig vor Ort einchecken.</Li>
+        <Li colors={colors}>Unsportliches Verhalten, falsche Daten oder Missbrauch können zur Ablehnung oder Sperrung führen.</Li>
+      </Section>
+    </>
+  );
+}
+
+function CancellationContent({ colors }: { colors: Colors }) {
+  return (
+    <>
+      <Section title="Stornoregeln" colors={colors}>
+        <Li colors={colors}>Mehr als 14 Tage vor Eventbeginn: 75% Rückerstattung der Teilnahmegebühr.</Li>
+        <Li colors={colors}>Weniger als 14 Tage vor Eventbeginn: keine Rückerstattung, außer der Veranstalter entscheidet anders.</Li>
+        <Li colors={colors}>Absage durch den Veranstalter: 100% Rückerstattung.</Li>
+        <Li colors={colors}>Wartelistenplätze ohne bestätigte Teilnahme können ohne Kosten freigegeben werden.</Li>
+      </Section>
+      <Section title="Bearbeitung" colors={colors}>
+        <P colors={colors}>Rückerstattungen werden über den ursprünglichen Zahlungsweg verarbeitet. Je nach Bank oder Zahlungsanbieter kann die Gutschrift mehrere Werktage dauern.</P>
+      </Section>
+    </>
+  );
+}
+
+function MediaPolicyContent({ colors }: { colors: Colors }) {
+  return (
+    <>
+      <Section title="Fotos & Videos" colors={colors}>
+        <P colors={colors}>Bei Turnieren können Fotos oder Videos entstehen. Eine Nutzung für öffentliche Kommunikation erfolgt nur auf Basis deiner Einwilligung oder einer gesonderten Freigabe.</P>
+      </Section>
+      <Section title="Widerruf" colors={colors}>
+        <P colors={colors}>Du kannst optionale Medien-Einwilligungen in den Einstellungen widerrufen. Bereits rechtmäßig veröffentlichte Gruppenaufnahmen können aus organisatorischen Gründen weiter bestehen, sofern keine überwiegenden Rechte entgegenstehen.</P>
+      </Section>
+      <Section title="Melden" colors={colors}>
+        <P colors={colors}>Unpassende Inhalte, Profile oder Chat-Nachrichten können direkt in der App gemeldet werden. Admins können Inhalte ausblenden und Nutzer sperren.</P>
+      </Section>
+    </>
   );
 }
 

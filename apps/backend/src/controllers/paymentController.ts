@@ -14,6 +14,19 @@ export class PaymentController {
     }
   }
 
+  static async createCheckoutSession(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { registration_id, success_url, cancel_url } = req.body;
+      const result = await PaymentService.createCheckoutSession(registration_id, req.user!.userId, {
+        successUrl: success_url,
+        cancelUrl: cancel_url,
+      });
+      res.status(201).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async webhook(req: Request, res: Response, next: NextFunction) {
     try {
       const sig = req.headers['stripe-signature'] as string;

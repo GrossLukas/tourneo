@@ -15,6 +15,7 @@
     "backend:dev": "npm run dev --workspace=apps/backend",
     "backend:build": "npm run build --workspace=apps/backend",
     "backend:migrate": "npm run migrate --workspace=apps/backend",
+    "dev:mysql": "powershell -ExecutionPolicy Bypass -File scripts/start-dev-mysql.ps1",
     "install:all": "npm install"
   },
   "author": "Lukas Gross <gross.lukas01@web.de>",
@@ -25,13 +26,14 @@
     "@xmldom/xmldom": "^0.8.13",
     "fast-xml-parser": "^5.7.0",
     "follow-redirects": "^1.15.12",
-    "postcss": "^8.5.10"
-  },
-  "dependencies": {
-    "react-native-worklets": "^0.8.1"
+    "postcss": "^8.5.10",
+    "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "jest": "^30.3.0"
+  },
+  "dependencies": {
+    "react-native-worklets": "0.5.1"
   }
 }

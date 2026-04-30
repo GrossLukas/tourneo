@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Share,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -29,6 +30,8 @@ import {
   getPublicProfile,
   getHeadToHead,
   getPlayerEloHistory,
+  reportContent,
+  blockUser,
   type PublicPlayerProfile,
   type HeadToHead as HeadToHeadData,
 } from '../../src/api/v2';
@@ -94,6 +97,51 @@ export default function PlayerProfileScreen() {
     } catch {}
   };
 
+  const onReport = () => {
+    if (!profile || isSelf) return;
+    Alert.alert('Profil melden', `${profile.display_name} melden?`, [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Melden',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await reportContent({
+              target_type: 'profile',
+              target_id: targetId,
+              target_user_id: targetId,
+              reason: 'inappropriate',
+              detail: 'Profil wurde aus der App gemeldet.',
+            });
+            Alert.alert('Danke', 'Die Meldung wurde an den Admin gesendet.');
+          } catch {
+            Alert.alert('Fehler', 'Meldung konnte nicht gesendet werden.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const onBlock = () => {
+    if (!profile || isSelf) return;
+    Alert.alert('Spieler blockieren', `${profile.display_name} blockieren? Du siehst dann keine Nachrichten und Inhalte dieses Spielers mehr.`, [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Blockieren',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await blockUser(targetId);
+            Alert.alert('Blockiert', 'Der Spieler wurde blockiert.');
+            router.back();
+          } catch {
+            Alert.alert('Fehler', 'Der Spieler konnte nicht blockiert werden.');
+          }
+        },
+      },
+    ]);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -134,6 +182,16 @@ export default function PlayerProfileScreen() {
           <TouchableOpacity style={styles.shareBtn} onPress={onShare} hitSlop={10}>
             <Ionicons name="share-outline" size={22} color={colors.textPrimary as string} />
           </TouchableOpacity>
+        )}
+        {!isSelf && (
+          <>
+            <TouchableOpacity style={styles.shareBtn} onPress={onReport} hitSlop={10}>
+              <Ionicons name="flag-outline" size={21} color={colors.textPrimary as string} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.shareBtn} onPress={onBlock} hitSlop={10}>
+              <Ionicons name="ban-outline" size={21} color={colors.error as string} />
+            </TouchableOpacity>
+          </>
         )}
       </View>
 

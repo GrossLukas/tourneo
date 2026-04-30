@@ -9,7 +9,7 @@
  * design spec.
  */
 import React from 'react';
-import { Tabs, useRouter } from 'expo-router';
+import { Tabs, useRouter, type Href } from 'expo-router';
 import {
   View,
   Pressable,
@@ -67,7 +67,7 @@ function NightCourtTabBar({ state, descriptors, navigation }: any) {
                 accessibilityLabel="Matchmaking"
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-                  router.push(slot.route);
+                  router.push(slot.route as Href);
                 }}
                 style={styles.fab}
               >
@@ -101,7 +101,7 @@ function NightCourtTabBar({ state, descriptors, navigation }: any) {
                 navigation.navigate(slot.route);
               }
             } else {
-              router.push(slot.route);
+              router.push(slot.route as Href);
             }
           };
 
@@ -130,6 +130,8 @@ function NightCourtTabBar({ state, descriptors, navigation }: any) {
                 ) : null}
               </View>
               <Text
+                allowFontScaling={false}
+                numberOfLines={1}
                 style={[
                   styles.label,
                   { color: focused ? NC.primary : NC.textS, opacity: focused ? 1 : 0.85 },
@@ -183,16 +185,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
   },
   tab: {
-    minWidth: 54,
+    width: 78,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
   },
   label: {
     fontFamily: fontFamily.uiSemibold,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
-    letterSpacing: 0.2,
+    letterSpacing: 0,
+    textAlign: 'center',
+    width: '100%',
   },
   fab: {
     marginTop: -18,

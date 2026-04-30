@@ -16,12 +16,13 @@ import {
   Platform,
   ActivityIndicator,
   AppState,
+  Alert,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../../../src/providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../../src/theme/spacing';
 import { useAuthStore } from '../../../src/store/authStore';
-import { listChat, postChat } from '../../../src/api/v2';
+import { blockUser, listChat, postChat, reportContent } from '../../../src/api/v2';
 import * as Haptics from 'expo-haptics';
 
 type ChatMsg = Awaited<ReturnType<typeof listChat>>[number];
@@ -111,6 +112,42 @@ export default function ChatScreen() {
     }
   }, [eventId, text, sending, load, myUserId, user?.display_name]);
 
+  const handleMessageLongPress = useCallback((item: ChatMsg) => {
+    if (item.user_id === myUserId || item.id < 0) return;
+    Alert.alert('Nachricht', 'Was möchtest du tun?', [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Melden',
+        onPress: async () => {
+          try {
+            await reportContent({
+              target_type: 'chat_message',
+              target_id: item.id,
+              target_user_id: item.user_id,
+              reason: 'inappropriate',
+              detail: 'Chat-Nachricht wurde aus der App gemeldet.',
+            });
+            Alert.alert('Danke', 'Die Meldung wurde an den Admin gesendet.');
+          } catch {
+            Alert.alert('Fehler', 'Meldung konnte nicht gesendet werden.');
+          }
+        },
+      },
+      {
+        text: 'Spieler blockieren',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await blockUser(item.user_id);
+            setRows((prev) => prev.filter((m) => m.user_id !== item.user_id));
+          } catch {
+            Alert.alert('Fehler', 'Spieler konnte nicht blockiert werden.');
+          }
+        },
+      },
+    ]);
+  }, [myUserId]);
+
   const data = useMemo(() => rows, [rows]);
 
   if (loading) {
@@ -137,7 +174,9 @@ export default function ChatScreen() {
         renderItem={({ item }) => {
           const mine = item.user_id === myUserId;
           return (
-            <View
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onLongPress={() => handleMessageLongPress(item)}
               style={[
                 styles.bubble,
                 mine
@@ -151,7 +190,7 @@ export default function ChatScreen() {
               <Text style={[styles.msg, { color: mine ? '#fff' : colors.textPrimary }]}>
                 {item.message}
               </Text>
-            </View>
+            </TouchableOpacity>
           );
         }}
         ListEmptyComponent={

@@ -5,9 +5,7 @@ import api from '../api/client';
 export interface AppNotification {
   id: string;
   user_id: string;
-  type: 'event_reminder' | 'registration_confirmed' | 'waitlist_promoted' | 'bracket_published' |
-    'match_upcoming' | 'match_result' | 'friend_request' | 'team_invite' | 'payment_confirmed' |
-    'payment_refunded' | 'membership_expiring' | 'system_announcement';
+  type: string;
   title: string;
   body: string;
   data?: Record<string, any>;
@@ -43,7 +41,7 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     set({ loading: true, error: null });
     try {
       const response = await api.get('/notifications');
-      const notifications = response.data.data || [];
+      const notifications = (response.data.data || []).map(normalizeNotification);
       const unreadCount = notifications.filter((n: AppNotification) => !n.read).length;
       set({ notifications, unreadCount, loading: false });
     } catch (error: any) {
@@ -53,7 +51,7 @@ export const useNotificationStore = create<NotificationState>((set) => ({
 
   markAsRead: async (id) => {
     try {
-      await api.post(`/notifications/${id}/read`);
+      await api.put(`/notifications/${id}/read`);
       set((state) => {
         const updated = state.notifications.map((n) =>
           n.id === id ? { ...n, read: true } : n
@@ -70,7 +68,7 @@ export const useNotificationStore = create<NotificationState>((set) => ({
 
   markAllAsRead: async () => {
     try {
-      await api.post('/notifications/read-all');
+      await api.put('/notifications/read-all');
       set((state) => ({
         notifications: state.notifications.map((n) => ({ ...n, read: true })),
         unreadCount: 0,
@@ -121,3 +119,24 @@ export const useNotificationStore = create<NotificationState>((set) => ({
       pushToken: null,
     }),
 }));
+
+function normalizeNotification(raw: any): AppNotification {
+  return {
+    id: String(raw.id),
+    user_id: String(raw.user_id),
+    type: raw.type || 'general',
+    title: raw.title,
+    body: raw.body,
+    data: typeof raw.data === 'string' ? safeJson(raw.data) : raw.data,
+    read: Boolean(raw.read ?? raw.is_read),
+    created_at: raw.created_at,
+  };
+}
+
+function safeJson(value: string): Record<string, any> | undefined {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
+}

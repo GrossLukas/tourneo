@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/providers/ThemeProvider';
 import { TButton, THeader } from '../../src/components/common';
 import { useConsentStore, type ConsentData } from '../../src/store/consentStore';
+import { useAuthStore } from '../../src/store/authStore';
 import { spacing, fontSize, fontWeight, radius } from '../../src/theme/spacing';
 
 const CONSENT_VERSION = '1.0';
@@ -61,6 +62,7 @@ export default function ConsentScreen() {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const { saveConsent, isLoading } = useConsentStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   // Mandatory
   const [agb, setAgb] = useState(false);
@@ -100,7 +102,7 @@ export default function ConsentScreen() {
 
     try {
       await saveConsent(consentData);
-      router.replace('/(auth)/onboarding');
+      router.replace(isAuthenticated ? '/(tabs)/home' : '/(auth)/onboarding');
     } catch {
       Alert.alert(t('common.error'), t('common.error'));
     }

@@ -36,6 +36,42 @@ export class RegistrationController {
     }
   }
 
+  static async getCheckinToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      const registrationId = parseInt(req.params.id, 10);
+      const result = await RegistrationService.ensureCheckinToken(
+        registrationId,
+        req.user!.userId
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getCheckinQr(req: Request, res: Response, next: NextFunction) {
+    try {
+      const registrationId = parseInt(req.params.id, 10);
+      const result = await RegistrationService.ensureCheckinToken(
+        registrationId,
+        req.user!.userId
+      );
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const QRCode = require('qrcode');
+      const png = await QRCode.toBuffer(result.payload, {
+        type: 'png',
+        margin: 2,
+        scale: 8,
+        errorCorrectionLevel: 'M',
+      });
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(png);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async listUserRegistrations(req: Request, res: Response, next: NextFunction) {
     try {
       const status = req.query.status as string | undefined;
@@ -63,9 +99,16 @@ export class RegistrationController {
     try {
       const { db, t } = require('../config/database');
       const registrationId = parseInt(req.params.id, 10);
-      const registration = await db(t('registrations'))
-        .where('id', registrationId)
-        .first();
+      const query = db(t('registrations'))
+        .where('id', registrationId);
+
+      if (req.user!.role !== 'admin' && req.user!.role !== 'superadmin') {
+        query.andWhere((qb: any) => {
+          qb.where('user_id', req.user!.userId).orWhere('partner_user_id', req.user!.userId);
+        });
+      }
+
+      const registration = await query.first();
 
       if (!registration) {
         return res.status(404).json({

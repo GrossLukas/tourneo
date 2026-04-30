@@ -7,8 +7,8 @@ import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import apiClient from '../api/client';
 
-const BIOMETRIC_ENABLED_KEY = '@tourneo_biometric_enabled';
-const BIOMETRIC_TOKEN_KEY = '@tourneo_biometric_token';
+const BIOMETRIC_ENABLED_KEY = 'tourneo_biometric_enabled';
+const BIOMETRIC_TOKEN_KEY = 'tourneo_biometric_token';
 
 interface BiometricStoreState {
   enabled: boolean;

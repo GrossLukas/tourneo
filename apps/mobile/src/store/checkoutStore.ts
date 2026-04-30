@@ -1,13 +1,6 @@
 /**
- * checkoutStore – Manages Stripe checkout flow for tournament registration.
- * States: idle → loading → redirecting → success | error | cancelled
- *
- * Flow:
- *   1. Caller passes a registrationId (created via registrationStore.registerForEvent)
- *   2. createCheckoutSession() calls POST /payments/create-intent → returns PaymentIntent
- *   3. openCheckout() opens Stripe Checkout via WebBrowser (or shows the PI client_secret
- *      to a native PaymentSheet when @stripe/stripe-react-native is present)
- *   4. Backend confirms via webhook → registration becomes "confirmed"
+ * checkoutStore - Stripe Checkout flow for tournament registrations.
+ * Backend creates the Checkout Session and remains the source of truth.
  */
 import { create } from 'zustand';
 import * as WebBrowser from 'expo-web-browser';
@@ -19,6 +12,8 @@ interface CheckoutSession {
   registrationId: number;
   paymentIntentId: string;
   clientSecret: string;
+  checkoutUrl?: string;
+  checkoutSessionId?: string;
   amount: number;
   currency: string;
   free?: boolean;
@@ -28,14 +23,8 @@ interface CheckoutStoreState {
   status: CheckoutStatus;
   session: CheckoutSession | null;
   error: string | null;
-
-  /**
-   * Loads PaymentIntent from backend.
-   * If `registrationId` is provided uses it directly,
-   * otherwise creates a registration for the given eventId first.
-   */
   createCheckoutSession: (eventId: number, registrationId?: number) => Promise<void>;
-  openCheckout: () => Promise<void>;
+  openCheckout: () => Promise<CheckoutStatus>;
   handleDeepLinkReturn: (url: string) => void;
   reset: () => void;
 }
@@ -48,7 +37,6 @@ export const useCheckoutStore = create<CheckoutStoreState>((set, get) => ({
   createCheckoutSession: async (eventId: number, registrationId?: number) => {
     set({ status: 'loading', error: null });
     try {
-      // Step 1: Ensure we have a registration
       let regId = registrationId;
       if (!regId) {
         const regResponse = await apiClient.post('/registrations', {
@@ -62,13 +50,11 @@ export const useCheckoutStore = create<CheckoutStoreState>((set, get) => ({
         if (!regId) throw new Error('Konnte Anmeldung nicht erstellen.');
       }
 
-      // Step 2: Ask backend to create the PaymentIntent for this registration
-      const response = await apiClient.post('/payments/create-intent', {
+      const response = await apiClient.post('/payments/create-checkout-session', {
         registration_id: regId,
       });
       const data = response.data.data;
 
-      // Free / fully discounted registration → no payment necessary
       if (data.free) {
         set({
           status: 'success',
@@ -76,6 +62,8 @@ export const useCheckoutStore = create<CheckoutStoreState>((set, get) => ({
             registrationId: regId!,
             paymentIntentId: '',
             clientSecret: '',
+            checkoutUrl: '',
+            checkoutSessionId: '',
             amount: 0,
             currency: 'eur',
             free: true,
@@ -88,8 +76,10 @@ export const useCheckoutStore = create<CheckoutStoreState>((set, get) => ({
         status: 'idle',
         session: {
           registrationId: regId!,
-          paymentIntentId: data.payment_intent_id,
-          clientSecret: data.client_secret,
+          paymentIntentId: data.payment_intent_id || '',
+          clientSecret: data.client_secret || '',
+          checkoutUrl: data.checkout_url,
+          checkoutSessionId: data.checkout_session_id,
           amount: data.amount_cents,
           currency: (data.currency || 'EUR').toLowerCase(),
         },
@@ -103,37 +93,32 @@ export const useCheckoutStore = create<CheckoutStoreState>((set, get) => ({
 
   openCheckout: async () => {
     const { session } = get();
-    if (!session?.clientSecret) {
-      set({ status: 'error', error: 'Keine Zahlungsdaten vorhanden.' });
-      return;
+    if (session?.free) {
+      set({ status: 'success' });
+      return 'success';
     }
 
-    // If the session is free we are already done
-    if (session.free) {
-      set({ status: 'success' });
-      return;
+    if (!session?.checkoutUrl) {
+      set({ status: 'error', error: 'Keine Zahlungsdaten vorhanden.' });
+      return 'error';
     }
 
     set({ status: 'redirecting' });
     try {
-      // We open Stripe's hosted PaymentIntent confirmation page via WebBrowser.
-      // The mobile app receives the result via the tourneo:// scheme. The actual
-      // payment confirmation happens server-side via the Stripe webhook
-      // (payment_intent.succeeded) so we only need to react to user dismissal here.
-      const url =
-        `https://hooks.stripe.com/redirect/authenticate/src_${session.paymentIntentId}` +
-        `?client_secret=${encodeURIComponent(session.clientSecret)}` +
-        `&return_url=${encodeURIComponent('tourneo://checkout/callback')}`;
-
-      const result = await WebBrowser.openAuthSessionAsync(url, 'tourneo://checkout/callback');
-
+      const result = await WebBrowser.openAuthSessionAsync(session.checkoutUrl, 'tourneo://checkout/callback');
       if (result.type === 'success' && result.url) {
         get().handleDeepLinkReturn(result.url);
-      } else if (result.type === 'cancel' || result.type === 'dismiss') {
-        set({ status: 'cancelled' });
+        return get().status;
       }
+      if (result.type === 'cancel' || result.type === 'dismiss') {
+        set({ status: 'cancelled' });
+        return 'cancelled';
+      }
+      set({ status: 'cancelled' });
+      return 'cancelled';
     } catch {
       set({ status: 'error', error: 'Browser konnte nicht geöffnet werden.' });
+      return 'error';
     }
   },
 
@@ -143,7 +128,6 @@ export const useCheckoutStore = create<CheckoutStoreState>((set, get) => ({
     } else if (url.includes('cancel')) {
       set({ status: 'cancelled' });
     } else {
-      // Default: assume payment processing - the webhook will confirm
       set({ status: 'success' });
     }
   },

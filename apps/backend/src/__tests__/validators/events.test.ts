@@ -40,7 +40,28 @@ describe('createEventSchema', () => {
       expect(result.data.access_type).toBe('public');
       expect(result.data.has_food_drinks).toBe(false);
       expect(result.data.has_streaming).toBe(false);
+      expect(result.data.requires_playtomic_verification).toBe(false);
+      expect(result.data.nearby_radius_km).toBe(50);
+      expect(result.data.maintenance_mode).toBe(false);
+      expect(result.data.checkin_opens_minutes_before).toBe(60);
+      expect(result.data.waitlist_payment_window_hours).toBe(24);
     }
+  });
+
+  it('should accept a custom inline venue instead of venue_id', () => {
+    const { venue_id, ...eventWithoutVenueId } = validEvent;
+    const result = createEventSchema.safeParse({
+      ...eventWithoutVenueId,
+      venue: {
+        name: 'Padel Halle Mitte',
+        address_street: 'Invalidenstr. 10',
+        address_zip: '10115',
+        address_city: 'Berlin',
+        address_country: 'DE',
+        is_indoor: true,
+      },
+    });
+    expect(result.success).toBe(true);
   });
 
   it('should accept event with prize distribution', () => {
@@ -70,6 +91,12 @@ describe('createEventSchema', () => {
   // Venue validation
   it('should reject non-positive venue_id', () => {
     const result = createEventSchema.safeParse({ ...validEvent, venue_id: 0 });
+    expect(result.success).toBe(false);
+  });
+
+  it('should reject missing venue_id and inline venue', () => {
+    const { venue_id, ...eventWithoutVenueId } = validEvent;
+    const result = createEventSchema.safeParse(eventWithoutVenueId);
     expect(result.success).toBe(false);
   });
 

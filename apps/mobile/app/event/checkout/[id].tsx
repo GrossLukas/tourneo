@@ -43,7 +43,7 @@ function ConfettiIcon({ delay, colors }: { delay: number; colors: ReturnType<typ
 }
 
 export default function CheckoutScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, registrationId } = useLocalSearchParams<{ id: string; registrationId?: string }>();
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -53,14 +53,15 @@ export default function CheckoutScreen() {
   const checkout = useCheckoutStore();
 
   const eventId = parseInt(id || '0', 10);
+  const existingRegistrationId = registrationId ? parseInt(registrationId, 10) : undefined;
 
   useEffect(() => {
     if (eventId > 0) {
       fetchEventById(eventId);
-      checkout.createCheckoutSession(eventId);
+      checkout.createCheckoutSession(eventId, existingRegistrationId);
     }
     return () => { checkout.reset(); };
-  }, [eventId]);
+  }, [eventId, existingRegistrationId]);
 
   // Auto-refresh registrations on successful payment
   useEffect(() => {
@@ -126,7 +127,7 @@ export default function CheckoutScreen() {
           <Text style={[styles.errorDesc, { color: colors.textSecondary }]}>
             {checkout.error || t('checkout.errorDesc')}
           </Text>
-          <TButton title={t('common.retry')} onPress={() => checkout.createCheckoutSession(eventId)} size="lg" style={{ marginTop: spacing.lg }} />
+          <TButton title={t('common.retry')} onPress={() => checkout.createCheckoutSession(eventId, existingRegistrationId)} size="lg" style={{ marginTop: spacing.lg }} />
           <TButton title={t('common.back')} onPress={() => router.back()} variant="outline" size="lg" style={{ marginTop: spacing.sm }} />
         </View>
       </View>

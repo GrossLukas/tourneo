@@ -40,6 +40,49 @@ export function getEventIcalUrl(eventId: number) {
   return `${API_BASE_URL}/events/${eventId}/ical`;
 }
 
+export type EventScheduleMatch = {
+  id: number;
+  round_number: number;
+  match_number: number;
+  round_name: string | null;
+  court_name: string | null;
+  scheduled_at: string | null;
+  status: string;
+  participant_1: { registration_id: number; name: string } | null;
+  participant_2: { registration_id: number; name: string } | null;
+  is_final: boolean;
+  is_third_place_match: boolean;
+  winner_registration_id: number | null;
+};
+
+export async function getEventSchedule(eventId: number) {
+  const res = await apiClient.get(`/events/${eventId}/schedule`);
+  return res.data.data as {
+    event_id: number;
+    event_title: string;
+    starts_at: string;
+    bracket_status: string | null;
+    courts: Array<{ id: number; name: string; court_type: string; is_indoor: boolean }>;
+    matches: EventScheduleMatch[];
+  };
+}
+
+export function getRegistrationCheckinQrUrl(registrationId: string | number) {
+  return `${API_BASE_URL}/registrations/${registrationId}/checkin-qr.png`;
+}
+
+export async function getRegistrationCheckinToken(registrationId: string | number) {
+  const res = await apiClient.get(`/registrations/${registrationId}/checkin-token`);
+  return res.data.data as {
+    registration_id: number;
+    event_id: number;
+    token: string;
+    payload: string;
+    expires_at: string;
+    checked_in: boolean;
+  };
+}
+
 // ─── Partner search ───────────────────────────────────────
 export async function listPartners(eventId: number) {
   const res = await apiClient.get(`/events/${eventId}/partners`);
@@ -182,6 +225,13 @@ export type PlaytomicStatus = {
   status: 'none' | 'pending' | 'approved' | 'rejected';
   source: 'default' | 'playtomic_self' | 'playtomic_verified';
   screenshotUrl: string | null;
+  ocr?: {
+    status: string | null;
+    level: number | null;
+    name: string | null;
+    points: number | null;
+    duplicateUserId: number | null;
+  };
 };
 
 export async function getMyPlaytomic(): Promise<PlaytomicStatus> {
@@ -198,6 +248,43 @@ export async function submitPlaytomicScreenshot(screenshotUrl: string) {
   const res = await apiClient.post('/me/playtomic/screenshot', {
     screenshot_url: screenshotUrl,
   });
+  return res.data.data;
+}
+
+export async function uploadPlaytomicScreenshot(uri: string) {
+  const form = new FormData();
+  // @ts-ignore - React Native FormData accepts file descriptors with uri/name/type.
+  form.append('image', {
+    uri,
+    name: 'playtomic.jpg',
+    type: 'image/jpeg',
+  });
+  const res = await apiClient.post('/me/playtomic/upload', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data.data as {
+    screenshotUrl: string;
+    status: string;
+    message?: string;
+    ocr?: PlaytomicStatus['ocr'];
+  };
+}
+
+export type NotificationPreferences = {
+  notify_nearby_events: boolean;
+  notify_radius_km: number;
+  notify_level_filter: 'all' | 'beginner' | 'intermediate' | 'advanced' | 'open';
+};
+
+export async function getNotificationPreferences(): Promise<NotificationPreferences> {
+  const res = await apiClient.get('/users/notification-preferences');
+  return res.data.data;
+}
+
+export async function updateNotificationPreferences(
+  prefs: Partial<NotificationPreferences>
+): Promise<NotificationPreferences> {
+  const res = await apiClient.put('/users/notification-preferences', prefs);
   return res.data.data;
 }
 
@@ -374,5 +461,46 @@ export async function getVenueAvailability(
   if (opts.to) params.to = opts.to;
   if (opts.courtId) params.court_id = opts.courtId;
   const res = await apiClient.get(`/venues/${venueId}/availability`, { params });
+  return res.data.data;
+}
+
+// ─── Moderation / Safety ───────────────────────────────────────────────────
+export type ModerationReason =
+  | 'spam'
+  | 'abuse'
+  | 'harassment'
+  | 'inappropriate'
+  | 'privacy'
+  | 'fraud'
+  | 'other';
+
+export async function reportContent(body: {
+  target_type: 'profile' | 'chat_message' | 'venue_review' | 'venue_photo' | 'event' | 'other';
+  target_id?: number;
+  target_user_id?: number;
+  reason: ModerationReason;
+  detail?: string;
+}) {
+  const res = await apiClient.post('/moderation/reports', body);
+  return res.data.data;
+}
+
+export async function blockUser(userId: number) {
+  const res = await apiClient.post(`/moderation/blocks/${userId}`, {});
+  return res.data.data as { blocked: boolean; blocked_user_id: number };
+}
+
+export async function unblockUser(userId: number) {
+  const res = await apiClient.delete(`/moderation/blocks/${userId}`);
+  return res.data.data as { blocked: boolean; blocked_user_id: number };
+}
+
+export async function deleteMyAccount() {
+  const res = await apiClient.post('/me/delete-account', {});
+  return res.data.data as { deleted: boolean; message: string };
+}
+
+export async function exportMyData() {
+  const res = await apiClient.get('/me/data-export');
   return res.data.data;
 }

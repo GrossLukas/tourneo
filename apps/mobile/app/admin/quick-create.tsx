@@ -1,10 +1,3 @@
-/**
- * Admin: Tournament Quick-Create Wizard
- * - Admin picks one of 3 presets (Padel Quick 8, Padel Open 16, FIFA Pro 8)
- * - Picks venue from list, picks date preset (today, tomorrow, +3d, +7d, +14d)
- * - Picks start time (18/19/20h) — template supplies rest
- * - Submits to POST /events and navigates to new event
- */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
@@ -12,7 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
+  TextInput,
   Alert,
   Platform,
 } from 'react-native';
@@ -23,76 +16,30 @@ import { useTheme } from '../../src/providers/ThemeProvider';
 import { spacing, fontSize, fontWeight, radius } from '../../src/theme/spacing';
 import type { Colors } from '../../src/theme/colors';
 import { useAuthStore } from '../../src/store/authStore';
-import { useVenueStore, type Venue } from '../../src/store/venueStore';
+import { useVenueStore } from '../../src/store/venueStore';
 import apiClient from '../../src/api/client';
 
-type TemplateKey = 'padel_quick' | 'padel_open' | 'fifa_pro';
+type Level = 'beginner' | 'intermediate' | 'advanced' | 'open';
+type VenueMode = 'existing' | 'custom';
 
-interface Template {
-  key: TemplateKey;
-  emoji: string;
-  title: string;
-  subtitle: string;
-  sport_category: 'padel' | 'fifa';
-  format: 'singles' | 'doubles';
-  elimination_type: 'single_elimination' | 'double_elimination' | 'round_robin';
-  max_participants: number;
-  entry_fee_cents: number;
-  duration_hours: number;
-  description: string;
+const LEVEL_POLICY: Record<Exclude<Level, 'open'>, { label: string; min: number; max: number; text: string }> = {
+  beginner: { label: 'Anfänger', min: 0, max: 2.5, text: 'Playtomic 0.0 bis 2.5' },
+  intermediate: { label: 'Fortgeschritten', min: 2.6, max: 4.0, text: 'Playtomic 2.6 bis 4.0' },
+  advanced: { label: 'Experte', min: 4.1, max: 5.5, text: 'Playtomic 4.1 bis 5.5' },
+};
+
+function tomorrowDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
-const TEMPLATES: Template[] = [
-  {
-    key: 'padel_quick',
-    emoji: '🏸',
-    title: 'Padel Quick 8',
-    subtitle: 'K.O. · 8 Teilnehmer · ~2h',
-    sport_category: 'padel',
-    format: 'doubles',
-    elimination_type: 'single_elimination',
-    max_participants: 8,
-    entry_fee_cents: 1000,
-    duration_hours: 2,
-    description: 'Schnelles Feierabend-Turnier mit 4 Doppelteams im K.O.-System.',
-  },
-  {
-    key: 'padel_open',
-    emoji: '🏆',
-    title: 'Padel Open 16',
-    subtitle: 'K.O. · 16 Teilnehmer · ~4h',
-    sport_category: 'padel',
-    format: 'doubles',
-    elimination_type: 'single_elimination',
-    max_participants: 16,
-    entry_fee_cents: 2000,
-    duration_hours: 4,
-    description: 'Das klassische Wochenend-Format — 8 Doppelteams spielen um den Titel.',
-  },
-  {
-    key: 'fifa_pro',
-    emoji: '🎮',
-    title: 'FIFA Pro 8',
-    subtitle: 'K.O. · 8 Spieler · ~3h',
-    sport_category: 'fifa',
-    format: 'singles',
-    elimination_type: 'single_elimination',
-    max_participants: 8,
-    entry_fee_cents: 500,
-    duration_hours: 3,
-    description: 'Einzel-Turnier im K.O.-Modus für FIFA Zocker.',
-  },
-];
-
-const DATE_PRESETS = [
-  { label: 'Heute', days: 0 },
-  { label: 'Morgen', days: 1 },
-  { label: '+3 Tage', days: 3 },
-  { label: 'Nächste Woche', days: 7 },
-  { label: '+2 Wochen', days: 14 },
-];
-
-const TIME_PRESETS = [17, 18, 19, 20, 21];
+function toIso(date: string, time: string): string | null {
+  const normalizedTime = /^\d{2}:\d{2}$/.test(time) ? time : null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !normalizedTime) return null;
+  const parsed = new Date(`${date}T${normalizedTime}:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
 
 export default function QuickCreateScreen() {
   const router = useRouter();
@@ -101,100 +48,195 @@ export default function QuickCreateScreen() {
   const { venues, fetchVenues } = useVenueStore();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
-  const [template, setTemplate] = useState<TemplateKey | null>(null);
+  const [title, setTitle] = useState('Padel Beginner Turnier');
+  const [description, setDescription] = useState('');
+  const [level, setLevel] = useState<Level>('beginner');
+  const [format, setFormat] = useState<'singles' | 'doubles'>('doubles');
+  const [maxParticipants, setMaxParticipants] = useState('16');
+  const [feeEuros, setFeeEuros] = useState('30');
+  const [eventDate, setEventDate] = useState(tomorrowDate());
+  const [startTime, setStartTime] = useState('18:00');
+  const [endTime, setEndTime] = useState('22:00');
+  const [registrationCloseDate, setRegistrationCloseDate] = useState(tomorrowDate());
+  const [registrationCloseTime, setRegistrationCloseTime] = useState('12:00');
+  const [venueMode, setVenueMode] = useState<VenueMode>('custom');
   const [venueId, setVenueId] = useState<number | null>(null);
-  const [daysOffset, setDaysOffset] = useState<number>(1);
-  const [startHour, setStartHour] = useState<number>(19);
+  const [venueName, setVenueName] = useState('');
+  const [street, setStreet] = useState('');
+  const [zip, setZip] = useState('');
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('DE');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [website, setWebsite] = useState('');
+  const [nearbyRadiusKm, setNearbyRadiusKm] = useState('50');
+  const [requiresVerification, setRequiresVerification] = useState(true);
+  const [publishAfterCreate, setPublishAfterCreate] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const policy = level === 'open' ? null : LEVEL_POLICY[level];
 
   useEffect(() => {
     fetchVenues();
   }, [fetchVenues]);
 
-  const selected = TEMPLATES.find((t) => t.key === template) || null;
-  const filteredVenues: Venue[] = useMemo(() => {
-    if (!selected) return venues;
-    return venues;
-  }, [venues, selected]);
+  useEffect(() => {
+    if (level === 'open') setRequiresVerification(false);
+    if (level === 'beginner') setRequiresVerification(true);
+  }, [level]);
 
-  const canSubmit = selected && venueId !== null && Number.isFinite(venueId) && !submitting;
+  const validate = () => {
+    if (!title.trim()) return 'Titel fehlt.';
+    if (!toIso(eventDate, startTime) || !toIso(eventDate, endTime)) {
+      return 'Bitte Datum und Uhrzeit exakt als YYYY-MM-DD und HH:mm eingeben.';
+    }
+    if (!toIso(registrationCloseDate, registrationCloseTime)) return 'Anmeldeschluss ist ungültig.';
+    if (venueMode === 'existing' && !venueId) return 'Bitte eine bestehende Halle wählen.';
+    if (venueMode === 'custom' && (!venueName.trim() || !street.trim() || !zip.trim() || !city.trim())) {
+      return 'Bitte Hallenname, Straße, PLZ und Stadt eintragen.';
+    }
+    if (Number(maxParticipants) < 4) return 'Mindestens 4 Teilnehmer sind nötig.';
+    if (Number(feeEuros) < 0) return 'Preis darf nicht negativ sein.';
+    return null;
+  };
 
   const handleSubmit = useCallback(async () => {
-    if (!selected || venueId === null) return;
+    const validationError = validate();
+    if (validationError) {
+      Alert.alert('Fehlt noch etwas', validationError);
+      return;
+    }
+
+    const startIso = toIso(eventDate, startTime)!;
+    const endIso = toIso(eventDate, endTime)!;
+    const closeIso = toIso(registrationCloseDate, registrationCloseTime)!;
+    const start = new Date(startIso);
+    const end = new Date(endIso);
+    const close = new Date(closeIso);
+    if (end <= start) {
+      Alert.alert('Uhrzeit prüfen', 'Ende muss nach dem Start liegen.');
+      return;
+    }
+    if (close > start) {
+      Alert.alert('Anmeldeschluss prüfen', 'Anmeldeschluss muss vor Turnierstart liegen.');
+      return;
+    }
+
     setSubmitting(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 
-    const start = new Date();
-    start.setDate(start.getDate() + daysOffset);
-    start.setHours(startHour, 0, 0, 0);
-
-    const end = new Date(start.getTime() + selected.duration_hours * 60 * 60 * 1000);
-    const regOpens = new Date();
-    const regCloses = new Date(start.getTime() - 60 * 60 * 1000);
-
-    const title = `${selected.title} · ${start.toLocaleDateString('de-DE', {
-      weekday: 'short',
-      day: '2-digit',
-      month: '2-digit',
-    })}`;
-
-    const payload = {
-      title,
-      description: selected.description,
-      sport_category: selected.sport_category,
-      event_type: 'tournament' as const,
-      venue_id: venueId,
-      start_date: start.toISOString(),
-      end_date: end.toISOString(),
-      registration_opens_at: regOpens.toISOString(),
-      registration_closes_at: regCloses.toISOString(),
+    const entryFeeCents = Math.round(Number(feeEuros.replace(',', '.')) * 100);
+    const payload: Record<string, any> = {
+      title: title.trim(),
+      description: description.trim() || undefined,
+      sport_category: 'padel',
+      event_type: 'tournament',
+      start_date: startIso,
+      end_date: endIso,
+      registration_opens_at: new Date().toISOString(),
+      registration_closes_at: closeIso,
       is_indoor: true,
       is_outdoor: false,
-      format: selected.format,
-      elimination_type: selected.elimination_type,
+      format,
+      elimination_type: 'single_elimination',
       has_third_place_match: true,
-      max_participants: selected.max_participants,
-      entry_fee_cents: selected.entry_fee_cents,
+      max_participants: Number(maxParticipants),
+      entry_fee_cents: entryFeeCents,
       currency: 'EUR',
       total_prize_pool_cents: 0,
-      level: 'open' as const,
-      access_type: 'public' as const,
+      level,
+      access_type: 'public',
       has_food_drinks: false,
       has_streaming: false,
+      special_notes:
+        'Startgeld gilt pro Person. Bei Duo-Anmeldung zahlt jeder Spieler seine eigene Gebühr.',
+      requires_playtomic_verification: requiresVerification,
+      min_playtomic_level: requiresVerification && policy ? policy.min : undefined,
+      max_playtomic_level: requiresVerification && policy ? policy.max : undefined,
+      eligibility_note: requiresVerification
+        ? 'Screenshot muss Name, Playtomic-Level, Rankingpunkte und Profil klar zeigen. Daten werden nur zur Turnierzulassung geprüft.'
+        : undefined,
+      nearby_radius_km: Math.max(1, Number(nearbyRadiusKm) || 50),
+      maintenance_mode: false,
+      checkin_opens_minutes_before: 60,
+      waitlist_payment_window_hours: 24,
     };
+
+    if (venueMode === 'existing') {
+      payload.venue_id = venueId;
+    } else {
+      payload.venue = {
+        name: venueName.trim(),
+        address_street: street.trim(),
+        address_zip: zip.trim(),
+        address_city: city.trim(),
+        address_country: country.trim().toUpperCase() || 'DE',
+        is_indoor: true,
+        is_outdoor: false,
+        phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
+        partner_website_url: website.trim() || undefined,
+      };
+    }
 
     try {
       const res = await apiClient.post('/events', payload);
       const newId = res.data?.data?.id;
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Turnier erstellt', `${title} wurde angelegt und ist im Entwurfs-Modus.`, [
-        {
-          text: 'Öffnen',
-          onPress: () => (newId ? router.replace(`/event/${newId}`) : router.back()),
-        },
+      if (publishAfterCreate && newId) {
+        await apiClient.put(`/events/${newId}/publish`, {});
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      Alert.alert(
+        publishAfterCreate ? 'Turnier veröffentlicht' : 'Turnier erstellt',
+        publishAfterCreate
+          ? 'Das Turnier ist online und passende User in der Nähe werden benachrichtigt.'
+          : 'Das Turnier ist als Entwurf angelegt.',
+        [
+        { text: 'Öffnen', onPress: () => (newId ? router.replace(`/event/${newId}`) : router.back()) },
         { text: 'Schließen', style: 'cancel', onPress: () => router.back() },
-      ]);
+        ]
+      );
     } catch (err: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const msg =
-        err?.response?.data?.error?.message ||
-        err?.response?.data?.message ||
-        'Erstellen fehlgeschlagen.';
-      Alert.alert('Fehler', msg);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      Alert.alert('Fehler', err?.response?.data?.error?.message || 'Erstellen fehlgeschlagen.');
     } finally {
       setSubmitting(false);
     }
-  }, [selected, venueId, daysOffset, startHour, router]);
+  }, [
+    title,
+    description,
+    level,
+    format,
+    maxParticipants,
+    feeEuros,
+    eventDate,
+    startTime,
+    endTime,
+    registrationCloseDate,
+    registrationCloseTime,
+    venueMode,
+    venueId,
+    venueName,
+    street,
+    zip,
+    city,
+    country,
+    phone,
+    email,
+    website,
+    nearbyRadiusKm,
+    requiresVerification,
+    policy,
+    publishAfterCreate,
+    router,
+  ]);
 
   if (!isAdmin) {
     return (
       <View style={[styles.loader, { backgroundColor: colors.bg }]}>
         <Stack.Screen options={{ title: 'Turnier anlegen', headerShown: true }} />
-        <Text style={{ color: colors.textSecondary }}>
-          Nur Admins können Turniere anlegen.
-        </Text>
+        <Text style={{ color: colors.textSecondary }}>Nur Admins können Turniere anlegen.</Text>
       </View>
     );
   }
@@ -202,242 +244,278 @@ export default function QuickCreateScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Stack.Screen options={{ title: 'Turnier anlegen', headerShown: true }} />
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['4xl'] }}>
-        {/* Step 1 — Template */}
-        <Text style={styles.stepLabel}>1. Vorlage wählen</Text>
-        <View style={{ gap: spacing.sm }}>
-          {TEMPLATES.map((tpl) => {
-            const active = template === tpl.key;
-            return (
-              <TouchableOpacity
-                key={tpl.key}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setTemplate(tpl.key);
-                }}
-                activeOpacity={0.85}
-                style={[
-                  styles.card,
-                  active && { borderColor: colors.primary, borderWidth: 2 },
-                ]}
-              >
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardEmoji}>{tpl.emoji}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardTitle}>{tpl.title}</Text>
-                    <Text style={styles.cardSubtitle}>{tpl.subtitle}</Text>
-                  </View>
-                  {active && <Ionicons name="checkmark-circle" size={22} color={colors.primary} />}
-                </View>
-                <Text style={styles.cardDesc}>{tpl.description}</Text>
-                <View style={styles.tagRow}>
-                  <Tag label={`${(tpl.entry_fee_cents / 100).toFixed(0)} €`} colors={colors} />
-                  <Tag label={tpl.format === 'doubles' ? 'Doppel' : 'Einzel'} colors={colors} />
-                  <Tag label={tpl.elimination_type === 'round_robin' ? 'Jeder gg. jeden' : 'K.O.'} colors={colors} />
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Step 2 — Venue */}
-        <Text style={styles.stepLabel}>2. Venue wählen</Text>
-        {filteredVenues.length === 0 ? (
-          <View style={styles.card}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={[styles.cardDesc, { textAlign: 'center', marginTop: spacing.sm }]}>
-              Lade Venues…
-            </Text>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 240 }}>
+        <Section title="Turnier">
+          <Field label="Titel" value={title} onChangeText={setTitle} colors={colors} />
+          <Field
+            label="Beschreibung"
+            value={description}
+            onChangeText={setDescription}
+            colors={colors}
+            multiline
+            placeholder="Was müssen Spieler wissen?"
+          />
+          <View style={styles.row}>
+            {(['beginner', 'intermediate', 'advanced', 'open'] as Level[]).map((value) => (
+              <Chip
+                key={value}
+                label={value === 'open' ? 'Offen' : LEVEL_POLICY[value].label}
+                active={level === value}
+                colors={colors}
+                onPress={() => setLevel(value)}
+              />
+            ))}
           </View>
-        ) : (
-          <View style={{ gap: spacing.xs }}>
-            {filteredVenues
-              .map((v) => ({ ...v, numericId: Number(v.id) }))
-              .filter((v) => Number.isFinite(v.numericId))
-              .slice(0, 10)
-              .map((v) => {
-              const active = venueId === v.numericId;
-              return (
-                <TouchableOpacity
-                  key={v.id}
-                  onPress={() => {
-                    Haptics.selectionAsync();
-                    setVenueId(v.numericId);
-                  }}
-                  style={[
-                    styles.venueRow,
-                    active && { borderColor: colors.primary, borderWidth: 2 },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.venueName}>{v.name}</Text>
-                    <Text style={styles.venueCity}>
-                      {v.address_city}
-                      {v.distance_km != null ? ` · ${v.distance_km} km` : ''}
-                    </Text>
-                  </View>
-                  {active && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
-                </TouchableOpacity>
-              );
-            })}
+          <View style={styles.row}>
+            <Chip label="Doppel" active={format === 'doubles'} colors={colors} onPress={() => setFormat('doubles')} />
+            <Chip label="Einzel" active={format === 'singles'} colors={colors} onPress={() => setFormat('singles')} />
           </View>
-        )}
-
-        {/* Step 3 — Datum */}
-        <Text style={styles.stepLabel}>3. Datum</Text>
-        <View style={styles.chipRow}>
-          {DATE_PRESETS.map((d) => {
-            const active = d.days === daysOffset;
-            return (
-              <TouchableOpacity
-                key={d.days}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setDaysOffset(d.days);
-                }}
-                style={[
-                  styles.chip,
-                  active ? { backgroundColor: colors.primary } : { backgroundColor: colors.surface, borderColor: colors.cardBorder, borderWidth: 1 },
-                ]}
-              >
-                <Text style={[styles.chipText, { color: active ? '#fff' : colors.textPrimary }]}>
-                  {d.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Step 4 — Zeit */}
-        <Text style={styles.stepLabel}>4. Startzeit</Text>
-        <View style={styles.chipRow}>
-          {TIME_PRESETS.map((h) => {
-            const active = h === startHour;
-            return (
-              <TouchableOpacity
-                key={h}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setStartHour(h);
-                }}
-                style={[
-                  styles.chip,
-                  active ? { backgroundColor: colors.primary } : { backgroundColor: colors.surface, borderColor: colors.cardBorder, borderWidth: 1 },
-                ]}
-              >
-                <Text style={[styles.chipText, { color: active ? '#fff' : colors.textPrimary }]}>
-                  {h}:00
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Summary */}
-        {selected && venueId !== null && (
-          <View style={[styles.card, { marginTop: spacing.lg }]}>
-            <Text style={[styles.cardTitle, { marginBottom: spacing.xs }]}>Zusammenfassung</Text>
-            <SummaryLine k="Vorlage" v={selected.title} colors={colors} />
-            <SummaryLine
-              k="Startzeit"
-              v={(() => {
-                const d = new Date();
-                d.setDate(d.getDate() + daysOffset);
-                d.setHours(startHour, 0, 0, 0);
-                return d.toLocaleString('de-DE', {
-                  weekday: 'short',
-                  day: '2-digit',
-                  month: '2-digit',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
-              })()}
-              colors={colors}
-            />
-            <SummaryLine k="Teilnehmer" v={`${selected.max_participants} max.`} colors={colors} />
-            <SummaryLine
-              k="Startgeld"
-              v={`${(selected.entry_fee_cents / 100).toFixed(0)} €`}
-              colors={colors}
-            />
+          <View style={styles.twoCol}>
+            <Field label="Teilnehmer max." value={maxParticipants} onChangeText={setMaxParticipants} colors={colors} keyboardType="number-pad" />
+            <Field label="Preis p.P. EUR" value={feeEuros} onChangeText={setFeeEuros} colors={colors} keyboardType="decimal-pad" />
           </View>
-        )}
+        </Section>
+
+        <Section title="Datum und Anmeldung">
+          <Field label="Datum" value={eventDate} onChangeText={setEventDate} colors={colors} placeholder="YYYY-MM-DD" />
+          <View style={styles.twoCol}>
+            <Field label="Start" value={startTime} onChangeText={setStartTime} colors={colors} placeholder="18:00" />
+            <Field label="Ende" value={endTime} onChangeText={setEndTime} colors={colors} placeholder="22:00" />
+          </View>
+          <View style={styles.twoCol}>
+            <Field label="Anmeldeschluss Datum" value={registrationCloseDate} onChangeText={setRegistrationCloseDate} colors={colors} />
+            <Field label="Uhrzeit" value={registrationCloseTime} onChangeText={setRegistrationCloseTime} colors={colors} />
+          </View>
+          <Field label="Benachrichtigungsradius km" value={nearbyRadiusKm} onChangeText={setNearbyRadiusKm} colors={colors} keyboardType="number-pad" />
+        </Section>
+
+        <Section title="Halle und Adresse">
+          <View style={styles.row}>
+            <Chip label="Eigene Halle" active={venueMode === 'custom'} colors={colors} onPress={() => setVenueMode('custom')} />
+            <Chip label="Bestehende Halle" active={venueMode === 'existing'} colors={colors} onPress={() => setVenueMode('existing')} />
+          </View>
+          {venueMode === 'existing' ? (
+            <View style={{ gap: spacing.xs }}>
+              {venues.slice(0, 8).map((venue) => {
+                const numericId = Number(venue.id);
+                const active = venueId === numericId;
+                return (
+                  <TouchableOpacity
+                    key={venue.id}
+                    onPress={() => setVenueId(numericId)}
+                    style={[styles.venueRow, active && { borderColor: colors.primary, borderWidth: 2 }]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.venueName}>{venue.name}</Text>
+                      <Text style={styles.venueCity}>{venue.address_city}</Text>
+                    </View>
+                    {active ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} /> : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <>
+              <Field label="Hallenname" value={venueName} onChangeText={setVenueName} colors={colors} />
+              <Field label="Straße und Hausnummer" value={street} onChangeText={setStreet} colors={colors} />
+              <View style={styles.twoCol}>
+                <Field label="PLZ" value={zip} onChangeText={setZip} colors={colors} />
+                <Field label="Stadt" value={city} onChangeText={setCity} colors={colors} />
+              </View>
+              <Field label="Land" value={country} onChangeText={setCountry} colors={colors} />
+              <Field label="Telefon optional" value={phone} onChangeText={setPhone} colors={colors} keyboardType="phone-pad" />
+              <Field label="E-Mail optional" value={email} onChangeText={setEmail} colors={colors} keyboardType="email-address" />
+              <Field label="Website optional" value={website} onChangeText={setWebsite} colors={colors} autoCapitalize="none" />
+            </>
+          )}
+        </Section>
+
+        <Section title="Zulassung">
+          <TouchableOpacity
+            onPress={() => level !== 'open' && setRequiresVerification((v) => !v)}
+            disabled={level === 'open'}
+            style={[styles.toggleRow, { borderColor: colors.cardBorder, opacity: level === 'open' ? 0.55 : 1 }]}
+          >
+            <View style={[styles.checkBox, requiresVerification && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+              {requiresVerification ? <Ionicons name="checkmark" size={14} color="#FFF" /> : null}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>Playtomic-Zulassung erforderlich</Text>
+              <Text style={styles.helpText}>
+                {policy ? `${policy.text}. Für offene Turniere ist keine Prüfung nötig.` : 'Offene Turniere brauchen keine Level-Prüfung.'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.helpText}>
+            Interne Tourneo-Policy: Anfänger 0.0-2.5, Fortgeschritten 2.6-4.0,
+            Experte 4.1-5.5, Profi ab 5.6. Profi-Turniere können später als eigener Level-Typ ergänzt werden.
+          </Text>
+        </Section>
+
+        <Section title="Veröffentlichen">
+          <View style={[styles.checklistCard, { borderColor: colors.cardBorder, backgroundColor: colors.surface }]}>
+            <ChecklistRow label="Datum und Uhrzeit exakt eingetragen" done={Boolean(toIso(eventDate, startTime) && toIso(eventDate, endTime))} colors={colors} />
+            <ChecklistRow label="Halle mit Adresse hinterlegt" done={venueMode === 'existing' ? Boolean(venueId) : Boolean(venueName && street && zip && city)} colors={colors} />
+            <ChecklistRow label="Preis pro Person geprüft" done={Number(feeEuros.replace(',', '.')) >= 0} colors={colors} />
+            <ChecklistRow label="Zulassungsregeln sichtbar" done={!requiresVerification || Boolean(policy)} colors={colors} />
+          </View>
+          <TouchableOpacity
+            onPress={() => setPublishAfterCreate((v) => !v)}
+            style={[styles.toggleRow, { borderColor: colors.cardBorder }]}
+          >
+            <View style={[styles.checkBox, publishAfterCreate && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+              {publishAfterCreate ? <Ionicons name="checkmark" size={14} color="#FFF" /> : null}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.toggleTitle}>Nach dem Anlegen direkt veröffentlichen</Text>
+              <Text style={styles.helpText}>Neue Termine stehen oben in der Liste und lösen Nähe-Benachrichtigungen aus.</Text>
+            </View>
+          </TouchableOpacity>
+        </Section>
       </ScrollView>
 
       <View style={[styles.footer, { backgroundColor: colors.bg, borderTopColor: colors.border }]}>
         <TouchableOpacity
           onPress={handleSubmit}
-          disabled={!canSubmit}
-          style={[
-            styles.submitBtn,
-            {
-              backgroundColor: colors.primary,
-              opacity: canSubmit ? 1 : 0.4,
-            },
-          ]}
+          disabled={submitting}
+          style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: submitting ? 0.5 : 1 }]}
         >
-          <Text style={styles.submitText}>
-            {submitting ? 'Erstelle…' : 'Turnier anlegen'}
-          </Text>
+          <Text style={styles.submitText}>{submitting ? 'Erstelle...' : publishAfterCreate ? 'Turnier anlegen & veröffentlichen' : 'Turnier anlegen'}</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-function Tag({ label, colors }: { label: string; colors: Colors }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View
-      style={{
-        paddingHorizontal: spacing.sm,
-        paddingVertical: 4,
-        borderRadius: radius.md,
-        backgroundColor: colors.surfaceSecondary as string,
-      }}
-    >
-      <Text style={{ color: colors.textSecondary, fontSize: fontSize.xxs, fontWeight: fontWeight.semibold }}>
-        {label}
-      </Text>
+    <View style={{ marginTop: spacing.lg }}>
+      <Text style={sectionStyles.title}>{title}</Text>
+      <View style={{ gap: spacing.sm }}>{children}</View>
     </View>
   );
 }
 
-function SummaryLine({ k, v, colors }: { k: string; v: string; colors: Colors }) {
+function Field({
+  label,
+  value,
+  onChangeText,
+  colors,
+  placeholder,
+  multiline,
+  keyboardType,
+  autoCapitalize,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  colors: Colors;
+  placeholder?: string;
+  multiline?: boolean;
+  keyboardType?: 'default' | 'email-address' | 'number-pad' | 'decimal-pad' | 'phone-pad';
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+}) {
   return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
-      <Text style={{ color: colors.textTertiary, fontSize: fontSize.sm }}>{k}</Text>
-      <Text style={{ color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold }}>
-        {v}
+    <View style={{ flex: 1 }}>
+      <Text style={{ color: colors.textTertiary, fontSize: fontSize.xxs, marginBottom: 5, fontWeight: fontWeight.semibold as any }}>
+        {label}
       </Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.textTertiary as string}
+        multiline={multiline}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+        style={{
+          minHeight: multiline ? 92 : 46,
+          borderRadius: radius.md,
+          borderWidth: 1,
+          borderColor: colors.cardBorder,
+          backgroundColor: colors.surface,
+          color: colors.textPrimary,
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.sm,
+          fontSize: fontSize.sm,
+          textAlignVertical: multiline ? 'top' : 'center',
+        }}
+      />
     </View>
   );
 }
+
+function Chip({
+  label,
+  active,
+  colors,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  colors: Colors;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[
+        chipStyles.chip,
+        {
+          backgroundColor: active ? colors.primary : colors.surface,
+          borderColor: active ? colors.primary : colors.cardBorder,
+        },
+      ]}
+    >
+      <Text style={[chipStyles.text, { color: active ? '#FFF' : colors.textPrimary }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function ChecklistRow({ label, done, colors }: { label: string; done: boolean; colors: Colors }) {
+  return (
+    <View style={checkStyles.row}>
+      <Ionicons
+        name={done ? 'checkmark-circle' : 'ellipse-outline'}
+        size={18}
+        color={done ? colors.success : colors.textTertiary}
+      />
+      <Text style={[checkStyles.text, { color: colors.textPrimary }]}>{label}</Text>
+    </View>
+  );
+}
+
+const sectionStyles = StyleSheet.create({
+  title: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold as any,
+    textTransform: 'uppercase',
+    letterSpacing: 0,
+    marginBottom: spacing.sm,
+    color: '#94A3B8',
+  },
+});
+
+const chipStyles = StyleSheet.create({
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  text: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold as any },
+});
+
+const checkStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  text: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold as any, flex: 1 },
+});
 
 const makeStyles = (colors: Colors) =>
   StyleSheet.create({
     loader: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
-    stepLabel: {
-      fontSize: fontSize.xs,
-      fontWeight: fontWeight.semibold,
-      color: colors.textTertiary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginTop: spacing.lg,
-      marginBottom: spacing.sm,
-    },
-    card: {
-      padding: spacing.md,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.cardBorder,
-      backgroundColor: colors.surface,
-    },
-    cardHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs },
-    cardEmoji: { fontSize: 28 },
-    cardTitle: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.textPrimary },
-    cardSubtitle: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 2 },
-    cardDesc: { fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 20 },
-    tagRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm, flexWrap: 'wrap' },
+    row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+    twoCol: { flexDirection: 'row', gap: spacing.sm },
     venueRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -447,15 +525,34 @@ const makeStyles = (colors: Colors) =>
       borderColor: colors.cardBorder,
       backgroundColor: colors.surface,
     },
-    venueName: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textPrimary },
+    venueName: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold as any, color: colors.textPrimary },
     venueCity: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 2 },
-    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-    chip: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.full,
+    toggleRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      backgroundColor: colors.surface,
     },
-    chipText: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+    checkBox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: colors.cardBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 2,
+    },
+    toggleTitle: { color: colors.textPrimary, fontSize: fontSize.sm, fontWeight: fontWeight.bold as any },
+    helpText: { color: colors.textSecondary, fontSize: fontSize.xs, lineHeight: 18, marginTop: 4 },
+    checklistCard: {
+      padding: spacing.md,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      gap: spacing.sm,
+    },
     footer: {
       padding: spacing.md,
       paddingBottom: Platform.OS === 'ios' ? spacing.xl : spacing.md,
@@ -466,5 +563,5 @@ const makeStyles = (colors: Colors) =>
       borderRadius: radius.lg,
       alignItems: 'center',
     },
-    submitText: { color: '#fff', fontSize: fontSize.base, fontWeight: fontWeight.bold },
+    submitText: { color: '#fff', fontSize: fontSize.base, fontWeight: fontWeight.bold as any },
   });

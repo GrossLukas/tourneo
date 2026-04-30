@@ -33,8 +33,10 @@
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.7.0",
     "nodemailer": "^8.0.5",
+    "qrcode": "^1.5.4",
     "sharp": "^0.33.2",
     "stripe": "^14.11.0",
+    "tesseract.js": "^7.0.0",
     "uuid": "^9.0.0",
     "zod": "^3.22.4"
   },

@@ -186,8 +186,9 @@ const TermineRow: React.FC<{
   date: { d: string; m: string };
   title: string;
   meta: string;
+  status?: string;
   onPress: () => void;
-}> = ({ date, title, meta, onPress }) => {
+}> = ({ date, title, meta, status, onPress }) => {
   return (
     <NCCard onPress={onPress} padded={false} style={s.termineRow}>
       <View style={s.termineDate}>
@@ -202,8 +203,25 @@ const TermineRow: React.FC<{
           {meta}
         </Text>
       </View>
+      {status ? <StatusPill status={status} /> : null}
       <NCIcon name="chevron" size={16} color={NC.textT} />
     </NCCard>
+  );
+};
+
+const StatusPill: React.FC<{ status: string }> = ({ status }) => {
+  const config: Record<string, { label: string; color: string; bg: string }> = {
+    pending_payment: { label: 'Bezahlen', color: NC.gold, bg: NC.goldBg },
+    pending_verification: { label: 'Prüfung', color: NC.primaryLight, bg: NC.primaryBg },
+    waitlisted: { label: 'Warteliste', color: NC.textP, bg: 'rgba(255,255,255,0.08)' },
+    confirmed: { label: 'Bestätigt', color: NC.green, bg: 'rgba(16,185,129,0.14)' },
+  };
+  const item = config[status];
+  if (!item) return null;
+  return (
+    <View style={[s.statusPill, { backgroundColor: item.bg }]}>
+      <Text style={[s.statusPillText, { color: item.color }]}>{item.label}</Text>
+    </View>
   );
 };
 
@@ -230,6 +248,14 @@ function labelLevel(level?: string): string {
 }
 function labelFormat(format?: string): string {
   return ({ singles: 'Einzel', doubles: 'Duo', team: 'Team' } as Record<string, string>)[format || ''] || 'Padel';
+}
+function statusLabel(status?: string): string {
+  return ({
+    pending_payment: 'Zahlung offen',
+    pending_verification: 'Prüfung offen',
+    confirmed: 'Bestätigt',
+    waitlisted: 'Warteliste',
+  } as Record<string, string>)[status || ''] || '';
 }
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -279,7 +305,9 @@ export default function HomeScreen() {
   const upcomingRegs = useMemo(
     () =>
       myRegistrations
-        .filter((r) => r.status === 'confirmed' || r.status === 'waitlisted')
+        .filter((r) =>
+          ['pending_payment', 'pending_verification', 'confirmed', 'waitlisted'].includes(r.status)
+        )
         .slice(0, 5),
     [myRegistrations]
   );
@@ -402,8 +430,17 @@ export default function HomeScreen() {
                     key={r.id}
                     date={date}
                     title={r.event_title || 'Turnier'}
-                    meta={r.event_location || (r.partner_name ? `Partner: ${r.partner_name}` : '')}
-                    onPress={() => router.push(`/event/${r.event_id}`)}
+                    meta={r.event_location || (r.partner_name ? `Partner: ${r.partner_name}` : statusLabel(r.status))}
+                    status={r.status}
+                    onPress={() => {
+                      if (r.status === 'pending_payment') {
+                        router.push(`/event/checkout/${r.event_id}?registrationId=${r.id}`);
+                      } else if (r.status === 'waitlisted') {
+                        router.push(`/event/waitlist/${r.id}`);
+                      } else {
+                        router.push(`/event/${r.event_id}`);
+                      }
+                    }}
                   />
                 );
               })}
@@ -702,6 +739,16 @@ const s = StyleSheet.create({
     letterSpacing: -0.2,
   },
   termineMeta: { marginTop: 2, fontFamily: fontFamily.uiMedium, fontSize: 12, color: NC.textS },
+  statusPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  statusPillText: {
+    fontFamily: fontFamily.uiBold,
+    fontSize: 10,
+    fontWeight: '700',
+  },
 
   // tiles
   tileRow: { flexDirection: 'row', gap: 10 },

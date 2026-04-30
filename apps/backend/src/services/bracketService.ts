@@ -27,15 +27,10 @@ export class BracketService {
       throw AppError.badRequest('Bracket has already been published');
     }
 
-    // Get confirmed registrations with seeding
-    const registrations = await db(t('registrations'))
-      .where('event_id', eventId)
-      .where('status', 'confirmed')
-      .where('checked_in', true)
-      .orderByRaw('seed_number IS NULL, seed_number ASC, created_at ASC');
+    const registrations = await this.getBracketParticipants(event);
 
     if (registrations.length < 2) {
-      throw AppError.badRequest('Need at least 2 confirmed participants to generate bracket');
+      throw AppError.badRequest('Need at least 2 confirmed sides to generate bracket');
     }
 
     // Calculate bracket size (next power of 2)
@@ -176,16 +171,26 @@ export class BracketService {
       )
       .leftJoin(`${t('profiles')} as p1`, 'r1.user_id', 'p1.user_id')
       .leftJoin(`${t('profiles')} as p2`, 'r2.user_id', 'p2.user_id')
+      .leftJoin(`${t('profiles')} as p1_partner`, 'r1.partner_user_id', 'p1_partner.user_id')
+      .leftJoin(`${t('profiles')} as p2_partner`, 'r2.partner_user_id', 'p2_partner.user_id')
       .leftJoin(t('courts'), `${t('matches')}.court_id`, `${t('courts')}.id`)
       .leftJoin(t('match_scores'), `${t('matches')}.id`, `${t('match_scores')}.match_id`)
       .select(
         `${t('matches')}.*`,
+        'r1.partner_user_id as p1_partner_user_id',
+        'r2.partner_user_id as p2_partner_user_id',
         'p1.first_name as p1_first_name',
         'p1.last_name as p1_last_name',
         'p1.display_name as p1_display_name',
+        'p1_partner.first_name as p1_partner_first_name',
+        'p1_partner.last_name as p1_partner_last_name',
+        'p1_partner.display_name as p1_partner_display_name',
         'p2.first_name as p2_first_name',
         'p2.last_name as p2_last_name',
         'p2.display_name as p2_display_name',
+        'p2_partner.first_name as p2_partner_first_name',
+        'p2_partner.last_name as p2_partner_last_name',
+        'p2_partner.display_name as p2_partner_display_name',
         `${t('courts')}.name as court_name`
       )
       .orderBy('round_number', 'asc')
@@ -212,6 +217,18 @@ export class BracketService {
       const composed = [first, last].filter(Boolean).join(' ').trim();
       return composed || 'Spieler';
     };
+    const composeSideName = (
+      displayName: string | null | undefined,
+      first: string | null | undefined,
+      last: string | null | undefined,
+      partnerDisplayName: string | null | undefined,
+      partnerFirst: string | null | undefined,
+      partnerLast: string | null | undefined
+    ): string => {
+      const primary = composeName(displayName, first, last);
+      const partner = composeName(partnerDisplayName, partnerFirst, partnerLast);
+      return partnerDisplayName || partnerFirst || partnerLast ? `${primary} / ${partner}` : primary;
+    };
 
     const enrichedMatches = matches.map((match: any) => ({
       id: match.id,
@@ -229,11 +246,25 @@ export class BracketService {
       status: match.status,
       participant_1: match.participant_1_registration_id ? {
         registration_id: match.participant_1_registration_id,
-        name: composeName(match.p1_display_name, match.p1_first_name, match.p1_last_name),
+        name: composeSideName(
+          match.p1_display_name,
+          match.p1_first_name,
+          match.p1_last_name,
+          match.p1_partner_display_name,
+          match.p1_partner_first_name,
+          match.p1_partner_last_name
+        ),
       } : null,
       participant_2: match.participant_2_registration_id ? {
         registration_id: match.participant_2_registration_id,
-        name: composeName(match.p2_display_name, match.p2_first_name, match.p2_last_name),
+        name: composeSideName(
+          match.p2_display_name,
+          match.p2_first_name,
+          match.p2_last_name,
+          match.p2_partner_display_name,
+          match.p2_partner_first_name,
+          match.p2_partner_last_name
+        ),
       } : null,
       winner_registration_id: match.winner_registration_id,
       scores: scoreMap.get(match.id) || [],
@@ -342,7 +373,16 @@ export class BracketService {
       const participant1 = await trx(t('registrations')).where('id', match.participant_1_registration_id).first();
       const participant2 = await trx(t('registrations')).where('id', match.participant_2_registration_id).first();
 
-      const notifyUsers = [participant1?.user_id, participant2?.user_id].filter(Boolean);
+      const notifyUsers = Array.from(
+        new Set(
+          [
+            participant1?.user_id,
+            participant1?.partner_user_id,
+            participant2?.user_id,
+            participant2?.partner_user_id,
+          ].filter(Boolean)
+        )
+      );
       for (const notifyUserId of notifyUsers) {
         await trx(t('notifications')).insert({
           user_id: notifyUserId,
@@ -543,22 +583,13 @@ export class BracketService {
         finalMatch.winner_registration_id === finalMatch.participant_1_registration_id
           ? finalMatch.participant_2_registration_id
           : finalMatch.participant_1_registration_id;
-      await db(t('registrations')).where('id', finalMatch.winner_registration_id).update({
-        final_placement: 1,
-        updated_at: now,
-      });
+      await this.setFinalPlacementForSide(eventId, finalMatch.winner_registration_id, 1, now);
       if (loserId) {
-        await db(t('registrations')).where('id', loserId).update({
-          final_placement: 2,
-          updated_at: now,
-        });
+        await this.setFinalPlacementForSide(eventId, loserId, 2, now);
       }
     }
     if (thirdMatch?.winner_registration_id) {
-      await db(t('registrations')).where('id', thirdMatch.winner_registration_id).update({
-        final_placement: 3,
-        updated_at: now,
-      });
+      await this.setFinalPlacementForSide(eventId, thirdMatch.winner_registration_id, 3, now);
     }
 
     await db(t('events')).where('id', eventId).update({
@@ -592,6 +623,74 @@ export class BracketService {
     let power = 1;
     while (power < n) power *= 2;
     return power;
+  }
+
+  private static async getBracketParticipants(event: any): Promise<any[]> {
+    const rows = await db(t('registrations'))
+      .where('event_id', event.id)
+      .where('status', 'confirmed')
+      .where('checked_in', true)
+      .orderByRaw('seed_number IS NULL, seed_number ASC, created_at ASC');
+
+    if (event.format !== 'doubles') return rows;
+
+    const checkedInByUser = new Map<number, any>();
+    for (const row of rows) checkedInByUser.set(Number(row.user_id), row);
+
+    const participants: any[] = [];
+    const seenRegistrationIds = new Set<number>();
+
+    for (const row of rows) {
+      if (seenRegistrationIds.has(Number(row.id))) continue;
+
+      if (row.registration_type === 'duo' && row.partner_user_id) {
+        const partnerRow = checkedInByUser.get(Number(row.partner_user_id));
+        if (
+          !partnerRow ||
+          Number(partnerRow.partner_user_id) !== Number(row.user_id) ||
+          partnerRow.status !== 'confirmed'
+        ) {
+          continue;
+        }
+
+        const canonical = Number(row.id) <= Number(partnerRow.id) ? row : partnerRow;
+        const partner = canonical.id === row.id ? partnerRow : row;
+        participants.push(canonical);
+        seenRegistrationIds.add(Number(canonical.id));
+        seenRegistrationIds.add(Number(partner.id));
+        continue;
+      }
+
+      participants.push(row);
+      seenRegistrationIds.add(Number(row.id));
+    }
+
+    return participants;
+  }
+
+  private static async setFinalPlacementForSide(
+    eventId: number,
+    registrationId: number,
+    placement: number,
+    updatedAt: Date
+  ) {
+    const reg = await db(t('registrations')).where('id', registrationId).first();
+    if (!reg) return;
+
+    const ids = [registrationId];
+    if (reg.partner_user_id) {
+      const partnerReg = await db(t('registrations'))
+        .where('event_id', eventId)
+        .where('user_id', reg.partner_user_id)
+        .where('partner_user_id', reg.user_id)
+        .first();
+      if (partnerReg) ids.push(partnerReg.id);
+    }
+
+    await db(t('registrations')).whereIn('id', ids).update({
+      final_placement: placement,
+      updated_at: updatedAt,
+    });
   }
 
   private static seedParticipants(

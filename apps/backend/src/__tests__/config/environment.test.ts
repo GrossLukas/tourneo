@@ -24,8 +24,13 @@ describe('validateEnv', () => {
 
   it('throws when JWT secrets are missing in production', () => {
     process.env.NODE_ENV = 'production';
-    delete process.env.JWT_ACCESS_SECRET;
-    delete process.env.JWT_REFRESH_SECRET;
+    process.env.STRIPE_SECRET_KEY = 'sk_test_xxx';
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_xxx';
+    process.env.APP_URL = 'https://app';
+    process.env.ADMIN_URL = 'https://admin';
+    process.env.DB_PASSWORD = 'secret';
+    process.env.JWT_ACCESS_SECRET = '';
+    process.env.JWT_REFRESH_SECRET = '';
     const { validateEnv } = require('../../config/environment');
     expect(() => validateEnv()).toThrow(/JWT_ACCESS_SECRET/);
   });

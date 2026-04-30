@@ -16,6 +16,8 @@ import { chatRouter } from './chat';
 import { meRouter } from './me';
 import { playersRouter } from './players';
 import { profilesRouter } from './profiles';
+import { userRouter } from './users';
+import { moderationRouter } from './moderation';
 
 const router = Router();
 
@@ -31,6 +33,8 @@ router.use('/support', supportRouter);
 router.use('/legal', legalRouter);
 router.use('/notifications', notificationRouter);
 router.use('/admin', adminRouter);
+router.use('/users', userRouter);
+router.use('/moderation', moderationRouter);
 router.use('/', gdprRouter); // /me/data-export, /me/delete-account
 router.use('/', partnerRouter); // /events/:id/partners + /partners/:id
 router.use('/', chatRouter); // /events/:id/chat

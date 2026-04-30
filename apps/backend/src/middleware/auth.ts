@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/environment';
 import { AuthTokenPayload, UserRole } from '../types';
+import { db, t } from '../config/database';
 
 // Extend Express Request
 declare global {
@@ -12,7 +13,7 @@ declare global {
   }
 }
 
-export function authenticate(req: Request, res: Response, next: NextFunction): void {
+export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -30,7 +31,28 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
 
   try {
     const payload = jwt.verify(token, env.jwt.accessSecret) as AuthTokenPayload;
-    req.user = payload;
+    const user = await db(t('users'))
+      .where('id', payload.userId)
+      .select('id', 'uuid', 'email', 'role', 'status')
+      .first();
+
+    if (!user || user.status !== 'active') {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'ACCOUNT_INACTIVE',
+          message: 'Account is inactive',
+        },
+      });
+      return;
+    }
+
+    req.user = {
+      ...payload,
+      uuid: user.uuid,
+      email: user.email,
+      role: user.role,
+    };
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
@@ -54,14 +76,25 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
   }
 }
 
-export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
+export async function optionalAuth(req: Request, _res: Response, next: NextFunction): Promise<void> {
   const authHeader = req.headers.authorization;
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
     try {
       const payload = jwt.verify(token, env.jwt.accessSecret) as AuthTokenPayload;
-      req.user = payload;
+      const user = await db(t('users'))
+        .where('id', payload.userId)
+        .select('id', 'uuid', 'email', 'role', 'status')
+        .first();
+      if (user?.status === 'active') {
+        req.user = {
+          ...payload,
+          uuid: user.uuid,
+          email: user.email,
+          role: user.role,
+        };
+      }
     } catch {
       // Token invalid, continue without user
     }

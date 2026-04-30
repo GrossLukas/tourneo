@@ -26,13 +26,25 @@ export interface Event {
   has_streaming: boolean;
   special_notes: string | null;
   rules_summary?: string | null;
+  requires_playtomic_verification?: boolean;
+  min_playtomic_level?: number | null;
+  max_playtomic_level?: number | null;
+  eligibility_note?: string | null;
+  nearby_radius_km?: number | null;
+  maintenance_mode?: boolean;
+  maintenance_message?: string | null;
+  checkin_opens_minutes_before?: number | null;
+  waitlist_payment_window_hours?: number | null;
   banner_image_url: string | null;
   status: string;
   participant_count: number;
   spots_remaining: number;
+  distance_km?: number | null;
   venue: {
     name: string | null;
     city: string | null;
+    address_street?: string | null;
+    address_zip?: string | null;
     latitude?: number | null;
     longitude?: number | null;
   };
@@ -83,7 +95,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       });
     } catch (error) {
       set({ loading: false, error: 'Turniere konnten nicht geladen werden.' });
-      console.error('Failed to fetch events:', error);
+      logDevFetchError('[events] fetch failed:', error);
     }
   },
 
@@ -94,7 +106,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       set({ currentEvent: response.data.data, loading: false });
     } catch (error) {
       set({ loading: false, error: 'Event konnte nicht geladen werden.' });
-      console.error('Failed to fetch event:', error);
+      logDevFetchError('[events] fetch detail failed:', error);
     }
   },
 
@@ -117,3 +129,16 @@ export const useEventStore = create<EventState>((set, get) => ({
     });
   },
 }));
+
+function readableError(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message?: unknown }).message);
+  }
+  return String(error);
+}
+
+function logDevFetchError(prefix: string, error: unknown) {
+  if (__DEV__ && process.env.NODE_ENV !== 'test') {
+    console.log(prefix, readableError(error));
+  }
+}

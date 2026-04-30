@@ -18,6 +18,7 @@ export interface Venue {
   image_url?: string;
   is_active: boolean;
   courts?: Court[];
+  court_count?: number;
   booking_links?: ExternalBookingLink[];
   created_at: string;
   /** Set by backend when a geo-search was used (km, 1 decimal). */
@@ -54,6 +55,9 @@ interface VenueState {
     lat?: number;
     lng?: number;
     radius_km?: number;
+    is_indoor?: boolean;
+    is_outdoor?: boolean;
+    per_page?: number;
   };
 
   fetchVenues: () => Promise<void>;

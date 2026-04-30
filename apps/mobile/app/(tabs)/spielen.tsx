@@ -268,9 +268,9 @@ export default function SpielenScreen() {
     if (sportId === 'padel' || sportId === 'fifa') {
       router.push({ pathname: '/matchmaking', params: { sport: sportId } });
     } else if (sportId === 'freies-spiel') {
-      router.push('/matchmaking');
+      router.push({ pathname: '/venue/search', params: { mode: 'solo' } });
     } else if (sportId === 'plaetze') {
-      router.push('/(tabs)/turniere');
+      router.push({ pathname: '/venue/search', params: { mode: 'friend' } });
     }
   };
 

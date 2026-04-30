@@ -1,4 +1,5 @@
 import { sendMatchReminders } from './matchReminder';
+import { RegistrationService } from '../services/registrationService';
 
 let started = false;
 const intervals: NodeJS.Timeout[] = [];
@@ -19,7 +20,26 @@ export function startJobs(): void {
   }, 5 * 60 * 1000);
   intervals.push(matchTimer);
 
-  console.log('[jobs] background jobs started (matchReminders every 5min)');
+  const waitlistTimer = setInterval(() => {
+    Promise.all([
+      RegistrationService.sendWaitlistPaymentReminders(),
+      RegistrationService.expireUnpaidPromotions(),
+    ])
+      .then(([reminders, expirations]) => {
+        if (reminders.reminder_count > 0) {
+          console.log(`[jobs] sent ${reminders.reminder_count} waitlist payment reminders`);
+        }
+        if (expirations.expired_count > 0) {
+          console.log(`[jobs] expired ${expirations.expired_count} unpaid waitlist promotions`);
+        }
+      })
+      .catch((err) => {
+        console.error('[jobs] waitlist maintenance failed:', err);
+      });
+  }, 15 * 60 * 1000);
+  intervals.push(waitlistTimer);
+
+  console.log('[jobs] background jobs started (matchReminders every 5min, waitlist maintenance every 15min)');
 }
 
 export function stopJobs(): void {

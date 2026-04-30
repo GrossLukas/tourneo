@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { EventService } from '../services/eventService';
 import { RecapService } from '../services/recapService';
 import { IcalService } from '../services/icalService';
+import { EventScheduleService } from '../services/eventScheduleService';
 import { eventFiltersSchema } from '../validators/events';
 
 export class EventController {
@@ -76,14 +77,31 @@ export class EventController {
     }
   }
 
+  static async getSchedule(req: Request, res: Response, next: NextFunction) {
+    try {
+      const eventId = parseInt(req.params.id, 10);
+      const schedule = await EventScheduleService.getSchedule(eventId);
+      res.json({ success: true, data: schedule });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async update(req: Request, res: Response, next: NextFunction) {
     try {
       const eventId = parseInt(req.params.id, 10);
       // Partial update logic
       const { db: database, t } = require('../config/database');
       const now = new Date();
+      const dateFields = ['start_date', 'end_date', 'registration_opens_at', 'registration_closes_at'];
+      const updates = { ...req.body };
+      for (const field of dateFields) {
+        if (updates[field] !== undefined && updates[field] !== null) {
+          updates[field] = new Date(updates[field]);
+        }
+      }
       await database(t('events')).where('id', eventId).update({
-        ...req.body,
+        ...updates,
         updated_at: now,
       });
       const event = await EventService.getEventById(eventId);

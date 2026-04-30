@@ -20,10 +20,12 @@ import {
   ScrollView,
   FlatList,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import * as Location from 'expo-location';
 import {
   NCScreen,
   NCCard,
@@ -36,18 +38,25 @@ import { fontFamily } from '../../src/theme/typography';
 import { useEventStore, type Event } from '../../src/store/eventStore';
 import { useAuthStore } from '../../src/store/authStore';
 
-const LEVELS = ['Alle', 'Beginner', 'Intermediate', 'Advanced', 'Pro'] as const;
+const LEVELS = ['Alle', 'Anfänger', 'Fortgeschritten', 'Experte', 'Offen'] as const;
 type Level = (typeof LEVELS)[number];
+const SORTS = [
+  { key: 'date', label: 'Nächste Termine', order: 'asc' },
+  { key: 'created', label: 'Neueste', order: 'desc' },
+  { key: 'distance', label: 'Nähe', order: 'asc' },
+] as const;
+const RADIUS_OPTIONS = [10, 25, 50, 100] as const;
 
 function levelHue(level: string): number {
   switch (level) {
     case 'Beginner':
+    case 'Anfänger':
       return 140;
-    case 'Intermediate':
+    case 'Fortgeschritten':
       return 200;
-    case 'Advanced':
+    case 'Experte':
       return 280;
-    case 'Pro':
+    case 'Offen':
       return 15;
     default:
       return 250;
@@ -56,12 +65,29 @@ function levelHue(level: string): number {
 
 function eventLevelLabel(raw: string): string {
   const map: Record<string, string> = {
-    beginner: 'Beginner',
-    intermediate: 'Intermediate',
-    advanced: 'Advanced',
-    pro: 'Pro',
+    beginner: 'Anfänger',
+    intermediate: 'Fortgeschritten',
+    advanced: 'Experte',
+    open: 'Offen',
   };
-  return map[raw] || 'Open';
+  return map[raw] || 'Offen';
+}
+
+function compactLevelLabel(level: Level): string {
+  if (level === 'Anfänger') return 'Anf.';
+  if (level === 'Fortgeschritten') return 'Fortg.';
+  if (level === 'Experte') return 'Exp.';
+  return level;
+}
+
+function compactSortLabel(label: string): string {
+  if (label === 'Nächste Termine') return 'Datum';
+  if (label === 'Neueste') return 'Neu';
+  return label;
+}
+
+function chipLabel(label: string): string {
+  return `${label} `;
 }
 
 function tagFor(event: Event): { label: string; color: string; bg: string } | null {
@@ -143,6 +169,7 @@ const TournamentCard: React.FC<{ event: Event; onPress: () => void }> = ({ event
             <NCIcon name="pin" size={12} color={NC.textT} />
             <Text style={cardStyles.metaText} numberOfLines={1}>
               {event.venue?.city || event.venue?.name || ''}
+              {event.distance_km != null ? ` · ${event.distance_km.toFixed(1).replace('.', ',')} km` : ''}
             </Text>
           </View>
 
@@ -182,18 +209,60 @@ export default function TurniereScreen() {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
 
   const [filter, setFilter] = useState<Level>('Alle');
+  const [sort, setSort] = useState<(typeof SORTS)[number]['key']>('date');
+  const [radiusKm, setRadiusKm] = useState<number | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    void fetchEvents();
-  }, [fetchEvents]);
+    const sortConfig = SORTS.find((srt) => srt.key === sort) || SORTS[0];
+    const params: Record<string, any> = {
+      sort_by: sort === 'distance' && !coords ? 'date' : sort,
+      sort_order: sortConfig.order,
+      per_page: 50,
+    };
+    if (radiusKm && coords) {
+      params.lat = coords.lat;
+      params.lng = coords.lng;
+      params.radius_km = radiusKm;
+      if (sort === 'date') params.sort_by = 'date';
+    }
+    void fetchEvents(params);
+  }, [coords, fetchEvents, radiusKm, sort]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchEvents();
+    const sortConfig = SORTS.find((srt) => srt.key === sort) || SORTS[0];
+    const params: Record<string, any> = {
+      sort_by: sort === 'distance' && !coords ? 'date' : sort,
+      sort_order: sortConfig.order,
+      per_page: 50,
+    };
+    if (radiusKm && coords) {
+      params.lat = coords.lat;
+      params.lng = coords.lng;
+      params.radius_km = radiusKm;
+    }
+    await fetchEvents(params);
     setRefreshing(false);
-  }, [fetchEvents]);
+  }, [coords, fetchEvents, radiusKm, sort]);
+
+  const enableRadius = useCallback(async (radius: number | null) => {
+    Haptics.selectionAsync().catch(() => {});
+    if (radius === null) {
+      setRadiusKm(null);
+      return;
+    }
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== 'granted') {
+      Alert.alert('Standort fehlt', 'Bitte erlaube den Standort, damit Turniere in deiner Nähe sortiert werden können.');
+      return;
+    }
+    const position = await Location.getCurrentPositionAsync({});
+    setCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
+    setRadiusKm(radius);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -242,8 +311,9 @@ export default function TurniereScreen() {
       {/* Level chips */}
       <ScrollView
         horizontal
+        style={s.filterScroller}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 14 }}
+        contentContainerStyle={s.filterContent}
       >
         {LEVELS.map((l) => {
           const active = filter === l;
@@ -262,7 +332,57 @@ export default function TurniereScreen() {
                 },
               ]}
             >
-              <Text style={[s.chipText, { color: active ? '#FFFFFF' : NC.textS }]}>{l}</Text>
+              <Text allowFontScaling={false} style={[s.chipText, { color: active ? '#FFFFFF' : NC.textS }]}>{chipLabel(compactLevelLabel(l))}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <ScrollView
+        horizontal
+        style={s.filterScroller}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.filterContent}
+      >
+        {SORTS.map((item) => {
+          const active = sort === item.key;
+          return (
+            <Pressable
+              key={item.key}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                setSort(item.key);
+                if (item.key === 'distance' && !radiusKm) void enableRadius(50);
+              }}
+              style={[s.chip, { backgroundColor: active ? NC.primary : NC.bgCard, borderColor: active ? NC.primary : NC.border }]}
+            >
+              <Text allowFontScaling={false} style={[s.chipText, { color: active ? '#FFFFFF' : NC.textS }]}>{chipLabel(compactSortLabel(item.label))}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <ScrollView
+        horizontal
+        style={s.filterScroller}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.filterContent}
+      >
+        <Pressable
+          onPress={() => void enableRadius(null)}
+          style={[s.chip, { backgroundColor: radiusKm === null ? NC.primary : NC.bgCard, borderColor: radiusKm === null ? NC.primary : NC.border }]}
+        >
+          <Text allowFontScaling={false} style={[s.chipText, { color: radiusKm === null ? '#FFFFFF' : NC.textS }]}>{chipLabel('Alle')}</Text>
+        </Pressable>
+        {RADIUS_OPTIONS.map((radius) => {
+          const active = radiusKm === radius;
+          return (
+            <Pressable
+              key={radius}
+              onPress={() => void enableRadius(radius)}
+              style={[s.chip, { backgroundColor: active ? NC.primary : NC.bgCard, borderColor: active ? NC.primary : NC.border }]}
+            >
+              <Text allowFontScaling={false} style={[s.chipText, { color: active ? '#FFFFFF' : NC.textS }]}>{chipLabel(`${radius}km`)}</Text>
             </Pressable>
           );
         })}
@@ -292,15 +412,26 @@ export default function TurniereScreen() {
       />
 
       {isAdmin ? (
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-            router.push('/admin/quick-create');
-          }}
-          style={s.fab}
-        >
-          <NCIcon name="plus" size={26} color="#FFFFFF" strokeWidth={2.4} />
-        </Pressable>
+        <>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync().catch(() => {});
+              router.push('/admin/verifications');
+            }}
+            style={s.reviewFab}
+          >
+            <NCIcon name="shield" size={22} color="#FFFFFF" strokeWidth={2.2} />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+              router.push('/admin/quick-create');
+            }}
+            style={s.fab}
+          >
+            <NCIcon name="plus" size={26} color="#FFFFFF" strokeWidth={2.4} />
+          </Pressable>
+        </>
       ) : null}
     </NCScreen>
   );
@@ -360,13 +491,30 @@ const s = StyleSheet.create({
     fontFamily: fontFamily.uiMedium,
     fontSize: 14,
   },
+  filterScroller: {
+    flexGrow: 0,
+    height: 48,
+  },
+  filterContent: {
+    paddingHorizontal: 20,
+    gap: 8,
+    alignItems: 'center',
+  },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    height: 34,
+    paddingHorizontal: 18,
     borderRadius: 999,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
   },
-  chipText: { fontFamily: fontFamily.uiSemibold, fontSize: 12.5, fontWeight: '600' },
+  chipText: {
+    fontFamily: fontFamily.uiSemibold,
+    fontSize: 12.5,
+    fontWeight: '600',
+    paddingHorizontal: 2,
+  },
   empty: { paddingTop: 40, alignItems: 'center' },
   emptyText: { color: NC.textS, fontFamily: fontFamily.uiMedium, fontSize: 14 },
   fab: {
@@ -384,6 +532,24 @@ const s = StyleSheet.create({
     shadowRadius: 24,
     shadowOffset: { width: 0, height: 10 },
     elevation: 12,
+  },
+  reviewFab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 176,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: NC.bgCard,
+    borderWidth: 1,
+    borderColor: NC.borderStr,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: NC.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
 });
 

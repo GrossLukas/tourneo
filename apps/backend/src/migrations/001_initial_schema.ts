@@ -66,7 +66,7 @@ export async function up(knex: Knex): Promise<void> {
     table.boolean('is_active').defaultTo(false);
     table.datetime('created_at');
     table.datetime('updated_at');
-    table.index(['document_type', 'locale', 'is_active']);
+    table.index(['document_type', 'locale', 'is_active'], 'idx_legal_doc_active_locale');
   });
 
   await knex.schema.createTable(t('consents'), (table) => {
@@ -257,6 +257,10 @@ export async function up(knex: Knex): Promise<void> {
     table.bigInteger('team_id').unsigned().nullable().references('id').inTable(t('teams'));
     table.enum('registration_type', ['solo', 'duo', 'team']).defaultTo('solo');
     table.bigInteger('partner_user_id').unsigned().nullable().references('id').inTable(t('users'));
+    table.string('partner_invite_email', 255).nullable();
+    table.enum('partner_invite_status', ['none', 'pending', 'accepted', 'declined']).defaultTo('none');
+    table.datetime('partner_invited_at').nullable();
+    table.datetime('partner_accepted_at').nullable();
     table.enum('status', ['pending_payment', 'confirmed', 'waitlisted', 'cancelled', 'refunded', 'no_show']).defaultTo('pending_payment');
     table.enum('membership_tier_at_registration', ['free', 'plus', 'club']);
     table.integer('discount_applied_cents').defaultTo(0);
@@ -291,6 +295,9 @@ export async function up(knex: Knex): Promise<void> {
     table.string('currency', 3).defaultTo('EUR');
     table.enum('payment_method', ['card', 'apple_pay', 'other']);
     table.string('stripe_payment_intent_id', 255).nullable();
+    table.string('stripe_checkout_session_id', 255).nullable();
+    table.string('stripe_checkout_url', 1000).nullable();
+    table.datetime('checkout_expires_at').nullable();
     table.string('stripe_charge_id', 255).nullable();
     table.enum('status', ['pending', 'succeeded', 'failed', 'cancelled', 'refunded', 'partially_refunded']).defaultTo('pending');
     table.datetime('paid_at').nullable();
@@ -303,6 +310,7 @@ export async function up(knex: Knex): Promise<void> {
     table.datetime('updated_at');
     table.index(['user_id']);
     table.index(['stripe_payment_intent_id']);
+    table.index(['stripe_checkout_session_id']);
     table.index(['status']);
   });
 

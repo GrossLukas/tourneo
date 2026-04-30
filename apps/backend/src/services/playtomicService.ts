@@ -1,5 +1,7 @@
 import { db, t } from '../config/database';
 import { EloService } from './eloService';
+import { PlaytomicFileService } from './playtomicFileService';
+import { PlaytomicOcrService, PlaytomicOcrResult } from './playtomicOcrService';
 
 /**
  * PlaytomicService — Maps Playtomic skill levels (0–7) to our ELO system,
@@ -87,12 +89,30 @@ export class PlaytomicService {
   /**
    * User uploads a screenshot URL for verification.
    */
-  static async submitScreenshot(userId: number, screenshotUrl: string): Promise<void> {
+  static async submitScreenshot(
+    userId: number,
+    screenshotUrl: string,
+    imageBuffer?: Buffer,
+  ): Promise<PlaytomicOcrResult | null> {
     await db(t('profiles')).where('user_id', userId).update({
       playtomic_screenshot_url: screenshotUrl,
       playtomic_verification_status: 'pending',
+      playtomic_ocr_status: imageBuffer ? 'pending' : null,
       updated_at: new Date(),
     });
+
+    if (!imageBuffer) return null;
+
+    try {
+      return await PlaytomicOcrService.analyzeAndPersist(userId, imageBuffer);
+    } catch (err) {
+      console.warn('[playtomic] OCR analysis failed:', (err as any)?.message || err);
+      await db(t('profiles')).where('user_id', userId).update({
+        playtomic_ocr_status: 'failed',
+        updated_at: new Date(),
+      });
+      return null;
+    }
   }
 
   /**
@@ -113,9 +133,12 @@ export class PlaytomicService {
     const elo = this.levelToElo(level);
     const now = new Date();
 
+    await PlaytomicFileService.purgeForUser(userId);
+
     await db(t('profiles')).where('user_id', userId).update({
       playtomic_level: level,
       playtomic_verification_status: 'approved',
+      playtomic_screenshot_url: null,
       playtomic_verified_at: now,
       playtomic_verified_by: adminUserId,
       initial_rating_source: 'playtomic_verified',
@@ -137,8 +160,10 @@ export class PlaytomicService {
     adminUserId: number,
   ): Promise<void> {
     const now = new Date();
+    await PlaytomicFileService.purgeForUser(userId);
     await db(t('profiles')).where('user_id', userId).update({
       playtomic_verification_status: 'rejected',
+      playtomic_screenshot_url: null,
       playtomic_verified_at: now,
       playtomic_verified_by: adminUserId,
       updated_at: now,
@@ -160,6 +185,12 @@ export class PlaytomicService {
         `${t('profiles')}.display_name`,
         `${t('profiles')}.playtomic_level`,
         `${t('profiles')}.playtomic_screenshot_url`,
+        `${t('profiles')}.playtomic_ocr_status`,
+        `${t('profiles')}.playtomic_ocr_level`,
+        `${t('profiles')}.playtomic_ocr_name`,
+        `${t('profiles')}.playtomic_ocr_points`,
+        `${t('profiles')}.playtomic_duplicate_user_id`,
+        `${t('profiles')}.playtomic_duplicate_warning_at`,
         `${t('users')}.email`,
         `${t('profiles')}.updated_at as submitted_at`,
       )
@@ -174,6 +205,13 @@ export class PlaytomicService {
     status: string;
     source: string;
     screenshotUrl: string | null;
+    ocr: {
+      status: string | null;
+      level: number | null;
+      name: string | null;
+      points: number | null;
+      duplicateUserId: number | null;
+    };
   }> {
     const profile = await db(t('profiles')).where('user_id', userId).first();
     return {
@@ -181,6 +219,13 @@ export class PlaytomicService {
       status: profile?.playtomic_verification_status ?? 'none',
       source: profile?.initial_rating_source ?? 'default',
       screenshotUrl: profile?.playtomic_screenshot_url ?? null,
+      ocr: {
+        status: profile?.playtomic_ocr_status ?? null,
+        level: profile?.playtomic_ocr_level == null ? null : Number(profile.playtomic_ocr_level),
+        name: profile?.playtomic_ocr_name ?? null,
+        points: profile?.playtomic_ocr_points ?? null,
+        duplicateUserId: profile?.playtomic_duplicate_user_id ?? null,
+      },
     };
   }
 }

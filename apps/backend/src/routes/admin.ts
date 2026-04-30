@@ -6,7 +6,11 @@ import { validateBody } from '../middleware/validate';
 import { PaymentController } from '../controllers/paymentController';
 import { AuditService } from '../services/auditService';
 import { PlaytomicService } from '../services/playtomicService';
+import { PlaytomicFileService } from '../services/playtomicFileService';
 import { CourtAvailabilityService } from '../services/courtAvailabilityService';
+import { NotificationService } from '../services/notificationService';
+import { RegistrationService } from '../services/registrationService';
+import { EventScheduleService } from '../services/eventScheduleService';
 import { db, t } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
 
@@ -19,8 +23,16 @@ const userRoleSchema = z.object({
 const userStatusSchema = z.object({
   status: z.enum(['active', 'suspended', 'deleted']),
 });
+const ACTIVE_REGISTRATION_STATUSES = ['confirmed', 'pending_payment', 'pending_verification'];
 const refundDecisionSchema = z.object({
   reason: z.string().min(1).max(500).optional(),
+});
+const eligibilityDecisionSchema = z.object({
+  note: z.string().max(1000).optional(),
+});
+const eligibilityReviewQuerySchema = z.object({
+  status: z.enum(['pending', 'approved', 'rejected', 'all']).default('pending'),
+  event_id: z.coerce.number().int().positive().optional(),
 });
 const createRefundSchema = z.object({
   payment_id: z.number().int().positive(),
@@ -46,8 +58,20 @@ const matchResultSchema = z.object({
   score: z.string().min(1).max(255).optional(),
   notes: z.string().max(2000).optional(),
 });
+const qrCheckinSchema = z.object({
+  token: z.string().min(10).max(100),
+});
+const scheduleAutoAssignSchema = z.object({
+  start_at: z.string().datetime().optional(),
+  match_duration_minutes: z.number().int().min(15).max(180).optional(),
+});
+const EVENT_DATE_FIELDS = ['start_date', 'end_date', 'registration_opens_at', 'registration_closes_at'];
 
 const router = Router();
+
+router.get('/dashboard.html', (_req: Request, res: Response) => {
+  res.type('html').send(renderAdminDashboardHtml());
+});
 
 // All admin routes require authentication + admin role
 router.use(authenticate, adminOnly);
@@ -118,6 +142,89 @@ router.get('/stats/members', async (_req: Request, res: Response, next: NextFunc
   }
 });
 
+router.get('/dashboard', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const [
+      eventCounts,
+      registrationCounts,
+      pendingVerifications,
+      duplicateWarnings,
+      waitlistPayments,
+      openReports,
+      upcomingEvents,
+      todayEvents,
+    ] = await Promise.all([
+      db(t('events')).select('status').count('* as count').groupBy('status'),
+      db(t('registrations')).select('status').count('* as count').groupBy('status'),
+      db(t('registrations')).where('status', 'pending_verification').count('* as count').first(),
+      db(t('profiles')).whereNotNull('playtomic_duplicate_user_id').count('* as count').first(),
+      db(t('registrations'))
+        .where('status', 'pending_payment')
+        .whereNotNull('waitlist_promoted_at')
+        .count('* as count')
+        .first(),
+      db(t('moderation_reports')).where('status', 'open').count('* as count').first(),
+      db(t('events'))
+        .leftJoin(t('venues'), `${t('events')}.venue_id`, `${t('venues')}.id`)
+        .where(`${t('events')}.start_date`, '>=', now)
+        .where(`${t('events')}.status`, '!=', 'draft')
+        .select(
+          `${t('events')}.id`,
+          `${t('events')}.title`,
+          `${t('events')}.start_date`,
+          `${t('events')}.status`,
+          `${t('events')}.maintenance_mode`,
+          `${t('venues')}.name as venue_name`,
+          `${t('venues')}.address_city as venue_city`
+        )
+        .orderBy(`${t('events')}.start_date`, 'asc')
+        .limit(8),
+      db(t('events'))
+        .whereBetween('start_date', [now, tomorrow])
+        .whereIn('status', ['published', 'registration_open', 'registration_closed', 'in_progress'])
+        .select('id', 'title', 'start_date', 'status')
+        .orderBy('start_date', 'asc')
+        .limit(8),
+    ]);
+
+    const upcomingIds = upcomingEvents.map((event: any) => event.id);
+    const countsByEvent = upcomingIds.length
+      ? await db(t('registrations'))
+          .whereIn('event_id', upcomingIds)
+          .whereIn('status', ACTIVE_REGISTRATION_STATUSES)
+          .select('event_id')
+          .count('* as count')
+          .groupBy('event_id')
+      : [];
+    const participantMap = new Map(countsByEvent.map((row: any) => [Number(row.event_id), Number(row.count)]));
+
+    res.json({
+      success: true,
+      data: {
+        event_counts: eventCounts,
+        registration_counts: registrationCounts,
+        counters: {
+          pending_verifications: Number(pendingVerifications?.count || 0),
+          duplicate_warnings: Number(duplicateWarnings?.count || 0),
+          waitlist_pending_payment: Number(waitlistPayments?.count || 0),
+          open_reports: Number(openReports?.count || 0),
+          today_events: todayEvents.length,
+        },
+        upcoming_events: upcomingEvents.map((event: any) => ({
+          ...event,
+          participant_count: participantMap.get(Number(event.id)) || 0,
+        })),
+        today_events: todayEvents,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ============================================================
 // 2. EVENT MANAGEMENT (CRUD + Advanced)
 // ============================================================
@@ -159,7 +266,7 @@ router.get('/events', async (req: Request, res: Response, next: NextFunction) =>
     const participantCounts = eventIds.length
       ? await db(t('registrations'))
           .whereIn('event_id', eventIds)
-          .whereIn('status', ['confirmed', 'pending_payment'])
+          .whereIn('status', ACTIVE_REGISTRATION_STATUSES)
           .groupBy('event_id')
           .select('event_id')
           .count('* as count')
@@ -259,6 +366,10 @@ router.put('/events/:id', async (req: Request, res: Response, next: NextFunction
       'max_participants', 'entry_fee_cents', 'currency', 'total_prize_pool_cents',
       'level', 'access_type', 'has_food_drinks', 'has_streaming',
       'special_notes', 'rules_summary', 'rules_full', 'banner_image_url',
+      'requires_playtomic_verification', 'min_playtomic_level', 'max_playtomic_level',
+      'eligibility_note', 'nearby_radius_km',
+      'maintenance_mode', 'maintenance_message', 'checkin_opens_minutes_before',
+      'waitlist_payment_window_hours',
       'faq', 'venue_hints', 'prize_table', 'streaming_url',
     ];
 
@@ -270,6 +381,8 @@ router.put('/events/:id', async (req: Request, res: Response, next: NextFunction
         before[field] = event[field];
         if (['faq', 'venue_hints', 'prize_table'].includes(field) && typeof req.body[field] === 'object') {
           updates[field] = JSON.stringify(req.body[field]);
+        } else if (EVENT_DATE_FIELDS.includes(field) && req.body[field] !== null) {
+          updates[field] = new Date(req.body[field]);
         } else {
           updates[field] = req.body[field];
         }
@@ -294,6 +407,26 @@ router.put('/events/:id', async (req: Request, res: Response, next: NextFunction
     next(error);
   }
 });
+
+router.post(
+  '/events/:id/schedule/auto',
+  validateBody(scheduleAutoAssignSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const eventId = parseInt(req.params.id, 10);
+      const schedule = await EventScheduleService.autoAssign(eventId, req.body);
+      await AuditService.logFromRequest(req, 'event.schedule_auto_assigned', 'event', eventId, {
+        metadata: {
+          start_at: req.body.start_at || null,
+          match_duration_minutes: req.body.match_duration_minutes || 30,
+        },
+      });
+      res.json({ success: true, data: schedule });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 // Duplicate event
 router.post('/events/:id/duplicate', async (req: Request, res: Response, next: NextFunction) => {
@@ -412,7 +545,7 @@ router.put('/events/:id/unpublish', async (req: Request, res: Response, next: Ne
 
     const [{ count: confirmedCount }] = await db(t('registrations'))
       .where('event_id', eventId)
-      .whereIn('status', ['confirmed', 'pending_payment'])
+      .whereIn('status', ACTIVE_REGISTRATION_STATUSES)
       .count('* as count');
 
     if (Number(confirmedCount) > 0) {
@@ -443,6 +576,22 @@ router.put('/events/:id/unpublish', async (req: Request, res: Response, next: Ne
 // 3. PARTICIPANT MANAGEMENT
 // ============================================================
 
+router.post(
+  '/checkins/qr',
+  validateBody(qrCheckinSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await RegistrationService.checkInByQrToken(req.body.token, req.user!.userId);
+      await AuditService.logFromRequest(req, 'registration.qr_checkin', 'registration', result.registration_id, {
+        metadata: { event_id: result.event_id, already_checked_in: result.already_checked_in },
+      });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // List participants for an event
 router.get('/events/:id/participants', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -460,7 +609,15 @@ router.get('/events/:id/participants', async (req: Request, res: Response, next:
         `${t('profiles')}.last_name`,
         `${t('profiles')}.display_name`,
         `${t('profiles')}.phone`,
-        `${t('profiles')}.avatar_url`
+        `${t('profiles')}.avatar_url`,
+        `${t('profiles')}.playtomic_level`,
+        `${t('profiles')}.playtomic_verification_status`,
+        `${t('profiles')}.playtomic_screenshot_url`,
+        `${t('profiles')}.playtomic_ocr_status`,
+        `${t('profiles')}.playtomic_ocr_level`,
+        `${t('profiles')}.playtomic_ocr_name`,
+        `${t('profiles')}.playtomic_ocr_points`,
+        `${t('profiles')}.playtomic_duplicate_user_id`
       );
 
     if (status) query = query.where(`${t('registrations')}.status`, status as string);
@@ -480,6 +637,163 @@ router.get('/events/:id/participants', async (req: Request, res: Response, next:
   }
 });
 
+// Approve a tournament-specific Playtomic eligibility review.
+router.put(
+  '/events/:id/participants/:regId/approve',
+  validateBody(eligibilityDecisionSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const eventId = parseInt(req.params.id, 10);
+      const regId = parseInt(req.params.regId, 10);
+      const now = new Date();
+
+      const registration = await db(t('registrations'))
+        .where('id', regId)
+        .where('event_id', eventId)
+        .first();
+      if (!registration) throw AppError.notFound('Registration');
+      if (registration.status !== 'pending_verification') {
+        throw AppError.badRequest('Only pending verification registrations can be approved');
+      }
+
+      const event = await db(t('events')).where('id', eventId).first();
+      if (!event) throw AppError.notFound('Event');
+
+      await db(t('registrations')).where('id', regId).update({
+        status: 'pending_payment',
+        eligibility_status: 'approved',
+        eligibility_checked_by: req.user!.userId,
+        eligibility_checked_at: now,
+        eligibility_note: req.body.note || null,
+        updated_at: now,
+      });
+
+      if (registration.playtomic_level_at_registration != null) {
+        await PlaytomicService.approve(
+          registration.user_id,
+          req.user!.userId,
+          Number(registration.playtomic_level_at_registration)
+        );
+      }
+
+      await AuditService.logFromRequest(req, 'registration.eligibility_approved', 'registration', regId, {
+        resourceLabel: event.title,
+        metadata: { event_id: eventId, user_id: registration.user_id, note: req.body.note || null },
+      });
+
+      await NotificationService.send(
+        registration.user_id,
+        'general',
+        'Du bist für das Turnier zugelassen',
+        `"${event.title}" wurde geprüft. Bitte schließe jetzt deine Anmeldung ab.`,
+        { event_id: eventId, registration_id: regId, payment_required: true }
+      );
+
+      try {
+        const [userRow, profileRow] = await Promise.all([
+          db(t('users')).where('id', registration.user_id).first(),
+          db(t('profiles')).where('user_id', registration.user_id).first(),
+        ]);
+        if (userRow?.email) {
+          const { emailService } = await import('../services/emailService');
+          await emailService.sendPaymentRequired(
+            userRow.email,
+            profileRow?.first_name || 'Spieler',
+            event.title,
+            event.start_date ? new Date(event.start_date).toLocaleDateString('de-DE') : '',
+            'eligibility_approved'
+          );
+        }
+      } catch (err) {
+        console.error('[admin] Eligibility approval email failed:', err);
+      }
+
+      const updated = await db(t('registrations')).where('id', regId).first();
+      res.json({ success: true, data: updated });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// Reject a tournament-specific Playtomic eligibility review.
+router.put(
+  '/events/:id/participants/:regId/reject',
+  validateBody(eligibilityDecisionSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const eventId = parseInt(req.params.id, 10);
+      const regId = parseInt(req.params.regId, 10);
+      const now = new Date();
+
+      const registration = await db(t('registrations'))
+        .where('id', regId)
+        .where('event_id', eventId)
+        .first();
+      if (!registration) throw AppError.notFound('Registration');
+      if (!['pending_verification', 'pending_payment', 'waitlisted'].includes(registration.status)) {
+        throw AppError.badRequest('This registration cannot be rejected');
+      }
+
+      const event = await db(t('events')).where('id', eventId).first();
+      if (!event) throw AppError.notFound('Event');
+
+      await db(t('registrations')).where('id', regId).update({
+        status: 'rejected',
+        eligibility_status: 'rejected',
+        eligibility_checked_by: req.user!.userId,
+        eligibility_checked_at: now,
+        eligibility_note: req.body.note || 'Eligibility rejected by admin',
+        updated_at: now,
+      });
+
+      if (registration.playtomic_status_at_registration !== 'approved') {
+        await PlaytomicService.reject(registration.user_id, req.user!.userId);
+      }
+
+      await AuditService.logFromRequest(req, 'registration.eligibility_rejected', 'registration', regId, {
+        resourceLabel: event.title,
+        metadata: { event_id: eventId, user_id: registration.user_id, note: req.body.note || null },
+      });
+
+      await NotificationService.send(
+        registration.user_id,
+        'general',
+        'Turnierzulassung nicht möglich',
+        `"${event.title}" passt leider nicht zu deinen eingereichten Playtomic-Daten.`,
+        { event_id: eventId, registration_id: regId }
+      );
+
+      try {
+        const [userRow, profileRow] = await Promise.all([
+          db(t('users')).where('id', registration.user_id).first(),
+          db(t('profiles')).where('user_id', registration.user_id).first(),
+        ]);
+        if (userRow?.email) {
+          const { emailService } = await import('../services/emailService');
+          await emailService.sendEligibilityRejected(
+            userRow.email,
+            profileRow?.first_name || 'Spieler',
+            event.title,
+            req.body.note
+          );
+        }
+      } catch (err) {
+        console.error('[admin] Eligibility rejection email failed:', err);
+      }
+
+      if (registration.status === 'pending_payment' || registration.status === 'pending_verification') {
+        await RegistrationService.promoteFromWaitlist(eventId);
+      }
+
+      const updated = await db(t('registrations')).where('id', regId).first();
+      res.json({ success: true, data: updated });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // Manually add participant to event
 router.post('/events/:id/participants', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -495,14 +809,14 @@ router.post('/events/:id/participants', async (req: Request, res: Response, next
     const existing = await db(t('registrations'))
       .where('event_id', eventId)
       .where('user_id', user_id)
-      .whereNotIn('status', ['cancelled', 'refunded'])
+      .whereNotIn('status', ['cancelled', 'refunded', 'rejected'])
       .first();
 
     if (existing) throw AppError.conflict('User already registered for this event');
 
     const [{ count: currentCount }] = await db(t('registrations'))
       .where('event_id', eventId)
-      .whereIn('status', ['confirmed', 'pending_payment'])
+      .whereIn('status', ACTIVE_REGISTRATION_STATUSES)
       .count('* as count');
 
     const isFull = Number(currentCount) >= event.max_participants;
@@ -533,6 +847,7 @@ router.post('/events/:id/participants', async (req: Request, res: Response, next
       consent_age_verified: true,
       consent_media: true,
       waitlist_position: waitlistPosition,
+      eligibility_status: 'not_required',
       created_at: now,
       updated_at: now,
     });
@@ -991,7 +1306,10 @@ router.post('/events/:id/notify', validateBody(notifyParticipantsSchema), async 
     } else if (target === 'waitlisted_only') {
       recipientQuery = recipientQuery.where('status', 'waitlisted');
     } else {
-      recipientQuery = recipientQuery.whereIn('status', ['confirmed', 'pending_payment', 'waitlisted']);
+      recipientQuery = recipientQuery.whereIn('status', [
+        ...ACTIVE_REGISTRATION_STATUSES,
+        'waitlisted',
+      ]);
     }
 
     const recipients = await recipientQuery.select('user_id');
@@ -1484,6 +1802,106 @@ router.put('/users/:id/status', superadminOnly, validateBody(userStatusSchema), 
 // 11. PLAYTOMIC VERIFICATION QUEUE
 // ============================================================
 
+router.get('/eligibility/reviews', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const filters = eligibilityReviewQuerySchema.parse(req.query);
+    const query = db(t('registrations'))
+      .leftJoin(t('events'), `${t('registrations')}.event_id`, `${t('events')}.id`)
+      .leftJoin(t('venues'), `${t('events')}.venue_id`, `${t('venues')}.id`)
+      .leftJoin(t('users'), `${t('registrations')}.user_id`, `${t('users')}.id`)
+      .leftJoin(t('profiles'), `${t('registrations')}.user_id`, `${t('profiles')}.user_id`)
+      .leftJoin({ checker: t('users') }, `${t('registrations')}.eligibility_checked_by`, 'checker.id')
+      .where(`${t('events')}.requires_playtomic_verification`, true)
+      .select(
+        `${t('registrations')}.id as registration_id`,
+        `${t('registrations')}.event_id`,
+        `${t('registrations')}.user_id`,
+        `${t('registrations')}.registration_type`,
+        `${t('registrations')}.status`,
+        `${t('registrations')}.eligibility_status`,
+        `${t('registrations')}.eligibility_note`,
+        `${t('registrations')}.eligibility_checked_at`,
+        `${t('registrations')}.playtomic_level_at_registration`,
+        `${t('registrations')}.created_at`,
+        `${t('events')}.title as event_title`,
+        `${t('events')}.min_playtomic_level`,
+        `${t('events')}.max_playtomic_level`,
+        `${t('events')}.eligibility_note as event_eligibility_note`,
+        `${t('venues')}.name as venue_name`,
+        `${t('venues')}.address_city as venue_city`,
+        `${t('users')}.email`,
+        `${t('profiles')}.first_name`,
+        `${t('profiles')}.last_name`,
+        `${t('profiles')}.display_name`,
+        `${t('profiles')}.playtomic_level`,
+        `${t('profiles')}.playtomic_verification_status`,
+        `${t('profiles')}.playtomic_screenshot_url`,
+        `${t('profiles')}.playtomic_ocr_status`,
+        `${t('profiles')}.playtomic_ocr_level`,
+        `${t('profiles')}.playtomic_ocr_name`,
+        `${t('profiles')}.playtomic_ocr_points`,
+        `${t('profiles')}.playtomic_duplicate_user_id`,
+        'checker.email as checked_by_email'
+      )
+      .orderBy(`${t('registrations')}.created_at`, 'desc');
+
+    if (filters.status !== 'all') {
+      query.where(`${t('registrations')}.eligibility_status`, filters.status);
+    }
+    if (filters.event_id) {
+      query.where(`${t('registrations')}.event_id`, filters.event_id);
+    }
+
+    const reviews = await query;
+    res.json({ success: true, data: reviews });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/eligibility/pending', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const pending = await db(t('registrations'))
+      .where(`${t('registrations')}.status`, 'pending_verification')
+      .leftJoin(t('events'), `${t('registrations')}.event_id`, `${t('events')}.id`)
+      .leftJoin(t('venues'), `${t('events')}.venue_id`, `${t('venues')}.id`)
+      .leftJoin(t('users'), `${t('registrations')}.user_id`, `${t('users')}.id`)
+      .leftJoin(t('profiles'), `${t('registrations')}.user_id`, `${t('profiles')}.user_id`)
+      .select(
+        `${t('registrations')}.id as registration_id`,
+        `${t('registrations')}.event_id`,
+        `${t('registrations')}.user_id`,
+        `${t('registrations')}.registration_type`,
+        `${t('registrations')}.eligibility_note`,
+        `${t('registrations')}.playtomic_level_at_registration`,
+        `${t('registrations')}.created_at`,
+        `${t('events')}.title as event_title`,
+        `${t('events')}.min_playtomic_level`,
+        `${t('events')}.max_playtomic_level`,
+        `${t('events')}.eligibility_note as event_eligibility_note`,
+        `${t('venues')}.name as venue_name`,
+        `${t('venues')}.address_city as venue_city`,
+        `${t('users')}.email`,
+        `${t('profiles')}.first_name`,
+        `${t('profiles')}.last_name`,
+        `${t('profiles')}.display_name`,
+        `${t('profiles')}.playtomic_level`,
+        `${t('profiles')}.playtomic_verification_status`,
+        `${t('profiles')}.playtomic_screenshot_url`,
+        `${t('profiles')}.playtomic_ocr_status`,
+        `${t('profiles')}.playtomic_ocr_level`,
+        `${t('profiles')}.playtomic_ocr_name`,
+        `${t('profiles')}.playtomic_ocr_points`,
+        `${t('profiles')}.playtomic_duplicate_user_id`
+      )
+      .orderBy(`${t('registrations')}.created_at`, 'asc');
+
+    res.json({ success: true, data: pending });
+  } catch (error) {
+    next(error);
+  }
+});
+
 const verifyDecisionSchema = z.object({
   level: z.number().min(0).max(7).optional(),
 });
@@ -1492,6 +1910,20 @@ router.get('/playtomic/pending', async (_req: Request, res: Response, next: Next
   try {
     const pending = await PlaytomicService.listPending();
     res.json({ success: true, data: pending });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/playtomic/:userId/screenshot', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = parseInt(req.params.userId, 10);
+    const resolved = await PlaytomicFileService.resolveForUser(userId);
+    if (!resolved) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Screenshot not found' } });
+    }
+    res.type(resolved.contentType);
+    res.sendFile(resolved.filepath);
   } catch (error) {
     next(error);
   }
@@ -1584,5 +2016,117 @@ router.post(
     }
   }
 );
+
+function renderAdminDashboardHtml(): string {
+  return `<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tourneo Admin Dashboard</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b0f19; --panel:#131a2a; --panel2:#0f1523; --text:#f8fafc; --muted:#94a3b8; --line:#263247; --accent:#22c55e; --warn:#f59e0b; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:24px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    h1 { margin:0; font-size:22px; letter-spacing:0; }
+    main { padding:24px; max-width:1180px; margin:0 auto; }
+    input { min-width:280px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:11px 12px; }
+    button { background:var(--accent); border:0; color:#03110a; border-radius:8px; padding:11px 14px; font-weight:800; cursor:pointer; }
+    .auth { display:flex; gap:8px; flex-wrap:wrap; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px; margin-bottom:20px; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px; }
+    .label { color:var(--muted); font-size:12px; text-transform:uppercase; font-weight:800; letter-spacing:.08em; }
+    .value { font-size:30px; font-weight:900; margin-top:8px; }
+    section { margin-top:20px; }
+    h2 { font-size:16px; margin:0 0 12px; }
+    table { width:100%; border-collapse:collapse; overflow:hidden; border-radius:8px; border:1px solid var(--line); }
+    th, td { padding:12px; border-bottom:1px solid var(--line); text-align:left; font-size:14px; }
+    th { color:var(--muted); background:var(--panel2); font-size:12px; text-transform:uppercase; }
+    tr:last-child td { border-bottom:0; }
+    .pill { display:inline-flex; border:1px solid var(--line); border-radius:999px; padding:3px 8px; color:var(--muted); font-size:12px; }
+    .warn { color:var(--warn); }
+    .error { color:#fb7185; margin-top:12px; min-height:20px; }
+    @media (max-width: 640px) { header, main { padding:16px; } input { min-width:0; width:100%; } button { width:100%; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Tourneo Admin Dashboard</h1>
+      <div class="label">kostenloses Web-Dashboard fuer groessere Turniere</div>
+    </div>
+    <div class="auth">
+      <input id="token" type="password" placeholder="Admin Access Token" autocomplete="off" />
+      <button id="load">Laden</button>
+    </div>
+  </header>
+  <main>
+    <div id="error" class="error"></div>
+    <div id="cards" class="grid"></div>
+    <section class="card">
+      <h2>Naechste Turniere</h2>
+      <div id="upcoming"></div>
+    </section>
+    <section class="card">
+      <h2>Heute</h2>
+      <div id="today"></div>
+    </section>
+  </main>
+  <script>
+    const tokenInput = document.getElementById('token');
+    const saved = localStorage.getItem('tourneo_admin_token');
+    if (saved) tokenInput.value = saved;
+    document.getElementById('load').addEventListener('click', load);
+    if (saved) load();
+
+    async function load() {
+      const token = tokenInput.value.trim();
+      localStorage.setItem('tourneo_admin_token', token);
+      document.getElementById('error').textContent = '';
+      try {
+        const res = await fetch('dashboard', { headers: { Authorization: 'Bearer ' + token } });
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error((json.error && json.error.message) || 'Dashboard konnte nicht geladen werden');
+        render(json.data);
+      } catch (err) {
+        document.getElementById('error').textContent = err.message || String(err);
+      }
+    }
+    function render(data) {
+      const counters = data.counters || {};
+      const cards = [
+        ['Offene Zulassungen', counters.pending_verifications || 0],
+        ['Screenshot-Dubletten', counters.duplicate_warnings || 0],
+        ['Warteliste Zahlung', counters.waitlist_pending_payment || 0],
+        ['Offene Meldungen', counters.open_reports || 0],
+        ['Turniere heute', counters.today_events || 0],
+      ];
+      document.getElementById('cards').innerHTML = cards.map(function(card) {
+        return '<div class="card"><div class="label">' + esc(card[0]) + '</div><div class="value">' + card[1] + '</div></div>';
+      }).join('');
+      document.getElementById('upcoming').innerHTML = table(data.upcoming_events || [], true);
+      document.getElementById('today').innerHTML = table(data.today_events || [], false);
+    }
+    function table(rows, participants) {
+      if (!rows.length) return '<div class="label">Keine Eintraege</div>';
+      return '<table><thead><tr><th>Datum</th><th>Turnier</th><th>Status</th>' + (participants ? '<th>Teilnehmer</th>' : '') + '<th>Ort</th></tr></thead><tbody>' +
+        rows.map(function(row) {
+          const date = row.start_date ? new Date(row.start_date).toLocaleString('de-DE') : '-';
+          const maintenance = row.maintenance_mode ? ' <span class="warn">Wartung</span>' : '';
+          return '<tr><td>' + esc(date) + '</td><td>' + esc(row.title || '-') + maintenance + '</td><td><span class="pill">' + esc(row.status || '-') + '</span></td>' +
+            (participants ? '<td>' + (row.participant_count || 0) + '</td>' : '') +
+            '<td>' + esc([row.venue_name, row.venue_city].filter(Boolean).join(', ') || '-') + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, function(ch) {
+        return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' })[ch];
+      });
+    }
+  </script>
+</body>
+</html>`;
+}
 
 export { router as adminRouter };

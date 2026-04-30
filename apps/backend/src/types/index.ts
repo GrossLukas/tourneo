@@ -15,7 +15,15 @@ export type EventStatus = 'draft' | 'published' | 'registration_open' | 'registr
 export type EventAccessType = 'public' | 'members_only' | 'club_only';
 export type EventLevel = 'beginner' | 'intermediate' | 'advanced' | 'open';
 export type RegistrationType = 'solo' | 'duo' | 'team';
-export type RegistrationStatus = 'pending_payment' | 'confirmed' | 'waitlisted' | 'cancelled' | 'refunded' | 'no_show';
+export type RegistrationStatus =
+  | 'pending_verification'
+  | 'pending_payment'
+  | 'confirmed'
+  | 'waitlisted'
+  | 'cancelled'
+  | 'refunded'
+  | 'rejected'
+  | 'no_show';
 export type PaymentType = 'tournament_fee' | 'membership' | 'other';
 export type PaymentMethod = 'card' | 'apple_pay' | 'other';
 export type PaymentStatus = 'pending' | 'succeeded' | 'failed' | 'cancelled' | 'refunded' | 'partially_refunded';
@@ -123,6 +131,11 @@ export interface EventRow {
   has_streaming: boolean;
   special_notes: string | null;
   rules_summary: string | null;
+  requires_playtomic_verification: boolean;
+  min_playtomic_level: number | null;
+  max_playtomic_level: number | null;
+  eligibility_note: string | null;
+  nearby_radius_km: number;
   banner_image_url: string | null;
   status: EventStatus;
   created_by: number;
@@ -139,6 +152,10 @@ export interface RegistrationRow {
   team_id: number | null;
   registration_type: RegistrationType;
   partner_user_id: number | null;
+  partner_invite_email: string | null;
+  partner_invite_status: 'none' | 'pending' | 'accepted' | 'declined';
+  partner_invited_at: Date | null;
+  partner_accepted_at: Date | null;
   status: RegistrationStatus;
   membership_tier_at_registration: MembershipTier;
   discount_applied_cents: number;
@@ -152,6 +169,12 @@ export interface RegistrationRow {
   consent_media: boolean;
   waitlist_position: number | null;
   waitlist_promoted_at: Date | null;
+  eligibility_status: 'not_required' | 'pending' | 'approved' | 'rejected';
+  eligibility_checked_by: number | null;
+  eligibility_checked_at: Date | null;
+  eligibility_note: string | null;
+  playtomic_level_at_registration: number | null;
+  playtomic_status_at_registration: 'none' | 'pending' | 'approved' | 'rejected' | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -168,6 +191,9 @@ export interface PaymentRow {
   currency: string;
   payment_method: PaymentMethod;
   stripe_payment_intent_id: string | null;
+  stripe_checkout_session_id: string | null;
+  stripe_checkout_url: string | null;
+  checkout_expires_at: Date | null;
   stripe_charge_id: string | null;
   status: PaymentStatus;
   paid_at: Date | null;

@@ -8,6 +8,11 @@ const stripe = env.stripe.secretKey
   ? new Stripe(env.stripe.secretKey, { apiVersion: env.stripe.apiVersion as any })
   : null;
 
+type CheckoutSessionOptions = {
+  successUrl?: string;
+  cancelUrl?: string;
+};
+
 export class PaymentService {
   static async createPaymentIntent(registrationId: number, userId: number) {
     if (!stripe) throw AppError.internal('Payment system not configured');
@@ -77,8 +82,139 @@ export class PaymentService {
     };
   }
 
+  static async createCheckoutSession(
+    registrationId: number,
+    userId: number,
+    options: CheckoutSessionOptions = {}
+  ) {
+    if (!stripe) throw AppError.internal('Payment system not configured');
+
+    const registration = await db(t('registrations'))
+      .where('id', registrationId)
+      .where('user_id', userId)
+      .first();
+
+    if (!registration) throw AppError.notFound('Registration');
+    if (registration.status !== 'pending_payment') {
+      throw AppError.badRequest('Registration is not awaiting payment');
+    }
+
+    const event = await db(t('events')).where('id', registration.event_id).first();
+    if (!event) throw AppError.notFound('Event');
+
+    const netAmount = event.entry_fee_cents - registration.discount_applied_cents;
+    if (netAmount <= 0) {
+      await this.confirmFreeRegistration(registrationId, userId);
+      return { free: true, registration_id: registrationId };
+    }
+
+    const now = new Date();
+    const existing = await db(t('payments'))
+      .where('registration_id', registrationId)
+      .where('user_id', userId)
+      .where('status', 'pending')
+      .whereNotNull('stripe_checkout_session_id')
+      .where('checkout_expires_at', '>', now)
+      .orderBy('created_at', 'desc')
+      .first();
+
+    if (existing?.stripe_checkout_url) {
+      return {
+        checkout_session_id: existing.stripe_checkout_session_id,
+        checkout_url: existing.stripe_checkout_url,
+        amount_cents: existing.net_amount_cents,
+        currency: existing.currency,
+        registration_id: registrationId,
+        expires_at: existing.checkout_expires_at,
+      };
+    }
+
+    const baseReturnUrl = process.env.MOBILE_CHECKOUT_RETURN_URL || 'tourneo://checkout/callback';
+    const successUrl =
+      options.successUrl ||
+      appendCheckoutParams(baseReturnUrl, {
+        status: 'success',
+        registration_id: String(registrationId),
+        event_id: String(event.id),
+      });
+    const cancelUrl =
+      options.cancelUrl ||
+      appendCheckoutParams(baseReturnUrl, {
+        status: 'cancelled',
+        registration_id: String(registrationId),
+        event_id: String(event.id),
+      });
+
+    const metadata = {
+      registration_id: registrationId.toString(),
+      event_id: event.id.toString(),
+      user_id: userId.toString(),
+      event_title: event.title,
+    };
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      client_reference_id: registrationId.toString(),
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: event.currency.toLowerCase(),
+            unit_amount: netAmount,
+            product_data: {
+              name: event.title,
+              description: 'Tourneo Turnier-Anmeldung',
+            },
+          },
+        },
+      ],
+      metadata,
+      payment_intent_data: {
+        metadata,
+        description: `Tourneo: ${event.title}`,
+        statement_descriptor_suffix: 'TOURNEO',
+      },
+    });
+
+    const paymentUuid = uuidv4();
+    const expiresAt = session.expires_at ? new Date(session.expires_at * 1000) : null;
+
+    await db(t('payments')).insert({
+      uuid: paymentUuid,
+      user_id: userId,
+      registration_id: registrationId,
+      payment_type: 'tournament_fee',
+      amount_cents: event.entry_fee_cents,
+      discount_cents: registration.discount_applied_cents,
+      net_amount_cents: netAmount,
+      currency: event.currency,
+      payment_method: 'card',
+      stripe_checkout_session_id: session.id,
+      stripe_checkout_url: session.url,
+      checkout_expires_at: expiresAt,
+      status: 'pending',
+      metadata: JSON.stringify({ provider: 'stripe_checkout' }),
+      created_at: now,
+      updated_at: now,
+    });
+
+    return {
+      checkout_session_id: session.id,
+      checkout_url: session.url,
+      amount_cents: netAmount,
+      currency: event.currency,
+      registration_id: registrationId,
+      expires_at: expiresAt,
+    };
+  }
+
   static async handleStripeWebhook(event: Stripe.Event) {
     switch (event.type) {
+      case 'checkout.session.completed':
+        await this.handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
       case 'payment_intent.succeeded':
         await this.handlePaymentSuccess(event.data.object as Stripe.PaymentIntent);
         break;
@@ -91,6 +227,44 @@ export class PaymentService {
       default:
         console.log(`Unhandled Stripe event: ${event.type}`);
     }
+  }
+
+  private static async handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+    const payment = await db(t('payments'))
+      .where('stripe_checkout_session_id', session.id)
+      .first();
+
+    if (!payment) {
+      console.error(`Payment not found for Checkout Session: ${session.id}`);
+      return;
+    }
+    if (payment.status === 'succeeded') return;
+    if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') {
+      return;
+    }
+
+    const paymentIntentId =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id || null;
+
+    if (!paymentIntentId) {
+      console.error(`Checkout Session completed without PaymentIntent: ${session.id}`);
+      return;
+    }
+
+    await db(t('payments')).where('id', payment.id).update({
+      stripe_payment_intent_id: paymentIntentId,
+      updated_at: new Date(),
+    });
+
+    await this.handlePaymentSuccess({
+      id: paymentIntentId,
+      latest_charge:
+        typeof session.payment_intent === 'object' && session.payment_intent
+          ? session.payment_intent.latest_charge
+          : null,
+    } as Stripe.PaymentIntent);
   }
 
   private static async handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
@@ -332,6 +506,8 @@ export class PaymentService {
     const stripeRefundId = charge.refunds?.data?.[0]?.id || null;
 
     let promotedEventId: number | null = null;
+    let refundEmailUserId: number | null = null;
+    let refundEmailAmountCents = 0;
 
     try {
       await db.transaction(async (trx) => {
@@ -414,6 +590,9 @@ export class PaymentService {
           }
         }
 
+        refundEmailUserId = payment.user_id;
+        refundEmailAmountCents = newRefundCents;
+
         await trx(t('audit_log')).insert({
           user_id: payment.user_id,
           action: 'payment.refunded',
@@ -444,6 +623,26 @@ export class PaymentService {
     if (promotedEventId !== null) {
       const { RegistrationService } = await import('./registrationService');
       await RegistrationService.promoteFromWaitlist(promotedEventId);
+    }
+
+    if (refundEmailUserId && refundEmailAmountCents > 0) {
+      try {
+        const [userRow, profileRow] = await Promise.all([
+          db(t('users')).where('id', refundEmailUserId).first(),
+          db(t('profiles')).where('user_id', refundEmailUserId).first(),
+        ]);
+        if (userRow?.email) {
+          const { emailService } = await import('./emailService');
+          await emailService.sendRefundUpdate(
+            userRow.email,
+            profileRow?.first_name || 'Spieler',
+            refundEmailAmountCents,
+            'processed'
+          );
+        }
+      } catch (err) {
+        console.error('[payment] Refund webhook email failed:', err);
+      }
     }
   }
 
@@ -561,6 +760,24 @@ export class PaymentService {
         });
       });
 
+      try {
+        const [userRow, profileRow] = await Promise.all([
+          db(t('users')).where('id', refund.user_id).first(),
+          db(t('profiles')).where('user_id', refund.user_id).first(),
+        ]);
+        if (userRow?.email) {
+          const { emailService } = await import('./emailService');
+          await emailService.sendRefundUpdate(
+            userRow.email,
+            profileRow?.first_name || 'Spieler',
+            refund.amount_cents,
+            'processed'
+          );
+        }
+      } catch (err) {
+        console.error('[payment] Refund email failed:', err);
+      }
+
       return { status: 'processed', stripe_refund_id: stripeRefund.id };
     } catch (error: any) {
       await db(t('refunds')).where('id', refundId).update({
@@ -634,4 +851,10 @@ export class PaymentService {
       },
     };
   }
+}
+
+function appendCheckoutParams(baseUrl: string, params: Record<string, string>): string {
+  const separator = baseUrl.includes('?') ? '&' : '?';
+  const query = new URLSearchParams(params).toString();
+  return `${baseUrl}${separator}${query}`;
 }

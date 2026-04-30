@@ -203,7 +203,7 @@ export class VenueController {
     try {
       const venueId = parseInt(req.params.id, 10);
       const [reviews, summary] = await Promise.all([
-        VenueReviewService.listReviews(venueId),
+        VenueReviewService.listReviews(venueId, req.user?.userId),
         VenueReviewService.getRatingSummary(venueId),
       ]);
       res.json({ success: true, data: reviews, meta: summary });
@@ -238,7 +238,7 @@ export class VenueController {
   static async listPhotos(req: Request, res: Response, next: NextFunction) {
     try {
       const venueId = parseInt(req.params.id, 10);
-      const photos = await VenueReviewService.listPhotos(venueId);
+      const photos = await VenueReviewService.listPhotos(venueId, req.user?.userId);
       res.json({ success: true, data: photos });
     } catch (error) {
       next(error);

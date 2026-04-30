@@ -1,8 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
@@ -11,6 +8,7 @@ import { AchievementService } from '../services/achievementService';
 import { BracketService } from '../services/bracketService';
 import { EloService } from '../services/eloService';
 import { PlaytomicService } from '../services/playtomicService';
+import { PlaytomicFileService } from '../services/playtomicFileService';
 import { MatchFeedbackService } from '../services/matchFeedbackService';
 import { RatingHistoryService } from '../services/ratingHistoryService';
 import { PlayerDiscoveryService } from '../services/playerDiscoveryService';
@@ -236,21 +234,40 @@ router.post(
     try {
       if (!req.file) throw new Error('No file uploaded');
 
-      const uploadsDir = path.join(process.cwd(), 'uploads', 'playtomic');
-      await fs.mkdir(uploadsDir, { recursive: true });
+      const url = await PlaytomicFileService.store(
+        req.user!.userId,
+        req.file.buffer,
+        req.file.mimetype
+      );
 
-      const ext = req.file.mimetype === 'image/png' ? 'png' : req.file.mimetype === 'image/webp' ? 'webp' : 'jpg';
-      const filename = `${req.user!.userId}_${uuidv4()}.${ext}`;
-      const filepath = path.join(uploadsDir, filename);
+      const ocr = await PlaytomicService.submitScreenshot(req.user!.userId, url, req.file.buffer);
 
-      await fs.writeFile(filepath, req.file.buffer);
+      res.json({
+        success: true,
+        data: {
+          screenshotUrl: '/me/playtomic/screenshot',
+          status: 'pending',
+          ocr,
+          message: 'Screenshot uploaded',
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
-      const baseUrl = process.env.PUBLIC_BASE_URL || '';
-      const url = `${baseUrl}/uploads/playtomic/${filename}`;
-
-      await PlaytomicService.submitScreenshot(req.user!.userId, url);
-
-      res.json({ success: true, data: { url, message: 'Screenshot uploaded' } });
+router.get(
+  '/playtomic/screenshot',
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const resolved = await PlaytomicFileService.resolveForUser(req.user!.userId);
+      if (!resolved) {
+        return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Screenshot not found' } });
+      }
+      res.type(resolved.contentType);
+      res.sendFile(resolved.filepath);
     } catch (error) {
       next(error);
     }

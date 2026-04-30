@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import apiClient from '../api/client';
 
-const CONSENT_KEY = '@tourneo_consent_data';
+const CONSENT_KEY = 'tourneo_consent_data';
 
 export interface ConsentData {
   mandatory: boolean;
@@ -86,7 +86,7 @@ export const useConsentStore = create<ConsentStoreState>((set, get) => ({
   requestDataDeletion: async () => {
     set({ isLoading: true });
     try {
-      await apiClient.post('/users/me/delete-request');
+      await apiClient.post('/me/delete-account');
       set({ isLoading: false });
     } catch {
       set({ isLoading: false });
@@ -97,7 +97,7 @@ export const useConsentStore = create<ConsentStoreState>((set, get) => ({
   requestDataExport: async () => {
     set({ isLoading: true });
     try {
-      await apiClient.get('/users/me/data-export');
+      await apiClient.get('/me/data-export');
       set({ isLoading: false });
     } catch {
       set({ isLoading: false });
