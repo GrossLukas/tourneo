@@ -102,6 +102,34 @@ export async function getWaitlistStatus(registrationId: number) {
 }
 
 // ─── ELO / achievements / referrals ───────────────────────
+// ─── Tournaments among friends ─────────────────────────────
+export type CommunityVenue =
+  | { kind: 'partner'; venue_id: number }
+  | { kind: 'osm'; osm_id: string; name: string; latitude: number; longitude: number; address?: string; website?: string | null }
+  | { kind: 'place'; name: string; address?: string };
+
+export async function createCommunityEvent(body: {
+  title: string;
+  start_date: string;
+  duration_minutes: number;
+  format: 'singles' | 'doubles';
+  max_participants: number;
+  venue: CommunityVenue;
+}): Promise<{ id: number; invite_token: string | null; title: string }> {
+  const res = await apiClient.post('/events/community', body);
+  return res.data.data;
+}
+
+/** Organiser: create the bracket from the registrations and publish it. */
+export async function startCommunityBracket(eventId: number) {
+  await apiClient.post(`/matches/events/${eventId}/bracket/generate`);
+  await apiClient.put(`/matches/events/${eventId}/bracket/publish`);
+}
+
+export async function cancelEvent(eventId: number, reason?: string) {
+  await apiClient.put(`/events/${eventId}/cancel`, { reason });
+}
+
 // ─── Hall finder (OpenStreetMap + partners) ────────────────
 export interface FoundHall {
   id: string;

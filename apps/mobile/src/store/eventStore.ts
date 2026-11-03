@@ -31,6 +31,11 @@ export interface Event {
   min_playtomic_level?: number | string | null;
   max_playtomic_level?: number | string | null;
   requires_playtomic_verification?: boolean;
+  /** Tournament among friends (private, run by the player who created it) */
+  is_community?: boolean | number;
+  /** Only sent to the organiser and to people who opened the invite link */
+  invite_token?: string | null;
+  viewer_can_organize?: boolean;
   rules_summary?: string | null;
   banner_image_url: string | null;
   status: string;
@@ -58,7 +63,7 @@ interface EventState {
   meta: { page: number; total: number; total_pages: number };
 
   fetchEvents: (filters?: Record<string, any>) => Promise<void>;
-  fetchEventById: (id: number) => Promise<void>;
+  fetchEventById: (id: number, invite?: string) => Promise<void>;
   setFilters: (filters: Record<string, any>) => void;
   clearFilters: () => void;
   reset: () => void;
@@ -93,10 +98,11 @@ export const useEventStore = create<EventState>((set, get) => ({
     }
   },
 
-  fetchEventById: async (id: number) => {
+  fetchEventById: async (id: number, invite?: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.get(`/events/${id}`);
+      // Private tournaments among friends open with the invite token from the link
+      const response = await apiClient.get(`/events/${id}`, { params: invite ? { invite } : undefined });
       set({ currentEvent: response.data.data, loading: false });
     } catch (error) {
       set({ loading: false, error: 'Event konnte nicht geladen werden.' });

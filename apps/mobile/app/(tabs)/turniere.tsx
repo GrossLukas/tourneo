@@ -20,6 +20,7 @@ import {
   ScrollView,
   FlatList,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -295,17 +296,25 @@ export default function TurniereScreen() {
         showsVerticalScrollIndicator={false}
       />
 
-      {isAdmin ? (
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-            router.push('/admin/quick-create');
-          }}
-          style={s.fab}
-        >
-          <NCIcon name="plus" size={26} color="#FFFFFF" strokeWidth={2.4} />
-        </Pressable>
-      ) : null}
+      {/* Everyone can start a tournament among friends; admins can also quick-create official ones */}
+      <Pressable
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+          if (!isAdmin) {
+            router.push('/event/create');
+            return;
+          }
+          Alert.alert('Neues Turnier', undefined, [
+            { text: 'Mit Freunden', onPress: () => router.push('/event/create') },
+            { text: 'Offiziell (Schnellanlage)', onPress: () => router.push('/admin/quick-create') },
+            { text: 'Abbrechen', style: 'cancel' },
+          ]);
+        }}
+        style={s.fab}
+        accessibilityLabel="Turnier erstellen"
+      >
+        <NCIcon name="plus" size={26} color="#FFFFFF" strokeWidth={2.4} />
+      </Pressable>
     </NCScreen>
   );
 }

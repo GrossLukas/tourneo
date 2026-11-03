@@ -20,6 +20,7 @@ import {
   RefreshControl,
   Alert,
   Platform,
+  Share,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -43,10 +44,11 @@ import { useEventStore } from '../../src/store/eventStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { useRegistrationStore } from '../../src/store/registrationStore';
 import { StandingsTable, AmericanoView } from '../../src/components/events';
-import { setEventMaintenance, setEventLevelRules } from '../../src/api/v2';
+import { setEventMaintenance, setEventLevelRules, startCommunityBracket, cancelEvent } from '../../src/api/v2';
+import { deepLinks } from '../../src/utils/deepLinks';
 
 export default function EventDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, invite } = useLocalSearchParams<{ id: string; invite?: string }>();
   const router = useRouter();
   const { currentEvent, fetchEventById, loading } = useEventStore();
   const { user } = useAuthStore();
@@ -55,8 +57,8 @@ export default function EventDetailScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
-    if (id) fetchEventById(Number(id));
-  }, [id, fetchEventById]);
+    if (id) fetchEventById(Number(id), invite);
+  }, [id, invite, fetchEventById]);
 
   useEffect(() => {
     if (user) fetchMyRegistrations();
@@ -64,7 +66,7 @@ export default function EventDetailScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (id) await fetchEventById(Number(id));
+    if (id) await fetchEventById(Number(id), invite);
     setRefreshing(false);
   };
 
@@ -166,6 +168,52 @@ export default function EventDetailScreen() {
     ]);
   };
 
+  const isFriendsEvent = Boolean(Number(e.is_community));
+  const canOrganize = Boolean(e.viewer_can_organize) && isFriendsEvent;
+  const inviteToken = invite || e.invite_token || undefined;
+  const inviteLink = e.invite_token ? `${deepLinks.event(e.id)}?invite=${e.invite_token}` : null;
+
+  const shareInvite = () => {
+    if (!inviteLink) return;
+    Share.share({ message: `Spiel mit beim Padel-Turnier „${e.title}“ am ${dateFull}: ${inviteLink}` }).catch(() => {});
+  };
+
+  const startBracket = () => {
+    Alert.alert('Turnierbaum starten', 'Die Anmeldungen werden geschlossen und der Turnierbaum erstellt.', [
+      { text: 'Abbrechen', style: 'cancel' },
+      {
+        text: 'Starten',
+        onPress: async () => {
+          try {
+            await startCommunityBracket(e.id);
+            await fetchEventById(e.id, invite);
+            router.push(`/event/bracket/${e.id}`);
+          } catch (err: any) {
+            Alert.alert('Turnierbaum', err?.response?.data?.error?.message || 'Der Turnierbaum konnte nicht erstellt werden.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const cancelFriendsEvent = () => {
+    Alert.alert('Turnier absagen', 'Alle Angemeldeten sehen danach, dass das Turnier abgesagt ist.', [
+      { text: 'Zurück', style: 'cancel' },
+      {
+        text: 'Absagen',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await cancelEvent(e.id, 'Vom Organisator abgesagt');
+            await fetchEventById(e.id, invite);
+          } catch (err: any) {
+            Alert.alert('Absagen', err?.response?.data?.error?.message || 'Das Turnier konnte nicht abgesagt werden.');
+          }
+        },
+      },
+    ]);
+  };
+
   const handleRegister = () => {
     if (paused) {
       Alert.alert('Turnier pausiert', pausedNote);
@@ -252,6 +300,23 @@ export default function EventDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* Organiser of a tournament among friends */}
+        {canOrganize ? (
+          <View style={{ paddingHorizontal: 20, paddingTop: 16, gap: 10 }}>
+            <NCButton variant="primary" size="md" full onPress={shareInvite} disabled={!inviteLink}>
+              Freunde einladen
+            </NCButton>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <NCButton variant="ghost" size="sm" onPress={startBracket}>
+                Turnierbaum starten
+              </NCButton>
+              <NCButton variant="ghost" size="sm" onPress={cancelFriendsEvent}>
+                Turnier absagen
+              </NCButton>
+            </View>
+          </View>
+        ) : null}
 
         {/* My registration: check-in code */}
         {myRegistration ? (
@@ -458,7 +523,8 @@ export default function EventDetailScreen() {
         eventDateLabel={dateFull}
         feeCents={e.entry_fee_cents}
         isMember={isMember}
-        onSuccess={() => fetchEventById(Number(id))}
+        inviteToken={inviteToken}
+        onSuccess={() => fetchEventById(Number(id), invite)}
       />
     </NCScreen>
   );

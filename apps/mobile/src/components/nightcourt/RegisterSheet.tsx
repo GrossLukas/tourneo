@@ -39,6 +39,8 @@ interface RegisterSheetProps {
   eventDateLabel?: string;
   feeCents: number;
   isMember?: boolean;
+  /** Invite token of a private tournament (from the invite link) */
+  inviteToken?: string;
 }
 
 export const RegisterSheet: React.FC<RegisterSheetProps> = ({
@@ -50,6 +52,7 @@ export const RegisterSheet: React.FC<RegisterSheetProps> = ({
   eventDateLabel,
   feeCents,
   isMember = false,
+  inviteToken,
 }) => {
   const [step, setStep] = useState<Step>(0);
   const [type, setType] = useState<RegType>('duo');
@@ -87,6 +90,7 @@ export const RegisterSheet: React.FC<RegisterSheetProps> = ({
         consent_tournament_terms: true,
         consent_age_verified: true,
         consent_media: consents.media,
+        invite_token: inviteToken,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setStep(2);

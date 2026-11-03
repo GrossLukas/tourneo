@@ -43,6 +43,7 @@ interface RegistrationState {
     consent_tournament_terms: true;
     consent_age_verified: true;
     consent_media?: boolean;
+    invite_token?: string;
   }) => Promise<Registration>;
   cancelRegistration: (id: string, reason?: string) => Promise<void>;
   getRegistrationById: (id: string) => Promise<void>;

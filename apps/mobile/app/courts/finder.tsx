@@ -17,17 +17,27 @@ import {
   Linking,
   Keyboard,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { NCScreen, NCCard, NCButton, NCIcon, NCPill, NC } from '../../src/components/nightcourt';
 import { fontFamily } from '../../src/theme/typography';
 import { findHalls, type HallSearchResult, type FoundHall } from '../../src/api/v2';
+import { useHallPickStore } from '../../src/store/hallPickStore';
 
 const RADII = [10, 25, 50, 100, 200];
 
 export default function HallFinderScreen() {
   const router = useRouter();
+  // ?pick=1: opened from "Turnier mit Freunden" to choose the hall
+  const { pick } = useLocalSearchParams<{ pick?: string }>();
+  const pickMode = pick === '1';
+  const pickHall = useHallPickStore((st) => st.pick);
+  const choose = (hall: FoundHall) => {
+    pickHall(hall);
+    if (pickMode) router.back();
+    else router.push('/event/create');
+  };
   const [place, setPlace] = useState('');
   const [radius, setRadius] = useState(25);
   const [players, setPlayers] = useState(4);
@@ -102,7 +112,7 @@ export default function HallFinderScreen() {
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Zurück">
           <NCIcon name="chevronL" size={22} color={NC.textP} />
         </Pressable>
-        <Text style={s.title}>Padel-Hallen finden</Text>
+        <Text style={s.title}>{pickMode ? 'Halle wählen' : 'Padel-Hallen finden'}</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -175,7 +185,15 @@ export default function HallFinderScreen() {
                 <Text style={s.hint}>Such nach einem Ort oder nutze deinen Standort.</Text>
               )
           }
-          renderItem={({ item }) => <HallCard hall={item} players={players} onBook={(id) => router.push(`/venue/${id}`)} />}
+          renderItem={({ item }) => (
+            <HallCard
+              hall={item}
+              players={players}
+              pickMode={pickMode}
+              onChoose={choose}
+              onBook={(id) => router.push(`/venue/${id}`)}
+            />
+          )}
           ListFooterComponent={result ? <Text style={s.attribution}>Hallen-Daten: {result.attribution}</Text> : null}
         />
       )}
@@ -183,7 +201,13 @@ export default function HallFinderScreen() {
   );
 }
 
-const HallCard: React.FC<{ hall: FoundHall; players: number; onBook: (id: number) => void }> = ({ hall, players, onBook }) => (
+const HallCard: React.FC<{
+  hall: FoundHall;
+  players: number;
+  pickMode: boolean;
+  onChoose: (hall: FoundHall) => void;
+  onBook: (id: number) => void;
+}> = ({ hall, players, pickMode, onChoose, onBook }) => (
   <NCCard padded={false} style={s.card}>
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
       <Text style={s.name} numberOfLines={2}>{hall.name}</Text>
@@ -205,6 +229,9 @@ const HallCard: React.FC<{ hall: FoundHall; players: number; onBook: (id: number
       <Text style={s.warn}>Für {players} Spieler zu wenige Plätze</Text>
     ) : null}
     <View style={s.actions}>
+      <NCButton variant={pickMode ? 'primary' : 'ghost'} size="sm" onPress={() => onChoose(hall)}>
+        {pickMode ? 'Diese Halle wählen' : 'Turnier hier planen'}
+      </NCButton>
       {hall.tourneo_venue_id ? (
         <NCButton variant="primary" size="sm" onPress={() => onBook(hall.tourneo_venue_id!)}>Buchen</NCButton>
       ) : null}
