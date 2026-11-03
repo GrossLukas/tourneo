@@ -26,7 +26,7 @@
     "install:all": "npm install"
   },
   "author": "Lukas Gross <gross.lukas01@web.de>",
-  "license": "UNLICENSED",
+  "license": "AGPL-3.0-only",
   "overrides": {
     "react": "19.1.0",
     "protobufjs": "^7.5.5",

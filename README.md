@@ -2,11 +2,11 @@
 
 <div align="center">
 
-**iOS-first mobile app for sport events, Padel tournaments, community, and event discovery.**
+**Free, open-source app for Padel tournaments among friends, finding padel halls anywhere, and community events.**
 
 ![Version](https://img.shields.io/badge/version-1.0.0--MVP-blue)
 ![Platform](https://img.shields.io/badge/platform-iOS-lightgrey)
-![License](https://img.shields.io/badge/license-proprietary-red)
+![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 
 </div>
 
@@ -25,26 +25,26 @@
 - [API Documentation](#-api-documentation)
 - [Database Schema](#-database-schema)
 - [Features](#-features)
-- [Membership Tiers](#-membership-tiers)
 - [Environment Variables](#-environment-variables)
 - [Deployment](#-deployment)
 - [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
 ## 🏆 Overview
 
-Tourneo is a comprehensive iOS-first mobile platform for discovering, organizing, and participating in Padel tournaments and sport events. Built with a "Padel first, FIFA architecture" approach, the platform is designed to expand to additional sports in the future.
+Tourneo is a free, open-source iOS-first app for Padel: set up tournaments with friends and family, find padel halls wherever you are, and join community events. It costs nothing – payments and paid memberships are switched off (`PAYMENTS_ENABLED`), and Tourneo never books other venues itself: it finds them and links to their own website or booking page. Built "Padel first", the architecture is ready for further sports.
 
 ### Key Highlights
 
-- **Tournament Discovery & Registration** – Browse, filter, and sign up for Padel tournaments with real-time availability
-- **Bracket System** – Automated single-elimination bracket generation with seeding, byes, and optional 3rd place matches
-- **Membership Tiers** – Free, Plus (€7.99/mo), and Club (€14.99/mo) with early access, fee discounts, and waitlist priority
-- **Court Finder** – Discover venues with court details and external booking links
-- **Community** – Teams, friendships, and player search
-- **Guaranteed Prize Money** – Transparent prize pool distribution
-- **DSGVO Compliant** – Consent logging, data export, account deletion
+- **Tournaments among friends** – Anyone can create a private tournament, share the invite link and run it: bracket, results, check-in
+- **Hall finder** – Every padel venue nearby or at any place (10–200 km), for a number of players, with website/booking link, phone and route
+- **Bracket System** – Automated single-elimination and round-robin brackets with seeding, byes, schedule by time and court
+- **QR check-in** – Players show a code, organisers scan it; configurable check-in window
+- **Level rules** – Tournaments can require a Playtomic level range or a verified level
+- **Community** – Teams, friendships, player search, duo partner invites by e-mail, nearby-tournament alerts
+- **DSGVO Compliant** – Consent logging, data export, account deletion, minimal location data
 - **German-First** – Full i18n support (DE primary, EN secondary)
 - **18+ Only** – Age verification required at registration
 
@@ -155,7 +155,7 @@ Ensure you have the following installed:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/BigLisBigger/tourneo.git
+git clone https://github.com/GrossLukas/tourneo.git
 cd tourneo
 
 # 2. Install dependencies
@@ -497,17 +497,29 @@ The database uses 28+ tables with the `tourneo_` prefix. Key entities:
 - Browse and filter by skill level, format, city
 - Detailed event pages with prize pool breakdown
 - Solo, Duo, and Team registration types
-- Automated bracket generation (single elimination)
+- Automated bracket generation (single elimination, round robin)
 - Seeding system with bye handling
-- Real-time bracket visualization
-- Check-in system (1h before event)
+- Real-time bracket visualization and match schedule (time and court)
+- QR check-in (window configurable per event, default 1h before start)
+- Maintenance mode: pause a single tournament with a note
+- Level rules: Playtomic level range and/or verified level per tournament
+
+### 🤝 Tournaments among friends
+- Any signed-in player creates a private, free tournament in a few taps
+- Hall from the hall finder or any place, date, duration, format, size
+- Invite link via the share sheet; only organiser, participants and link holders can see it
+- The organiser starts the bracket, enters results, checks players in and can cancel
+
+### 🗺 Hall finder
+- All padel venues around your location or a place name, radius 10–200 km
+- Number of players → courts needed; halls with too few known courts are marked
+- Website / booking button (names Playtomic, Eversports, MATCHi, …), phone, route, opening hours
+- Tourneo partner venues first and bookable in the app
+- Data: © OpenStreetMap contributors (ODbL). A nightly job imports the configured countries (`HALLFINDER_COUNTRIES`, default DE, AT, CH) into the database; other regions are queried live. Missing hall? The app opens an OpenStreetMap note so it gets added for everyone.
 
 ### 💳 Payments
-- Stripe integration for tournament fees
-- Membership discounts (Plus: 10%, Club: 20%)
-- Automatic refund calculation (75%/14-day policy)
-- Guaranteed prize money distribution
-- Apple In-App Purchase for subscriptions
+- Switched off: the app is free (`PAYMENTS_ENABLED=false`)
+- The Stripe and membership code stays in the repository and can be re-enabled
 
 ### 👥 Community
 - Friend system with request/accept flow
@@ -527,30 +539,6 @@ The database uses 28+ tables with the `tourneo_` prefix. Key entities:
 - DSGVO: consent logging, data export, deletion
 - Age verification (18+)
 - Versioned legal documents
-
----
-
-## ⭐ Membership Tiers
-
-| Feature | Free | Plus (€7.99/mo) | Club (€14.99/mo) |
-|---|:---:|:---:|:---:|
-| Tournament participation | ✅ | ✅ | ✅ |
-| Court finder | ✅ | ✅ | ✅ |
-| Community features | ✅ | ✅ | ✅ |
-| Early access | – | 24h | 48h |
-| Fee discount | – | 10% | 20% |
-| Waitlist priority | Standard | High | Highest |
-| Extended stats | – | ✅ | ✅ |
-| Exclusive events | – | – | ✅ |
-| Profile badge | – | Purple | Gold |
-| Priority support | – | – | ✅ |
-
-### Waitlist Priority
-When a tournament is full and a spot opens:
-1. **Club** members are promoted first
-2. **Plus** members are promoted second
-3. **Free** users are promoted last
-4. Within each tier, chronological order applies
 
 ---
 
@@ -626,35 +614,29 @@ npx eas submit --platform ios
 
 - **Developer:** Lukas Gross
 - **Email:** gross.lukas01@web.de
-- **GitHub:** [@BigLisBigger](https://github.com/BigLisBigger)
+- **GitHub:** [@GrossLukas](https://github.com/GrossLukas)
 
 ---
 
-## 🌿 Branch Strategy
+## 🌿 Branches & Builds
 
-| Branch | Purpose |
-|--------|---------|
-| `main` | iOS-first primary branch (production-ready) |
-| `android` | Android-specific configurations and adjustments |
+`main` is the only long-lived branch and builds iOS and Android:
 
-### iOS Build (main branch)
 ```bash
-git checkout main
 cd apps/mobile
 npx eas build --profile production:ios --platform ios
-```
-
-### Android Build (android branch)
-```bash
-git checkout android
-cd apps/mobile
 npx eas build --profile production:android --platform android
 ```
 
-### Test Results
-- **Backend**: 7 test suites, 235 tests — 100% passing
-- **TypeScript**: Zero errors across both backend and mobile codebases
-- **Security**: Input sanitization, prototype pollution prevention, CSP headers, brute force protection, parameter pollution prevention
+Before a release: `npm run ci:verify` (typecheck, backend and app tests, admin check, builds) – the same as the CI.
+
+---
+
+## 📄 License
+
+Tourneo is free software under the **GNU Affero General Public License v3.0** ([LICENSE](LICENSE)). You may use, change and share it; if you run a changed version as a service, its source code has to be available to its users as well.
+
+Contributions are welcome – see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
