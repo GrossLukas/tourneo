@@ -28,6 +28,9 @@ export interface Event {
   special_notes: string | null;
   maintenance_mode?: boolean;
   maintenance_message?: string | null;
+  min_playtomic_level?: number | string | null;
+  max_playtomic_level?: number | string | null;
+  requires_playtomic_verification?: boolean;
   rules_summary?: string | null;
   banner_image_url: string | null;
   status: string;

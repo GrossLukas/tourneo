@@ -37,6 +37,8 @@ type PendingVerification = {
   playtomic_screenshot_url: string;
   email: string;
   submitted_at: string;
+  /** Another account already submitted the very same screenshot */
+  duplicate_of_user_id?: number | null;
 };
 
 export default function AdminVerificationsScreen() {
@@ -175,6 +177,11 @@ export default function AdminVerificationsScreen() {
               <Text style={[styles.meta, { color: colors.textTertiary }]}>
                 {new Date(item.submitted_at).toLocaleString('de-DE')}
               </Text>
+              {item.duplicate_of_user_id ? (
+                <Text style={[styles.meta, { color: colors.error as string, fontWeight: '600' }]}>
+                  Gleicher Screenshot wie Nutzer #{item.duplicate_of_user_id} – bitte genau prüfen
+                </Text>
+              ) : null}
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>

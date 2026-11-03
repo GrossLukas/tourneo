@@ -36,6 +36,13 @@ export class RegistrationService {
         throw AppError.badRequest(accessCheck.reason || 'Cannot register for this event');
       }
 
+      // Level requirements are enforced here, not only shown in the app
+      const levelProfile = await trx(t('profiles'))
+        .where('user_id', userId)
+        .first('playtomic_level', 'playtomic_verification_status');
+      const levelReason = EventService.levelIneligibility(event, levelProfile);
+      if (levelReason) throw AppError.badRequest(levelReason);
+
       const existingReg = await trx(t('registrations'))
         .where('event_id', input.event_id)
         .where('user_id', userId)
@@ -123,6 +130,7 @@ export class RegistrationService {
         partner_invite_status: incomingInvite ? 'accepted' : partnerEmail ? 'pending' : 'none',
         partner_invited_at: partnerEmail && !incomingInvite ? now : null,
         partner_accepted_at: incomingInvite ? now : null,
+        playtomic_level_at_registration: levelProfile?.playtomic_level ?? null,
         status,
         membership_tier_at_registration: membershipTier,
         discount_applied_cents: discount,

@@ -43,7 +43,7 @@ import { useEventStore } from '../../src/store/eventStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { useRegistrationStore } from '../../src/store/registrationStore';
 import { StandingsTable, AmericanoView } from '../../src/components/events';
-import { setEventMaintenance } from '../../src/api/v2';
+import { setEventMaintenance, setEventLevelRules } from '../../src/api/v2';
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -115,6 +115,55 @@ export default function EventDetailScreen() {
         { text: 'Pausieren', style: 'destructive', onPress: () => apply() },
       ]);
     }
+  };
+
+  const minLevel = e.min_playtomic_level == null ? null : Number(e.min_playtomic_level);
+  const maxLevel = e.max_playtomic_level == null ? null : Number(e.max_playtomic_level);
+  const levelText = [
+    minLevel !== null && maxLevel !== null
+      ? `Level ${minLevel.toFixed(1)} – ${maxLevel.toFixed(1)}`
+      : minLevel !== null
+        ? `ab Level ${minLevel.toFixed(1)}`
+        : maxLevel !== null
+          ? `bis Level ${maxLevel.toFixed(1)}`
+          : null,
+    e.requires_playtomic_verification ? 'bestätigtes Playtomic-Level nötig' : null,
+  ].filter(Boolean).join(' · ');
+
+  const editLevelRules = () => {
+    const save = async (rules: Parameters<typeof setEventLevelRules>[1]) => {
+      try {
+        await setEventLevelRules(e.id, rules);
+        await fetchEventById(e.id);
+      } catch {
+        Alert.alert('Fehler', 'Die Level-Regel konnte nicht gespeichert werden.');
+      }
+    };
+    const askRange = () =>
+      Alert.prompt?.('Level-Bereich', 'Zum Beispiel 3.0-4.5 (leer = kein Limit)', (text) => {
+        const [lo, hi] = (text || '').split('-').map((v) => v.trim().replace(',', '.'));
+        const parse = (v?: string) => (v ? Number(v) : null);
+        const min = parse(lo);
+        const max = parse(hi);
+        if ([min, max].some((v) => v !== null && (Number.isNaN(v) || v < 0 || v > 7))) {
+          Alert.alert('Ungültig', 'Bitte Level zwischen 0 und 7 angeben, z. B. 3.0-4.5.');
+          return;
+        }
+        save({ min_playtomic_level: min, max_playtomic_level: max });
+      });
+    Alert.alert('Level-Regel', levelText || 'Keine Einschränkung', [
+      ...(Platform.OS === 'ios' ? [{ text: 'Bereich festlegen…', onPress: askRange }] : []),
+      {
+        text: e.requires_playtomic_verification ? 'Bestätigung nicht mehr verlangen' : 'Bestätigtes Level verlangen',
+        onPress: () => save({ requires_playtomic_verification: !e.requires_playtomic_verification }),
+      },
+      {
+        text: 'Alle Regeln entfernen',
+        style: 'destructive' as const,
+        onPress: () => save({ min_playtomic_level: null, max_playtomic_level: null, requires_playtomic_verification: false }),
+      },
+      { text: 'Abbrechen', style: 'cancel' as const },
+    ]);
   };
 
   const handleRegister = () => {
@@ -222,6 +271,19 @@ export default function EventDetailScreen() {
             <NCButton variant="ghost" size="sm" onPress={() => router.push('/admin/checkin-scan')}>
               QR-Check-in
             </NCButton>
+            <NCButton variant="ghost" size="sm" onPress={editLevelRules}>
+              Level
+            </NCButton>
+          </View>
+        ) : null}
+
+        {/* Level requirement */}
+        {levelText ? (
+          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+            <NCCard padded={false} style={s.levelCard}>
+              <NCIcon name="target" size={18} color={NC.primaryLight} />
+              <Text style={[s.body, { flex: 1 }]}>Teilnahme: {levelText}</Text>
+            </NCCard>
           </View>
         ) : null}
 
@@ -634,6 +696,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
+  levelCard: { flexDirection: 'row', gap: 12, alignItems: 'center', padding: 14 },
   pausedCard: {
     flexDirection: 'row',
     gap: 12,

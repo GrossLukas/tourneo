@@ -87,9 +87,10 @@ export class PlaytomicService {
   /**
    * User uploads a screenshot URL for verification.
    */
-  static async submitScreenshot(userId: number, screenshotUrl: string): Promise<void> {
+  static async submitScreenshot(userId: number, screenshotUrl: string, sha256?: string): Promise<void> {
     await db(t('profiles')).where('user_id', userId).update({
       playtomic_screenshot_url: screenshotUrl,
+      playtomic_screenshot_sha256: sha256 ?? null,
       playtomic_verification_status: 'pending',
       updated_at: new Date(),
     });
@@ -162,6 +163,11 @@ export class PlaytomicService {
         `${t('profiles')}.playtomic_screenshot_url`,
         `${t('users')}.email`,
         `${t('profiles')}.updated_at as submitted_at`,
+        // Same image already submitted by another account → flagged in the review queue
+        db.raw(
+          `(SELECT MIN(p2.user_id) FROM ?? p2 WHERE p2.playtomic_screenshot_sha256 = ??.playtomic_screenshot_sha256 AND p2.user_id <> ??.user_id) as duplicate_of_user_id`,
+          [t('profiles'), t('profiles'), t('profiles')]
+        ),
       )
       .orderBy(`${t('profiles')}.updated_at`, 'asc');
   }

@@ -261,6 +261,7 @@ router.put('/events/:id', async (req: Request, res: Response, next: NextFunction
       'special_notes', 'rules_summary', 'rules_full', 'banner_image_url',
       'faq', 'venue_hints', 'prize_table', 'streaming_url',
       'maintenance_mode', 'maintenance_message', 'checkin_opens_minutes_before',
+      'min_playtomic_level', 'max_playtomic_level', 'requires_playtomic_verification',
     ];
 
     const updates: Record<string, any> = {};
@@ -272,6 +273,15 @@ router.put('/events/:id', async (req: Request, res: Response, next: NextFunction
     const checkinWindow = req.body.checkin_opens_minutes_before;
     if (checkinWindow !== undefined && !(Number.isInteger(checkinWindow) && checkinWindow >= 0 && checkinWindow <= 1440)) {
       throw AppError.badRequest('checkin_opens_minutes_before must be a whole number of minutes (0–1440)');
+    }
+    for (const key of ['min_playtomic_level', 'max_playtomic_level']) {
+      const v = req.body[key];
+      if (v !== undefined && v !== null && !(typeof v === 'number' && v >= 0 && v <= 7)) {
+        throw AppError.badRequest(`${key} must be a level between 0 and 7`);
+      }
+    }
+    if (req.body.requires_playtomic_verification !== undefined && typeof req.body.requires_playtomic_verification !== 'boolean') {
+      throw AppError.badRequest('requires_playtomic_verification must be a boolean');
     }
     const note = req.body.maintenance_message;
     if (note !== undefined && note !== null && (typeof note !== 'string' || note.length > 2000)) {

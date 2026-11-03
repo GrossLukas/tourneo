@@ -46,6 +46,9 @@ export class EventService {
         maintenance_mode: input.maintenance_mode ?? false,
         maintenance_message: input.maintenance_message || null,
         checkin_opens_minutes_before: input.checkin_opens_minutes_before ?? 60,
+        min_playtomic_level: input.min_playtomic_level ?? null,
+        max_playtomic_level: input.max_playtomic_level ?? null,
+        requires_playtomic_verification: input.requires_playtomic_verification ?? false,
         rules_summary: input.rules_summary || null,
         banner_image_url: input.banner_image_url || null,
         sponsor_name: input.sponsor_name || null,
@@ -309,6 +312,35 @@ export class EventService {
     });
 
     return this.getEventById(eventId);
+  }
+
+  /**
+   * Level requirements of a tournament against the player's Playtomic profile.
+   * Returns null when the player may register, otherwise the reason (German, shown in the app).
+   */
+  static levelIneligibility(
+    event: { min_playtomic_level?: unknown; max_playtomic_level?: unknown; requires_playtomic_verification?: unknown },
+    profile: { playtomic_level?: unknown; playtomic_verification_status?: unknown } | undefined
+  ): string | null {
+    const min = event.min_playtomic_level == null ? null : Number(event.min_playtomic_level);
+    const max = event.max_playtomic_level == null ? null : Number(event.max_playtomic_level);
+    const needsVerified = Boolean(event.requires_playtomic_verification);
+    if (min === null && max === null && !needsVerified) return null;
+
+    if (needsVerified && profile?.playtomic_verification_status !== 'approved') {
+      return 'Für dieses Turnier brauchst du ein bestätigtes Playtomic-Level. Lade dazu im Profil einen Screenshot hoch.';
+    }
+    const level = profile?.playtomic_level == null ? null : Number(profile.playtomic_level);
+    if ((min !== null || max !== null) && level === null) {
+      return 'Bitte hinterlege zuerst dein Playtomic-Level im Profil.';
+    }
+    if (level !== null && min !== null && level < min) {
+      return `Dieses Turnier ist ab Level ${min.toFixed(1)} – dein Level ist ${level.toFixed(1)}.`;
+    }
+    if (level !== null && max !== null && level > max) {
+      return `Dieses Turnier ist bis Level ${max.toFixed(1)} – dein Level ist ${level.toFixed(1)}.`;
+    }
+    return null;
   }
 
   static canUserRegister(

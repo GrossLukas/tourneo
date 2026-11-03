@@ -177,6 +177,14 @@ export async function checkInByQr(payload: string) {
   };
 }
 
+/** Admin: level rules of a tournament (null clears a bound). */
+export async function setEventLevelRules(
+  eventId: number,
+  rules: { min_playtomic_level?: number | null; max_playtomic_level?: number | null; requires_playtomic_verification?: boolean }
+) {
+  await apiClient.put(`/admin/events/${eventId}`, rules);
+}
+
 /** Admin: pause or resume registrations for one tournament (maintenance mode). */
 export async function setEventMaintenance(eventId: number, paused: boolean, message?: string | null) {
   await apiClient.put(`/admin/events/${eventId}`, {

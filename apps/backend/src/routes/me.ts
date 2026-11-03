@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { promises as fs } from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { authenticate } from '../middleware/auth';
@@ -307,7 +308,8 @@ router.post(
       const baseUrl = process.env.PUBLIC_BASE_URL || '';
       const url = `${baseUrl}/uploads/playtomic/${filename}`;
 
-      await PlaytomicService.submitScreenshot(req.user!.userId, url);
+      const sha256 = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
+      await PlaytomicService.submitScreenshot(req.user!.userId, url, sha256);
 
       res.json({ success: true, data: { url, message: 'Screenshot uploaded' } });
     } catch (error) {
