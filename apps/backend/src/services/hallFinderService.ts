@@ -262,6 +262,14 @@ export class HallFinderService {
     return imported;
   }
 
+  /** Runs the import in the background when the local table is still empty (first start). */
+  static async importIfEmpty(): Promise<void> {
+    const any = await db(t('osm_padel_venues')).first('osm_id');
+    if (any) return;
+    const result = await this.importAll();
+    console.log('[hallfinder] initial import', result);
+  }
+
   /** Nightly: refresh every configured country; one failing country does not stop the others. */
   static async importAll(): Promise<Record<string, number | string>> {
     const result: Record<string, number | string> = {};

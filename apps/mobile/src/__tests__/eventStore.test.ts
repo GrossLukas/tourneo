@@ -73,6 +73,12 @@ describe('eventStore', () => {
       expect(apiClient.get).toHaveBeenCalledWith('/events/42');
     });
 
+    it('passes the invite token of a private tournament', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValueOnce({ data: { data: { id: 7 } } });
+      await useEventStore.getState().fetchEventById(7, 'tok');
+      expect(apiClient.get).toHaveBeenCalledWith('/events/7', { params: { invite: 'tok' } });
+    });
+
     it('sets error on failure', async () => {
       (apiClient.get as jest.Mock).mockRejectedValue(new Error('Not found'));
       await useEventStore.getState().fetchEventById(999);

@@ -114,6 +114,9 @@ export function startJobs(): void {
   if (started) return;
   started = true;
 
+  // Fresh installation: fill the hall finder right away instead of waiting for the nightly run
+  HallFinderService.importIfEmpty().catch((err) => log.error({ err }, 'hall finder initial import failed'));
+
   if (process.env.REDIS_URL) {
     startBullMq(process.env.REDIS_URL).catch((err) => {
       log.error({ err }, 'BullMQ startup failed — falling back to in-process timers');

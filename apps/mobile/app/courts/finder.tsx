@@ -24,6 +24,7 @@ import { NCScreen, NCCard, NCButton, NCIcon, NCPill, NC } from '../../src/compon
 import { fontFamily } from '../../src/theme/typography';
 import { findHalls, type HallSearchResult, type FoundHall } from '../../src/api/v2';
 import { useHallPickStore } from '../../src/store/hallPickStore';
+import { addMissingHallUrl, bookingLabel, formatOpeningHours } from '../../src/utils/hallLinks';
 
 const RADII = [10, 25, 50, 100, 200];
 
@@ -194,7 +195,16 @@ export default function HallFinderScreen() {
               onBook={(id) => router.push(`/venue/${id}`)}
             />
           )}
-          ListFooterComponent={result ? <Text style={s.attribution}>Hallen-Daten: {result.attribution}</Text> : null}
+          ListFooterComponent={
+            result ? (
+              <View style={{ alignItems: 'center', gap: 8, marginTop: 8 }}>
+                <NCButton variant="ghost" size="sm" onPress={() => Linking.openURL(addMissingHallUrl(result.center.lat, result.center.lng))}>
+                  Halle fehlt? In OpenStreetMap melden
+                </NCButton>
+                <Text style={s.attribution}>Hallen-Daten: {result.attribution}</Text>
+              </View>
+            ) : null
+          }
         />
       )}
     </NCScreen>
@@ -225,6 +235,9 @@ const HallCard: React.FC<{
         <NCPill color={NC.textS} bg={NC.bgCard}>{hall.indoor ? 'Halle' : 'Draußen'}</NCPill>
       ) : null}
     </View>
+    {formatOpeningHours(hall.opening_hours) ? (
+      <Text style={s.hint}>Geöffnet: {formatOpeningHours(hall.opening_hours)}</Text>
+    ) : null}
     {hall.enough_courts === false ? (
       <Text style={s.warn}>Für {players} Spieler zu wenige Plätze</Text>
     ) : null}
@@ -237,7 +250,7 @@ const HallCard: React.FC<{
       ) : null}
       {hall.website ? (
         <NCButton variant="ghost" size="sm" onPress={() => Linking.openURL(hall.website!)}>
-          {hall.source === 'tourneo' ? 'Website' : 'Website / Buchung'}
+          {hall.source === 'tourneo' ? 'Website' : bookingLabel(hall.website)}
         </NCButton>
       ) : null}
       {hall.phone ? (

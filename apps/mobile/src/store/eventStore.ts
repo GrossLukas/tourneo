@@ -102,7 +102,9 @@ export const useEventStore = create<EventState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       // Private tournaments among friends open with the invite token from the link
-      const response = await apiClient.get(`/events/${id}`, { params: invite ? { invite } : undefined });
+      const response = invite
+        ? await apiClient.get(`/events/${id}`, { params: { invite } })
+        : await apiClient.get(`/events/${id}`);
       set({ currentEvent: response.data.data, loading: false });
     } catch (error) {
       set({ loading: false, error: 'Event konnte nicht geladen werden.' });
