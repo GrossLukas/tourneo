@@ -106,6 +106,23 @@ export default function CourtsScreen() {
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <Stack.Screen options={{ title: 'Plätze finden', headerShown: true }} />
 
+      {/* All padel venues (OpenStreetMap), not only Tourneo partners */}
+      <TouchableOpacity
+        onPress={() => router.push('/courts/finder')}
+        style={[styles.finderBanner, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
+        accessibilityRole="button"
+        accessibilityLabel="Alle Padel-Hallen in der Nähe oder an einem Ort finden"
+      >
+        <Ionicons name="map-outline" size={20} color={colors.primary as string} />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.finderTitle, { color: colors.textPrimary }]}>Alle Padel-Hallen finden</Text>
+          <Text style={[styles.finderSub, { color: colors.textTertiary }]}>
+            In der Nähe oder an jedem Ort – mit Link zur Buchung der Halle
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textTertiary as string} />
+      </TouchableOpacity>
+
       <View style={styles.controls}>
         <View
           style={[
@@ -260,6 +277,18 @@ function VenueRow({
 }
 
 const styles = StyleSheet.create({
+  finderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  finderTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+  finderSub: { fontSize: fontSize.xs, marginTop: 2 },
   container: { flex: 1 },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   controls: {

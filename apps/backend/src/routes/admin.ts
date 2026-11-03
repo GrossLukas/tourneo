@@ -773,6 +773,30 @@ router.post('/events/:id/schedule/auto', validateBody(autoScheduleSchema), async
   }
 });
 
+// Hall finder: (re)import padel venues from OpenStreetMap now, e.g. right after deployment
+router.post('/hallfinder/import', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { HallFinderService } = await import('../services/hallFinderService');
+    const countries: unknown = req.body?.countries;
+    const result: Record<string, number | string> = {};
+    if (Array.isArray(countries) && countries.length) {
+      for (const cc of countries.slice(0, 20)) {
+        try {
+          result[String(cc)] = await HallFinderService.importCountry(String(cc));
+        } catch (err: any) {
+          result[String(cc)] = `failed: ${err?.message || err}`;
+        }
+      }
+    } else {
+      Object.assign(result, await HallFinderService.importAll());
+    }
+    await AuditService.logFromRequest(req, 'hallfinder.import', 'system', null, { metadata: result });
+    res.json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Check-in by scanning the player's QR code (payload "tourneo-checkin:<token>")
 const qrCheckinSchema = z.object({ payload: z.string().min(1).max(200) });
 

@@ -102,6 +102,47 @@ export async function getWaitlistStatus(registrationId: number) {
 }
 
 // ─── ELO / achievements / referrals ───────────────────────
+// ─── Hall finder (OpenStreetMap + partners) ────────────────
+export interface FoundHall {
+  id: string;
+  source: 'tourneo' | 'osm';
+  name: string;
+  latitude: number;
+  longitude: number;
+  distance_km: number;
+  courts: number | null;
+  indoor: boolean | null;
+  address: string | null;
+  website: string | null;
+  phone: string | null;
+  opening_hours: string | null;
+  tourneo_venue_id: number | null;
+  maps_url: string;
+  enough_courts: boolean | null;
+}
+
+export interface HallSearchResult {
+  center: { lat: number; lng: number };
+  radius_km: number;
+  players: number;
+  courts_needed: number;
+  venues: FoundHall[];
+  attribution: string;
+  place: string | null;
+}
+
+export async function findHalls(params: {
+  lat?: number;
+  lng?: number;
+  place?: string;
+  radius_km: number;
+  players: number;
+}): Promise<HallSearchResult> {
+  // Outside the imported countries the server asks OpenStreetMap live, which can take a while
+  const res = await apiClient.get('/venues/discover', { params, timeout: 60000 });
+  return res.data.data;
+}
+
 // ─── Nearby alerts ─────────────────────────────────────────
 export async function getNotificationArea(): Promise<{ enabled: boolean; radius_km: number; has_location: boolean }> {
   const res = await apiClient.get('/me/notification-area');

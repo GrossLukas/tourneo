@@ -4,6 +4,9 @@ import { VenueController } from '../controllers/venueController';
 import { CourtAvailabilityService } from '../services/courtAvailabilityService';
 import { authenticate, optionalAuth, adminOnly } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
+import { hallFinderLimiter } from '../middleware/rateLimiter';
+import { HallFinderService, MAX_RADIUS_KM } from '../services/hallFinderService';
+import { AppError } from '../middleware/errorHandler';
 import { createVenueSchema, updateVenueSchema } from '../validators/users';
 
 const router = Router();
@@ -19,6 +22,30 @@ const upload = multer({
 });
 
 router.get('/', optionalAuth, VenueController.list);
+
+// All padel venues around a point or a place name (OpenStreetMap + Tourneo partners).
+// Must stay above '/:id'.
+router.get('/discover', hallFinderLimiter, optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const radius = Math.min(Math.max(Number(req.query.radius_km) || 25, 1), MAX_RADIUS_KM);
+    const players = Math.min(Math.max(Math.round(Number(req.query.players) || 4), 1), 64);
+    let lat = Number(req.query.lat);
+    let lng = Number(req.query.lng);
+    let label: string | null = null;
+    if (typeof req.query.place === 'string' && req.query.place.trim()) {
+      const hit = await HallFinderService.geocode(req.query.place);
+      if (!hit) throw AppError.notFound('Ort');
+      ({ lat, lng, label } = hit);
+    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      throw AppError.badRequest('Standort oder Ort angeben');
+    }
+    const result = await HallFinderService.search(lat, lng, radius, players);
+    res.json({ success: true, data: { ...result, place: label } });
+  } catch (error) {
+    next(error);
+  }
+});
 router.get('/:id', optionalAuth, VenueController.getById);
 
 // Reviews

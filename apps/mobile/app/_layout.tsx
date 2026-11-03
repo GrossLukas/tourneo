@@ -201,6 +201,7 @@ export default function RootLayout() {
       <Stack.Screen name="admin/checkin-scan" options={{ headerShown: false }} />
       <Stack.Screen name="event/checkin/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="event/schedule/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="courts/finder" options={{ headerShown: false }} />
       <Stack.Screen name="admin/quick-create" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="membership" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="notifications" options={{ headerShown: false }} />

@@ -15,6 +15,21 @@ export const generalLimiter = rateLimit({
   },
 });
 
+// Hall finder queries public OpenStreetMap services – keep each client well below their fair-use limits
+export const hallFinderLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: {
+      code: 'TOO_MANY_REQUESTS',
+      message: 'Zu viele Suchanfragen – bitte kurz warten',
+    },
+  },
+});
+
 export const authLimiter = rateLimit({
   windowMs: env.rateLimit.windowMs,
   max: env.rateLimit.authMaxRequests,

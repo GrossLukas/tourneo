@@ -9,6 +9,7 @@ import { SlotQueueService } from '../services/slotQueueService';
 import { PlayNowService } from '../services/playNowService';
 import { SeasonService } from '../services/seasonService';
 import { StreakService } from '../services/streakService';
+import { HallFinderService } from '../services/hallFinderService';
 import { childLogger } from '../utils/logger';
 
 const log = childLogger('jobs');
@@ -60,6 +61,12 @@ const SCHEDULED_JOBS: ScheduledJob[] = [
     // (15-minute TTL on pending_payment bookings).
     everyMs: 5 * 60 * 1000,
     run: () => CourtBookingService.expireUnpaidBookings(),
+  },
+  {
+    name: 'hall-finder-import',
+    // Local copy of all padel venues from OpenStreetMap (see HallFinderService)
+    everyMs: 24 * 60 * 60 * 1000,
+    run: () => HallFinderService.importAll(),
   },
   {
     name: 'slot-offer-expiry',
