@@ -55,8 +55,14 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
   fetchMyRegistrations: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await api.get('/registrations/my');
-      set({ myRegistrations: response.data.data, loading: false });
+      const response = await api.get('/registrations');
+      // The list endpoint names the event fields event_start_date / venue_*; the screens read event_date / event_location
+      const rows = (response.data.data || []).map((r: any) => ({
+        ...r,
+        event_date: r.event_date ?? r.event_start_date,
+        event_location: r.event_location ?? [r.venue_name, r.venue_city].filter(Boolean).join(', '),
+      }));
+      set({ myRegistrations: rows, loading: false });
     } catch (error: any) {
       set({ error: error.response?.data?.message || 'Failed to fetch registrations', loading: false });
     }
