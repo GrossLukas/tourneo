@@ -34,7 +34,7 @@
 
 ```bash
 # Repository klonen
-git clone https://github.com/BigLisBigger/tourneo.git
+git clone https://github.com/GrossLukas/tourneo.git
 cd tourneo
 
 # Alle Dependencies installieren (Monorepo)
