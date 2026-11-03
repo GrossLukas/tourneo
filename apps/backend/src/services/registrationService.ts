@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { db, t } from '../config/database';
 import { env } from '../config/environment';
@@ -349,6 +350,12 @@ export class RegistrationService {
     return { expired_count: expired.length };
   }
 
+  /** Earliest moment a registration may be checked in (configurable per event, default 1 hour before start). */
+  static checkInOpensAt(event: { start_date: string | Date; checkin_opens_minutes_before?: number | null }): Date {
+    const minutes = Number(event.checkin_opens_minutes_before ?? 60);
+    return new Date(new Date(event.start_date).getTime() - minutes * 60 * 1000);
+  }
+
   static async checkIn(registrationId: number, userId: number) {
     const registration = await db(t('registrations'))
       .where('id', registrationId)
@@ -365,23 +372,150 @@ export class RegistrationService {
 
     const event = await db(t('events')).where('id', registration.event_id).first();
     if (!event) throw AppError.notFound('Event');
+    if (event.maintenance_mode) {
+      throw AppError.badRequest('Check-in is paused while this tournament is being updated');
+    }
 
-    // Check if check-in window is open (1 hour before event)
     const now = new Date();
-    const eventStart = new Date(event.start_date);
-    const checkInOpens = new Date(eventStart.getTime() - 60 * 60 * 1000);
-
-    if (now < checkInOpens) {
+    if (now < this.checkInOpensAt(event)) {
       throw AppError.badRequest('Check-in is not yet available');
     }
 
-    await db(t('registrations')).where('id', registrationId).update({
-      checked_in: true,
-      checked_in_at: now,
-      updated_at: now,
+    await db.transaction(async (trx) => {
+      await trx(t('registrations')).where('id', registrationId).update({
+        checked_in: true,
+        checked_in_at: now,
+        updated_at: now,
+      });
+      await trx(t('checkins')).insert({
+        registration_id: registrationId,
+        checked_in_by: userId,
+        checked_in_at: now,
+        method: 'self',
+        notes: null,
+        created_at: now,
+      });
     });
 
     return { checked_in: true, checked_in_at: now };
+  }
+
+  /**
+   * Returns the QR check-in code for a confirmed registration of the user (or
+   * their doubles partner), creating or rotating the token when missing or
+   * expired. The token is only ever handed to the registration's own players.
+   */
+  static async ensureCheckinToken(registrationId: number, userId: number) {
+    const registration = await db(t('registrations'))
+      .where('id', registrationId)
+      .where(function () {
+        this.where('user_id', userId).orWhere('partner_user_id', userId);
+      })
+      .first();
+
+    if (!registration) throw AppError.notFound('Registration');
+    if (registration.status !== 'confirmed') {
+      throw AppError.badRequest('Only confirmed registrations receive a check-in code');
+    }
+
+    const event = await db(t('events')).where('id', registration.event_id).first();
+    if (!event) throw AppError.notFound('Event');
+
+    const now = new Date();
+    const current = registration.checkin_qr_expires_at ? new Date(registration.checkin_qr_expires_at) : null;
+    const reuse = Boolean(registration.checkin_qr_token && current && current > now);
+    const token: string = reuse ? registration.checkin_qr_token : crypto.randomBytes(24).toString('hex');
+    // Valid until 12 hours after the event ends – long enough for late check-ins, useless afterwards
+    const expiresAt = reuse
+      ? (current as Date)
+      : new Date(new Date(event.end_date || event.start_date).getTime() + 12 * 60 * 60 * 1000);
+
+    if (!reuse) {
+      await db(t('registrations')).where('id', registrationId).update({
+        checkin_qr_token: token,
+        checkin_qr_expires_at: expiresAt,
+        updated_at: now,
+      });
+    }
+
+    return {
+      registration_id: registration.id,
+      event_id: registration.event_id,
+      payload: `tourneo-checkin:${token}`,
+      expires_at: expiresAt,
+      opens_at: this.checkInOpensAt(event),
+      checked_in: Boolean(registration.checked_in),
+    };
+  }
+
+  /** Bare token from a scanned QR payload, or null when it is not a Tourneo check-in code. */
+  static parseCheckinPayload(raw: string): string | null {
+    const token = String(raw || '').trim().replace(/^tourneo-checkin:/, '');
+    return /^[a-f0-9]{48}$/i.test(token) ? token.toLowerCase() : null;
+  }
+
+  /** Staff check-in by scanning the player's QR code. Idempotent for players already checked in. */
+  static async checkInByQrToken(rawPayload: string, staffUserId: number) {
+    const token = this.parseCheckinPayload(rawPayload);
+    if (!token) throw AppError.badRequest('This is not a Tourneo check-in code');
+
+    const registration = await db(`${t('registrations')} as r`)
+      .leftJoin(`${t('events')} as e`, 'r.event_id', 'e.id')
+      .leftJoin(`${t('profiles')} as p`, 'r.user_id', 'p.user_id')
+      .where('r.checkin_qr_token', token)
+      .select(
+        'r.id', 'r.event_id', 'r.status', 'r.checked_in', 'r.checked_in_at', 'r.checkin_qr_expires_at',
+        'e.title as event_title', 'e.start_date', 'e.checkin_opens_minutes_before', 'e.maintenance_mode',
+        'p.first_name', 'p.last_name', 'p.display_name'
+      )
+      .first();
+
+    if (!registration) throw AppError.notFound('Registration');
+    const player = registration.display_name
+      || [registration.first_name, registration.last_name].filter(Boolean).join(' ')
+      || 'Spieler';
+    const summary = (checkedInAt: Date, already: boolean) => ({
+      registration_id: registration.id,
+      event_id: registration.event_id,
+      event_title: registration.event_title,
+      player,
+      checked_in_at: checkedInAt,
+      already_checked_in: already,
+    });
+
+    if (registration.status !== 'confirmed') {
+      throw AppError.badRequest('Only confirmed registrations can check in');
+    }
+    if (registration.checked_in) return summary(new Date(registration.checked_in_at), true);
+    if (registration.checkin_qr_expires_at && new Date(registration.checkin_qr_expires_at) < new Date()) {
+      throw AppError.badRequest('This check-in code has expired');
+    }
+    if (registration.maintenance_mode) {
+      throw AppError.badRequest('Check-in is paused while this tournament is being updated');
+    }
+
+    const now = new Date();
+    if (now < this.checkInOpensAt(registration)) {
+      throw AppError.badRequest('Check-in is not yet available');
+    }
+
+    await db.transaction(async (trx) => {
+      await trx(t('registrations')).where('id', registration.id).update({
+        checked_in: true,
+        checked_in_at: now,
+        updated_at: now,
+      });
+      await trx(t('checkins')).insert({
+        registration_id: registration.id,
+        checked_in_by: staffUserId,
+        checked_in_at: now,
+        method: 'qr_code',
+        notes: null,
+        created_at: now,
+      });
+    });
+
+    return summary(now, false);
   }
 
   static async getUserRegistrations(userId: number, status?: string) {

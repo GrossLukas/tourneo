@@ -198,6 +198,9 @@ export default function RootLayout() {
       <Stack.Screen name="onboarding/playtomic" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding/playtomic-verify" options={{ headerShown: false }} />
       <Stack.Screen name="admin/verifications" options={{ headerShown: false }} />
+      <Stack.Screen name="admin/checkin-scan" options={{ headerShown: false }} />
+      <Stack.Screen name="event/checkin/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="event/schedule/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="admin/quick-create" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="membership" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="notifications" options={{ headerShown: false }} />

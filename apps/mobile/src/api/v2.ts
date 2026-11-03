@@ -102,6 +102,66 @@ export async function getWaitlistStatus(registrationId: number) {
 }
 
 // ─── ELO / achievements / referrals ───────────────────────
+// ─── Schedule ──────────────────────────────────────────────
+export interface EventSchedule {
+  event_id: number;
+  event_title: string;
+  starts_at: string;
+  bracket_status: string | null;
+  matches: Array<{
+    id: number;
+    round_number: number;
+    match_number: number;
+    round_name: string | null;
+    court_name: string | null;
+    scheduled_at: string | null;
+    status: string;
+    participant_1: { registration_id: number; name: string } | null;
+    participant_2: { registration_id: number; name: string } | null;
+    is_final: boolean;
+    is_third_place_match: boolean;
+  }>;
+}
+
+export async function getEventSchedule(eventId: number | string): Promise<EventSchedule> {
+  const res = await apiClient.get(`/events/${eventId}/schedule`);
+  return res.data.data;
+}
+
+// ─── Check-in ──────────────────────────────────────────────
+export interface CheckinCode {
+  registration_id: number;
+  event_id: number;
+  payload: string;
+  expires_at: string;
+  opens_at: string;
+  checked_in: boolean;
+}
+
+/** QR code payload for one of my confirmed registrations. */
+export async function getCheckinCode(registrationId: number | string): Promise<CheckinCode> {
+  const res = await apiClient.get(`/registrations/${registrationId}/checkin-token`);
+  return res.data.data;
+}
+
+export async function selfCheckIn(registrationId: number | string) {
+  const res = await apiClient.post(`/registrations/${registrationId}/checkin`);
+  return res.data.data as { checked_in: boolean; checked_in_at: string };
+}
+
+/** Staff: check a player in by the scanned QR payload. */
+export async function checkInByQr(payload: string) {
+  const res = await apiClient.post('/admin/checkins/qr', { payload });
+  return res.data.data as {
+    registration_id: number;
+    event_id: number;
+    event_title: string;
+    player: string;
+    checked_in_at: string;
+    already_checked_in: boolean;
+  };
+}
+
 /** Admin: pause or resume registrations for one tournament (maintenance mode). */
 export async function setEventMaintenance(eventId: number, paused: boolean, message?: string | null) {
   await apiClient.put(`/admin/events/${eventId}`, {

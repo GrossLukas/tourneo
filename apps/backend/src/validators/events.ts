@@ -27,6 +27,7 @@ const eventBaseFields = {
   // No .default(): updateEventSchema is .partial(), and a default would clear the flag on every unrelated update
   maintenance_mode: z.boolean().optional(),
   maintenance_message: z.string().max(2000).nullable().optional(),
+  checkin_opens_minutes_before: z.number().int().min(0).max(1440).optional(),
   rules_summary: z.string().max(10000).optional(),
   banner_image_url: z.string().url().max(500).optional(),
   sponsor_name: z.string().max(100).optional(),

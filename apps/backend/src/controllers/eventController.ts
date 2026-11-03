@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { EventService } from '../services/eventService';
 import { RecapService } from '../services/recapService';
 import { IcalService } from '../services/icalService';
+import { EventScheduleService } from '../services/eventScheduleService';
 import { eventFiltersSchema } from '../validators/events';
 import { db, t } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
@@ -55,6 +56,21 @@ export class EventController {
       const eventId = parseInt(req.params.id, 10);
       const event = await EventService.cancelEvent(eventId, req.user!.userId);
       res.json({ success: true, data: event });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getSchedule(req: Request, res: Response, next: NextFunction) {
+    try {
+      const eventId = parseInt(req.params.id, 10);
+      if (!Number.isFinite(eventId)) throw AppError.badRequest('Invalid event id');
+      // Drafts are not public – same rule as the event itself
+      const event = await db(t('events')).where('id', eventId).first('status');
+      const isAdmin = req.user?.role === 'admin' || req.user?.role === 'superadmin';
+      if (!event || (event.status === 'draft' && !isAdmin)) throw AppError.notFound('Event');
+      const schedule = await EventScheduleService.getSchedule(eventId);
+      res.json({ success: true, data: schedule });
     } catch (error) {
       next(error);
     }

@@ -41,6 +41,7 @@ import {
 import { fontFamily } from '../../src/theme/typography';
 import { useEventStore } from '../../src/store/eventStore';
 import { useAuthStore } from '../../src/store/authStore';
+import { useRegistrationStore } from '../../src/store/registrationStore';
 import { StandingsTable, AmericanoView } from '../../src/components/events';
 import { setEventMaintenance } from '../../src/api/v2';
 
@@ -49,12 +50,17 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const { currentEvent, fetchEventById, loading } = useEventStore();
   const { user } = useAuthStore();
+  const { myRegistrations, fetchMyRegistrations } = useRegistrationStore();
   const [refreshing, setRefreshing] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     if (id) fetchEventById(Number(id));
   }, [id, fetchEventById]);
+
+  useEffect(() => {
+    if (user) fetchMyRegistrations();
+  }, [user, fetchMyRegistrations]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -86,6 +92,9 @@ export default function EventDetailScreen() {
   const pausedNote = e.maintenance_message || 'Dieses Turnier wird gerade überarbeitet. Die Anmeldung ist kurz pausiert.';
 
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const myRegistration = myRegistrations.find(
+    (r) => String(r.event_id) === String(e.id) && r.status === 'confirmed'
+  );
 
   const togglePaused = () => {
     const apply = async (message?: string) => {
@@ -195,11 +204,23 @@ export default function EventDetailScreen() {
           </View>
         </View>
 
-        {/* Admin: pause / resume */}
-        {isAdmin ? (
+        {/* My registration: check-in code */}
+        {myRegistration ? (
           <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+            <NCButton variant="primary" size="md" full onPress={() => router.push(`/event/checkin/${myRegistration.id}`)}>
+              Check-in-Code zeigen
+            </NCButton>
+          </View>
+        ) : null}
+
+        {/* Admin: pause / resume, QR check-in */}
+        {isAdmin ? (
+          <View style={{ paddingHorizontal: 20, paddingTop: 16, flexDirection: 'row', gap: 10 }}>
             <NCButton variant="ghost" size="sm" onPress={togglePaused}>
               {paused ? 'Turnier fortsetzen' : 'Turnier pausieren'}
+            </NCButton>
+            <NCButton variant="ghost" size="sm" onPress={() => router.push('/admin/checkin-scan')}>
+              QR-Check-in
             </NCButton>
           </View>
         ) : null}
@@ -267,7 +288,9 @@ export default function EventDetailScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           <View style={s.subHeader}>
             <Text style={s.subTitle}>Turnierbaum Vorschau</Text>
-            <Text style={s.subAction}>Single Elim.</Text>
+            <Pressable onPress={() => router.push(`/event/schedule/${e.id}`)} hitSlop={8}>
+              <Text style={s.subAction}>Spielplan</Text>
+            </Pressable>
           </View>
           <NCCard padded={false} style={{ padding: 14 }}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>

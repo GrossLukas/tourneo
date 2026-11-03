@@ -9,6 +9,7 @@ const router = Router();
 router.get('/', optionalAuth, EventController.list);
 router.get('/:id', optionalAuth, EventController.getById);
 router.get('/:id/recap', optionalAuth, EventController.getRecap);
+router.get('/:id/schedule', optionalAuth, EventController.getSchedule);
 router.get('/:id/ical', optionalAuth, EventController.getIcal);
 
 // Admin routes

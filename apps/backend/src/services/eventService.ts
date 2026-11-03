@@ -45,6 +45,7 @@ export class EventService {
         special_notes: input.special_notes || null,
         maintenance_mode: input.maintenance_mode ?? false,
         maintenance_message: input.maintenance_message || null,
+        checkin_opens_minutes_before: input.checkin_opens_minutes_before ?? 60,
         rules_summary: input.rules_summary || null,
         banner_image_url: input.banner_image_url || null,
         sponsor_name: input.sponsor_name || null,

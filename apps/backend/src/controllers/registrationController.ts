@@ -37,6 +37,17 @@ export class RegistrationController {
     }
   }
 
+  static async getCheckinToken(req: Request, res: Response, next: NextFunction) {
+    try {
+      const registrationId = parseInt(req.params.id, 10);
+      const result = await RegistrationService.ensureCheckinToken(registrationId, req.user!.userId);
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async listUserRegistrations(req: Request, res: Response, next: NextFunction) {
     try {
       const status = req.query.status as string | undefined;

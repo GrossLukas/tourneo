@@ -260,7 +260,7 @@ router.put('/events/:id', async (req: Request, res: Response, next: NextFunction
       'level', 'access_type', 'has_food_drinks', 'has_streaming',
       'special_notes', 'rules_summary', 'rules_full', 'banner_image_url',
       'faq', 'venue_hints', 'prize_table', 'streaming_url',
-      'maintenance_mode', 'maintenance_message',
+      'maintenance_mode', 'maintenance_message', 'checkin_opens_minutes_before',
     ];
 
     const updates: Record<string, any> = {};
@@ -268,6 +268,10 @@ router.put('/events/:id', async (req: Request, res: Response, next: NextFunction
 
     if (req.body.maintenance_mode !== undefined && typeof req.body.maintenance_mode !== 'boolean') {
       throw AppError.badRequest('maintenance_mode must be a boolean');
+    }
+    const checkinWindow = req.body.checkin_opens_minutes_before;
+    if (checkinWindow !== undefined && !(Number.isInteger(checkinWindow) && checkinWindow >= 0 && checkinWindow <= 1440)) {
+      throw AppError.badRequest('checkin_opens_minutes_before must be a whole number of minutes (0–1440)');
     }
     const note = req.body.maintenance_message;
     if (note !== undefined && note !== null && (typeof note !== 'string' || note.length > 2000)) {
@@ -736,6 +740,42 @@ router.post('/events/:id/checkin/:regId', async (req: Request, res: Response, ne
     });
 
     res.json({ success: true, data: { message: 'Participant checked in', registration_id: regId } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Spread open matches over the venue's courts in fixed time slots
+const autoScheduleSchema = z.object({
+  start_at: z.string().datetime().optional(),
+  match_duration_minutes: z.number().int().min(15).max(180).optional(),
+});
+
+router.post('/events/:id/schedule/auto', validateBody(autoScheduleSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const eventId = parseInt(req.params.id, 10);
+    const { EventScheduleService } = await import('../services/eventScheduleService');
+    const schedule = await EventScheduleService.autoAssign(eventId, req.body);
+    await AuditService.logFromRequest(req, 'event.schedule_auto', 'event', eventId, { metadata: req.body });
+    res.json({ success: true, data: schedule });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Check-in by scanning the player's QR code (payload "tourneo-checkin:<token>")
+const qrCheckinSchema = z.object({ payload: z.string().min(1).max(200) });
+
+router.post('/checkins/qr', validateBody(qrCheckinSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { RegistrationService } = await import('../services/registrationService');
+    const result = await RegistrationService.checkInByQrToken(req.body.payload, req.user!.userId);
+    if (!result.already_checked_in) {
+      await AuditService.logFromRequest(req, 'checkin.qr', 'registration', result.registration_id, {
+        metadata: { event_id: result.event_id, method: 'qr_code' },
+      });
+    }
+    res.json({ success: true, data: result });
   } catch (error) {
     next(error);
   }

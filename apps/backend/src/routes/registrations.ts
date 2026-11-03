@@ -12,5 +12,6 @@ router.get('/:id/waitlist-status', authenticate, RegistrationController.waitlist
 router.post('/', authenticate, validateBody(createRegistrationSchema), RegistrationController.register);
 router.put('/:id/cancel', authenticate, validateBody(cancelRegistrationSchema), RegistrationController.cancel);
 router.post('/:id/checkin', authenticate, RegistrationController.checkIn);
+router.get('/:id/checkin-token', authenticate, RegistrationController.getCheckinToken);
 
 export { router as registrationRouter };
