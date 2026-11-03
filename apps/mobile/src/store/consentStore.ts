@@ -6,7 +6,8 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import apiClient from '../api/client';
 
-const CONSENT_KEY = '@tourneo_consent_data';
+// expo-secure-store only accepts keys matching /^[\w.-]+$/ – an '@' prefix throws on every call
+const CONSENT_KEY = 'tourneo_consent_data';
 
 export interface ConsentData {
   mandatory: boolean;
@@ -28,7 +29,7 @@ interface ConsentStoreState {
   updateOptionalConsent: (key: 'pushNotifications' | 'personalization' | 'newsletter', value: boolean) => Promise<void>;
   withdrawAllConsent: () => Promise<void>;
   requestDataDeletion: () => Promise<void>;
-  requestDataExport: () => Promise<void>;
+  requestDataExport: () => Promise<unknown>;
 }
 
 export const useConsentStore = create<ConsentStoreState>((set, get) => ({
@@ -86,7 +87,7 @@ export const useConsentStore = create<ConsentStoreState>((set, get) => ({
   requestDataDeletion: async () => {
     set({ isLoading: true });
     try {
-      await apiClient.post('/users/me/delete-request');
+      await apiClient.post('/me/delete-account');
       set({ isLoading: false });
     } catch {
       set({ isLoading: false });
@@ -97,8 +98,9 @@ export const useConsentStore = create<ConsentStoreState>((set, get) => ({
   requestDataExport: async () => {
     set({ isLoading: true });
     try {
-      await apiClient.get('/users/me/data-export');
+      const res = await apiClient.get('/me/data-export');
       set({ isLoading: false });
+      return res.data?.data;
     } catch {
       set({ isLoading: false });
       throw new Error('Could not request data export');

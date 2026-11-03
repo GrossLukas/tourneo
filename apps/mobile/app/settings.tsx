@@ -5,7 +5,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Alert, Switch, Platform,
+  View, Text, StyleSheet, ScrollView, Alert, Switch, Platform, Share,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -111,8 +111,12 @@ export default function SettingsScreen() {
   /* ── Data Export ───────────────────────────────────────────── */
   const handleDataExport = async () => {
     try {
-      await requestDataExport();
-      Alert.alert(t('settings.dataExportTitle'), t('settings.dataExportMessage'));
+      // The backend returns the full export right away (Art. 15/20 DSGVO) – hand it to the share sheet
+      const data = await requestDataExport();
+      await Share.share({
+        title: t('settings.dataExportTitle'),
+        message: JSON.stringify(data, null, 2),
+      });
     } catch {
       Alert.alert(t('common.error'), t('settings.dataExportFailed'));
     }
@@ -130,7 +134,10 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Deletion anonymises the account server-side, so the session has to end here
               await requestDataDeletion();
+              await logout();
+              router.replace('/(auth)/onboarding');
               Alert.alert(t('settings.dataDeletionSuccess'));
             } catch {
               Alert.alert(t('common.error'), t('settings.dataDeletionFailed'));
