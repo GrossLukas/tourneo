@@ -364,6 +364,8 @@ export class HallFinderService {
   private static async partnerVenues(lat: number, lng: number, radiusKm: number): Promise<FoundVenue[]> {
     const rows = await db(t('venues'))
       .where('status', 'active')
+      // Community venues (picked for friends' tournaments) already show up as their OSM entry
+      .where('is_community', false)
       .whereNotNull('latitude')
       .whereNotNull('longitude')
       .select('id', 'name', 'latitude', 'longitude', 'address_street', 'address_zip', 'address_city', 'is_indoor', 'partner_website_url', 'phone', 'partner_booking_url');

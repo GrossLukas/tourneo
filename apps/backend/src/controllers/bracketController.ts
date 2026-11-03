@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { BracketService } from '../services/bracketService';
+import { EventAccess, inviteFromQuery } from '../services/eventAccess';
 
 export class BracketController {
   static async generate(req: Request, res: Response, next: NextFunction) {
@@ -15,6 +16,7 @@ export class BracketController {
   static async get(req: Request, res: Response, next: NextFunction) {
     try {
       const eventId = parseInt(req.params.id, 10);
+      await EventAccess.assertVisible(eventId, req.user, inviteFromQuery(req.query));
       const bracket = await BracketService.getBracket(eventId);
       res.json({ success: true, data: bracket });
     } catch (error) {
@@ -35,6 +37,7 @@ export class BracketController {
   static async getStandings(req: Request, res: Response, next: NextFunction) {
     try {
       const eventId = parseInt(req.params.id, 10);
+      await EventAccess.assertVisible(eventId, req.user, inviteFromQuery(req.query));
       const standings = await BracketService.getStandings(eventId);
       res.json({ success: true, data: standings });
     } catch (error) {

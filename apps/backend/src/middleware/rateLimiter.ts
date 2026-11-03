@@ -57,3 +57,20 @@ export const paymentLimiter = rateLimit({
     },
   },
 });
+
+// Tournaments among friends: any player may create them, so keep a single account from flooding the database.
+// Runs after `authenticate` and counts per account, not per IP (friends often share one Wi-Fi).
+export const communityEventLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.user ? `user:${req.user.userId}` : `ip:${req.ip}`),
+  message: {
+    success: false,
+    error: {
+      code: 'TOO_MANY_REQUESTS',
+      message: 'Zu viele neue Turniere in kurzer Zeit – bitte später noch einmal versuchen',
+    },
+  },
+});

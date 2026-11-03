@@ -4,6 +4,7 @@ import { AppError } from '../middleware/errorHandler';
 import { EloService } from './eloService';
 import { AchievementService } from './achievementService';
 import { NotificationService } from './notificationService';
+import { canOrganizeEvent } from './eventAccess';
 import { generateRoundRobinPairings } from '../utils/scheduling';
 
 interface BracketMatch {
@@ -681,7 +682,8 @@ export class BracketService {
     try {
       const event = await db(t('events')).where('id', match.event_id).first();
       const sport = event?.sport_category === 'fifa' ? 'fifa' : 'padel';
-      if (sport === 'padel' || sport === 'fifa') {
+      // A tournament among friends is run and scored by a player, so it stays out of the public ranking
+      if ((sport === 'padel' || sport === 'fifa') && !event?.is_community) {
         const eloResult = await EloService.updateAfterMatch(matchId, sport);
         // Rival push: tell overtaken friends they just lost their spot.
         if (eloResult) {
@@ -753,12 +755,14 @@ export class BracketService {
       throw AppError.badRequest('Match result has already been entered');
     }
 
-    // Authorise: admin OR a participant of the match
+    // Authorise: admin, a participant of the match, or the player running this tournament among friends
     const user = await db(t('users')).where('id', userId).first();
     const isAdmin = user && (user.role === 'admin' || user.role === 'superadmin');
     if (!isAdmin) {
-      const allowed = await this.isParticipant(match, userId);
-      if (!allowed) throw AppError.forbidden('Only participants or admins can score this match');
+      const event = await db(t('events')).where('id', match.event_id).first('created_by', 'is_community');
+      const allowed = (event && canOrganizeEvent({ userId, role: user?.role }, event))
+        || await this.isParticipant(match, userId);
+      if (!allowed) throw AppError.forbidden('Only participants, the organiser or admins can score this match');
     }
 
     if (!Array.isArray(sets) || sets.length === 0) {

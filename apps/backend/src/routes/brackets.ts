@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { BracketController } from '../controllers/bracketController';
+import { OrganizerController } from '../controllers/organizerController';
 import { authenticate, adminOnly, optionalAuth } from '../middleware/auth';
+import { requireEventOrganizer } from '../middleware/organizer';
 
 const router = Router();
 
@@ -18,15 +20,19 @@ router.get('/:matchId/score', authenticate, BracketController.getMatchScores);
 // Next-match lookup for the home screen alert banner
 router.get('/me/next', authenticate, BracketController.getNextMatch);
 
-// Admin
-router.post('/events/:id/bracket/generate', authenticate, adminOnly, BracketController.generate);
+// Admins, or the player who created the tournament among friends
+router.post('/events/:id/bracket/generate', authenticate, requireEventOrganizer(), BracketController.generate);
 router.post(
   '/events/:id/bracket/round-robin',
   authenticate,
-  adminOnly,
+  requireEventOrganizer(),
   BracketController.generateRoundRobin
 );
-router.put('/events/:id/bracket/publish', authenticate, adminOnly, BracketController.publish);
+router.put('/events/:id/bracket/publish', authenticate, requireEventOrganizer(), BracketController.publish);
+// Takes a wrong result back so it can be scored again (POST /:matchId/score)
+router.put('/:id/reopen', authenticate, requireEventOrganizer('match'), OrganizerController.reopenMatch);
+
+// Admin
 router.put('/:id/result', authenticate, adminOnly, BracketController.enterResult);
 
 export { router as bracketRouter };

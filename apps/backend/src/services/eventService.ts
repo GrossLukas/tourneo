@@ -150,7 +150,9 @@ export class EventService {
         `${t('venues')}.latitude as venue_latitude`,
         `${t('venues')}.longitude as venue_longitude`
       )
-      .where(`${t('events')}.status`, '!=', 'draft');
+      .where(`${t('events')}.status`, '!=', 'draft')
+      // Private tournaments (incl. those among friends) are reachable by invite link only, never listed
+      .whereNot(`${t('events')}.access_type`, 'private');
 
     // Apply filters
     if (filters.sport_category) {
@@ -208,7 +210,8 @@ export class EventService {
     const offset = (filters.page - 1) * filters.per_page;
     query = query.limit(filters.per_page).offset(offset);
 
-    const events = await query;
+    // The invite token is the key to private events – it must never leave through a list
+    const events = (await query).map(({ invite_token: _invite, ...e }: any) => e);
 
     // Get participant counts for all events
     const eventIds = events.map((e: any) => e.id);

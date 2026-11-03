@@ -6,6 +6,7 @@ import { EventScheduleService } from '../services/eventScheduleService';
 import { eventFiltersSchema } from '../validators/events';
 import { db, t } from '../config/database';
 import { AppError } from '../middleware/errorHandler';
+import { EventAccess, inviteFromQuery } from '../services/eventAccess';
 
 export class EventController {
   static async create(req: Request, res: Response, next: NextFunction) {
@@ -20,8 +21,16 @@ export class EventController {
   static async getById(req: Request, res: Response, next: NextFunction) {
     try {
       const eventId = parseInt(req.params.id, 10);
-      const event = await EventService.getEventById(eventId);
-      res.json({ success: true, data: event });
+      const access = await EventAccess.assertVisible(eventId, req.user, inviteFromQuery(req.query));
+      const { invite_token, ...event } = await EventService.getEventById(eventId);
+      res.json({
+        success: true,
+        data: {
+          ...event,
+          ...(access.canSeeInvite ? { invite_token } : {}),
+          viewer_can_organize: access.canOrganize,
+        },
+      });
     } catch (error) {
       next(error);
     }
@@ -65,10 +74,8 @@ export class EventController {
     try {
       const eventId = parseInt(req.params.id, 10);
       if (!Number.isFinite(eventId)) throw AppError.badRequest('Invalid event id');
-      // Drafts are not public – same rule as the event itself
-      const event = await db(t('events')).where('id', eventId).first('status');
-      const isAdmin = req.user?.role === 'admin' || req.user?.role === 'superadmin';
-      if (!event || (event.status === 'draft' && !isAdmin)) throw AppError.notFound('Event');
+      // Drafts and private tournaments follow the same rule as the event itself
+      await EventAccess.assertVisible(eventId, req.user, inviteFromQuery(req.query));
       const schedule = await EventScheduleService.getSchedule(eventId);
       res.json({ success: true, data: schedule });
     } catch (error) {
@@ -79,6 +86,7 @@ export class EventController {
   static async getRecap(req: Request, res: Response, next: NextFunction) {
     try {
       const eventId = parseInt(req.params.id, 10);
+      await EventAccess.assertVisible(eventId, req.user, inviteFromQuery(req.query));
       const data = await RecapService.getRecap(eventId);
       res.json({ success: true, data });
     } catch (error) {
@@ -89,6 +97,7 @@ export class EventController {
   static async getIcal(req: Request, res: Response, next: NextFunction) {
     try {
       const eventId = parseInt(req.params.id, 10);
+      await EventAccess.assertVisible(eventId, req.user, inviteFromQuery(req.query));
       const ics = await IcalService.generateForEvent(eventId);
       res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="event-${eventId}.ics"`);

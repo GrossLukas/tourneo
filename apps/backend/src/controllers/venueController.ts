@@ -30,7 +30,8 @@ export class VenueController {
 
       const venuesTable = t('venues');
 
-      let query = db(venuesTable).where('status', 'active');
+      // Venues created for tournaments among friends are not bookable partner venues
+      let query = db(venuesTable).where('status', 'active').where('is_community', false);
 
       if (useGeo) {
         // Haversine-Formel (km), nutzt MySQL/MariaDB-Funktionen.
