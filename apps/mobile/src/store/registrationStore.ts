@@ -35,10 +35,14 @@ interface RegistrationState {
 
   fetchMyRegistrations: () => Promise<void>;
   registerForEvent: (data: {
-    event_id: string;
+    event_id: number;
     registration_type: 'solo' | 'duo' | 'team';
-    partner_user_id?: string;
-    team_id?: string;
+    partner_user_id?: number;
+    partner_email?: string;
+    team_id?: number;
+    consent_tournament_terms: true;
+    consent_age_verified: true;
+    consent_media?: boolean;
   }) => Promise<Registration>;
   cancelRegistration: (id: string, reason?: string) => Promise<void>;
   getRegistrationById: (id: string) => Promise<void>;
@@ -80,7 +84,7 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
       }));
       return registration;
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Registration failed';
+      const message = error.response?.data?.error?.message || error.response?.data?.message || 'Registration failed';
       set({ error: message, loading: false });
       throw new Error(message);
     }
@@ -89,7 +93,7 @@ export const useRegistrationStore = create<RegistrationState>((set, get) => ({
   cancelRegistration: async (id, reason) => {
     set({ loading: true, error: null });
     try {
-      await api.post(`/registrations/${id}/cancel`, { reason });
+      await api.put(`/registrations/${id}/cancel`, { reason });
       set((state) => ({
         myRegistrations: state.myRegistrations.map((r) =>
           r.id === id ? { ...r, status: 'cancelled' as const } : r

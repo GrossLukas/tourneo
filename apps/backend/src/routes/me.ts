@@ -11,6 +11,7 @@ import { AchievementService } from '../services/achievementService';
 import { BracketService } from '../services/bracketService';
 import { EloService } from '../services/eloService';
 import { MatchRecordService } from '../services/matchRecordService';
+import { roundCoordinate } from '../utils/geo';
 import { PlaytomicService } from '../services/playtomicService';
 import { MatchFeedbackService } from '../services/matchFeedbackService';
 import { RatingHistoryService } from '../services/ratingHistoryService';
@@ -151,6 +152,61 @@ router.put(
         .where('user_id', req.user!.userId)
         .update({ discoverable, updated_at: new Date() });
       res.json({ success: true, data: { discoverable } });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// Area for "new tournament" pushes (opt-in, location rounded to ~1 km)
+const notificationAreaSchema = z.object({
+  enabled: z.boolean(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  radius_km: z.number().int().min(5).max(500).optional(),
+}).refine((d) => !d.enabled || (d.latitude !== undefined && d.longitude !== undefined), {
+  message: 'Location is required to enable nearby alerts',
+  path: ['latitude'],
+});
+
+router.get('/notification-area', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const profile = await db(t('profiles'))
+      .where('user_id', req.user!.userId)
+      .first('notify_nearby_events', 'notify_radius_km', 'latitude', 'longitude');
+    res.json({
+      success: true,
+      data: {
+        enabled: Boolean(profile?.notify_nearby_events),
+        radius_km: Number(profile?.notify_radius_km ?? 50),
+        has_location: profile?.latitude != null && profile?.longitude != null,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put(
+  '/notification-area',
+  authenticate,
+  validateBody(notificationAreaSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { enabled, latitude, longitude, radius_km } = req.body;
+      // Turning the alerts off also forgets the location – it is not needed for anything else
+      const update = enabled
+        ? {
+          notify_nearby_events: true,
+          latitude: roundCoordinate(latitude),
+          longitude: roundCoordinate(longitude),
+          ...(radius_km ? { notify_radius_km: radius_km } : {}),
+        }
+        : { notify_nearby_events: false, latitude: null, longitude: null };
+      await db(t('profiles'))
+        .where('user_id', req.user!.userId)
+        .update({ ...update, updated_at: new Date() });
+      res.json({ success: true, data: { enabled, radius_km: radius_km ?? null } });
     } catch (error) {
       next(error);
     }

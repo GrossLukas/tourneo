@@ -102,6 +102,21 @@ export async function getWaitlistStatus(registrationId: number) {
 }
 
 // ─── ELO / achievements / referrals ───────────────────────
+// ─── Nearby alerts ─────────────────────────────────────────
+export async function getNotificationArea(): Promise<{ enabled: boolean; radius_km: number; has_location: boolean }> {
+  const res = await apiClient.get('/me/notification-area');
+  return res.data.data;
+}
+
+export async function setNotificationArea(body: {
+  enabled: boolean;
+  latitude?: number;
+  longitude?: number;
+  radius_km?: number;
+}) {
+  await apiClient.put('/me/notification-area', body);
+}
+
 // ─── Schedule ──────────────────────────────────────────────
 export interface EventSchedule {
   event_id: number;

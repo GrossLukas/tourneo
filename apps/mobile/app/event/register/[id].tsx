@@ -129,10 +129,12 @@ export default function EventRegisterScreen() {
     const confirmMessage = isFull
       ? `Du wirst auf die Warteliste gesetzt. ${finalFee > 0 ? `Erst bei Nachrücken wird die Gebühr von ${finalFee.toFixed(2)} € fällig.` : ''}`
       : `Gebühr: ${finalFee > 0 ? `${finalFee.toFixed(2)} €` : 'Kostenlos'}${discount > 0 ? ` (${discount}% Mitglieder-Rabatt)` : ''}`;
+    // The API requires both consents explicitly; confirming this dialog is that confirmation
+    const consentNote = '\n\nMit der Anmeldung bestätigst du, dass du mindestens 18 Jahre alt bist und die Teilnahmebedingungen akzeptierst.';
 
     Alert.alert(
       isFull ? 'Auf Warteliste setzen?' : 'Anmeldung bestätigen?',
-      confirmMessage,
+      confirmMessage + consentNote,
       [
         { text: 'Abbrechen', style: 'cancel' },
         {
@@ -144,11 +146,17 @@ export default function EventRegisterScreen() {
                 Alert.alert('Fehler', 'Ungültige Turnier-ID.');
                 return;
               }
+              if (regType === 'team') {
+                // Team registrations need an existing team id – not available in this screen
+                Alert.alert('Hinweis', 'Teams meldest du über die Teamverwaltung an.');
+                return;
+              }
               await registerForEvent({
-                event_id: String(eventId),
+                event_id: eventId,
                 registration_type: regType,
-                partner_user_id: regType === 'duo' ? partnerEmail.trim() : undefined,
-                team_id: regType === 'team' ? teamName.trim() : undefined,
+                partner_email: regType === 'duo' ? partnerEmail.trim().toLowerCase() : undefined,
+                consent_tournament_terms: true,
+                consent_age_verified: true,
               });
               Alert.alert(
                 'Erfolg! 🎉',

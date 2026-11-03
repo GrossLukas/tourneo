@@ -45,6 +45,41 @@ export class RegistrationService {
         throw AppError.conflict('You are already registered for this event');
       }
 
+      // Duo partner: an e-mail invite links an existing account right away; when the invited
+      // person registers for the same event, both registrations are linked (invite accepted).
+      const currentUser = await trx(t('users')).where('id', userId).first('id', 'email');
+      const ownEmail = String(currentUser?.email || '').toLowerCase();
+      const partnerEmail = input.registration_type === 'duo' ? input.partner_email || null : null;
+      let partnerUserId: number | null = input.partner_user_id || null;
+      let invitedUserId: number | null = null;
+      if (partnerEmail) {
+        if (partnerEmail === ownEmail) {
+          throw AppError.badRequest('Your partner needs a different e-mail address than yours');
+        }
+        const partnerUser = await trx(t('users'))
+          .whereRaw('LOWER(email) = ?', [partnerEmail])
+          .where('status', 'active')
+          .first('id');
+        if (partnerUser) {
+          partnerUserId = partnerUser.id;
+          invitedUserId = partnerUser.id;
+        }
+      }
+      const incomingInvite = input.registration_type === 'duo'
+        ? await trx(t('registrations'))
+          .where('event_id', input.event_id)
+          .where('registration_type', 'duo')
+          .where('partner_invite_status', 'pending')
+          .whereNot('user_id', userId)
+          .whereNotIn('status', ['cancelled', 'refunded'])
+          .where(function () {
+            this.where('partner_user_id', userId).orWhere('partner_invite_email', ownEmail);
+          })
+          .orderBy('created_at', 'asc')
+          .first('id', 'user_id')
+        : null;
+      if (incomingInvite) partnerUserId = incomingInvite.user_id;
+
       const [{ count: currentCount }] = await trx(t('registrations'))
         .where('event_id', input.event_id)
         .whereIn('status', ['confirmed', 'pending_payment'])
@@ -83,7 +118,11 @@ export class RegistrationService {
         user_id: userId,
         team_id: input.team_id || null,
         registration_type: input.registration_type,
-        partner_user_id: input.partner_user_id || null,
+        partner_user_id: partnerUserId,
+        partner_invite_email: incomingInvite ? null : partnerEmail,
+        partner_invite_status: incomingInvite ? 'accepted' : partnerEmail ? 'pending' : 'none',
+        partner_invited_at: partnerEmail && !incomingInvite ? now : null,
+        partner_accepted_at: incomingInvite ? now : null,
         status,
         membership_tier_at_registration: membershipTier,
         discount_applied_cents: discount,
@@ -110,6 +149,15 @@ export class RegistrationService {
         created_at: now,
       });
 
+      if (incomingInvite) {
+        await trx(t('registrations')).where('id', incomingInvite.id).update({
+          partner_user_id: userId,
+          partner_invite_status: 'accepted',
+          partner_accepted_at: now,
+          updated_at: now,
+        });
+      }
+
       return {
         registrationId,
         status,
@@ -118,8 +166,15 @@ export class RegistrationService {
         discount,
         entryFeeCents: event.entry_fee_cents,
         membershipTier,
+        invite: partnerEmail && !incomingInvite
+          ? { email: partnerEmail, userId: invitedUserId, eventTitle: event.title, eventDate: event.start_date }
+          : null,
       };
     });
+
+    if (result.invite) {
+      await this.sendPartnerInvite(userId, input.event_id, result.registrationId, result.invite);
+    }
 
     return {
       id: result.registrationId,
@@ -348,6 +403,48 @@ export class RegistrationService {
     }
 
     return { expired_count: expired.length };
+  }
+
+  /** Push for partners with an account, e-mail for everyone – failures never undo the registration. */
+  private static async sendPartnerInvite(
+    inviterId: number,
+    eventId: number,
+    registrationId: number,
+    invite: { email: string; userId: number | null; eventTitle: string; eventDate: string | Date }
+  ) {
+    const profile = await db(t('profiles')).where('user_id', inviterId).first('display_name', 'first_name', 'last_name');
+    const inviterName = profile?.display_name
+      || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
+      || 'Dein Partner';
+    const dateLabel = invite.eventDate ? new Date(invite.eventDate).toLocaleDateString('de-DE') : '';
+    if (invite.userId) {
+      try {
+        const { NotificationService } = await import('./notificationService');
+        await NotificationService.send(
+          invite.userId,
+          'general',
+          'Duo-Einladung',
+          `${inviterName} hat dich für "${invite.eventTitle}" als Duo-Partner eingetragen. Melde dich ebenfalls an, dann seid ihr verknüpft.`,
+          { event_id: eventId, registration_id: registrationId, inviter_id: inviterId }
+        );
+      } catch (err) {
+        console.error('[registration] partner invite push failed:', err);
+      }
+    }
+    // Cancel-and-register again must not turn into a way to mail strangers repeatedly
+    const recent = await db(t('registrations'))
+      .where('user_id', inviterId)
+      .where('partner_invite_email', invite.email)
+      .whereNot('id', registrationId)
+      .where('partner_invited_at', '>', new Date(Date.now() - 24 * 60 * 60 * 1000))
+      .first('id');
+    if (recent) return;
+    try {
+      const { emailService } = await import('./emailService');
+      await emailService.sendDuoInvite(invite.email, inviterName, invite.eventTitle, dateLabel);
+    } catch (err) {
+      console.error('[registration] partner invite e-mail failed:', err);
+    }
   }
 
   /** Earliest moment a registration may be checked in (configurable per event, default 1 hour before start). */

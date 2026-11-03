@@ -15,7 +15,7 @@
  * registration; the paid variant returns with StoreKit and live Stripe.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Animated, Easing, TextInput } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { fontFamily } from '../../theme/typography';
 import { NC } from './tokens';
@@ -26,7 +26,9 @@ import { useRegistrationStore } from '../../store/registrationStore';
 import { PAYMENTS_ENABLED } from '../../config/features';
 
 type Step = 0 | 1 | 2;
-type RegType = 'solo' | 'duo' | 'team';
+type RegType = 'solo' | 'duo';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface RegisterSheetProps {
   visible: boolean;
@@ -51,6 +53,9 @@ export const RegisterSheet: React.FC<RegisterSheetProps> = ({
 }) => {
   const [step, setStep] = useState<Step>(0);
   const [type, setType] = useState<RegType>('duo');
+  const [partnerEmail, setPartnerEmail] = useState('');
+  const [consents, setConsents] = useState({ terms: false, age: false, media: false });
+  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const registerForEvent = useRegistrationStore((s) => s.registerForEvent);
 
@@ -59,6 +64,9 @@ export const RegisterSheet: React.FC<RegisterSheetProps> = ({
     if (visible) {
       setStep(0);
       setType('duo');
+      setPartnerEmail('');
+      setConsents({ terms: false, age: false, media: false });
+      setError(null);
       setSubmitting(false);
     }
   }, [visible]);
@@ -70,15 +78,21 @@ export const RegisterSheet: React.FC<RegisterSheetProps> = ({
   const submit = async () => {
     if (submitting) return;
     setSubmitting(true);
+    setError(null);
     try {
       await registerForEvent({
-        event_id: String(eventId),
+        event_id: Number(eventId),
         registration_type: type,
+        partner_email: type === 'duo' ? partnerEmail.trim().toLowerCase() : undefined,
+        consent_tournament_terms: true,
+        consent_age_verified: true,
+        consent_media: consents.media,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setStep(2);
-    } catch (err) {
-      // surface a failure step but stay on step 1 so user can retry
+    } catch (err: any) {
+      // stay on step 1 so the user can fix the input and retry
+      setError(err?.message && err.message !== 'Registration failed' ? err.message : 'Anmeldung fehlgeschlagen. Bitte versuche es erneut.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
     } finally {
       setSubmitting(false);
@@ -95,6 +109,8 @@ export const RegisterSheet: React.FC<RegisterSheetProps> = ({
           discount={discount}
           total={total}
           isMember={isMember}
+          partnerEmail={partnerEmail}
+          onPartnerEmail={setPartnerEmail}
           onNext={() => setStep(1)}
         />
       ) : null}
@@ -102,6 +118,9 @@ export const RegisterSheet: React.FC<RegisterSheetProps> = ({
         <Step1
           total={total}
           submitting={submitting}
+          consents={consents}
+          onConsents={setConsents}
+          error={error}
           onSubmit={submit}
         />
       ) : null}
@@ -123,7 +142,6 @@ export const RegisterSheet: React.FC<RegisterSheetProps> = ({
 const TYPE_OPTIONS: { k: RegType; label: string; sub: string }[] = [
   { k: 'solo', label: 'Solo', sub: 'Allein antreten' },
   { k: 'duo', label: 'Duo', sub: 'Mit Partner anmelden' },
-  { k: 'team', label: 'Team', sub: '4er Team' },
 ];
 
 const Step0: React.FC<{
@@ -133,8 +151,11 @@ const Step0: React.FC<{
   discount: number;
   total: number;
   isMember: boolean;
+  partnerEmail: string;
+  onPartnerEmail: (v: string) => void;
   onNext: () => void;
-}> = ({ type, onSelect, fee, discount, total, isMember, onNext }) => {
+}> = ({ type, onSelect, fee, discount, total, isMember, partnerEmail, onPartnerEmail, onNext }) => {
+  const partnerOk = type !== 'duo' || EMAIL_RE.test(partnerEmail.trim());
   return (
     <View>
       <Text style={s.title}>Anmeldung</Text>
@@ -178,6 +199,23 @@ const Step0: React.FC<{
         })}
       </View>
 
+      {type === 'duo' ? (
+        <View style={{ marginTop: 12 }}>
+          <Text style={s.fieldLabel}>E-Mail deines Partners</Text>
+          <TextInput
+            value={partnerEmail}
+            onChangeText={onPartnerEmail}
+            placeholder="partner@beispiel.de"
+            placeholderTextColor={NC.textT}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            style={s.input}
+          />
+          <Text style={s.fieldHint}>Wir laden deinen Partner ein. Meldet er sich an, seid ihr verknüpft.</Text>
+        </View>
+      ) : null}
+
       <View style={s.summary}>
         <SummaryRow label="Startgebühr" value={`${fee.toLocaleString('de', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`} />
         {isMember ? (
@@ -196,8 +234,8 @@ const Step0: React.FC<{
       </View>
 
       <View style={{ marginTop: 16 }}>
-        <NCButton variant="primary" size="lg" full iconRight="arrowR" onPress={onNext}>
-          Weiter zur Zahlung
+        <NCButton variant="primary" size="lg" full iconRight="arrowR" onPress={onNext} disabled={!partnerOk}>
+          {PAYMENTS_ENABLED && total > 0 ? 'Weiter zur Zahlung' : 'Weiter'}
         </NCButton>
       </View>
     </View>
@@ -205,12 +243,22 @@ const Step0: React.FC<{
 };
 
 // ─── Step 1 — Confirm ──────────────────────────────────────
-const Step1: React.FC<{ total: number; submitting: boolean; onSubmit: () => void }> = ({
-  total,
-  submitting,
-  onSubmit,
-}) => {
+type Consents = { terms: boolean; age: boolean; media: boolean };
+
+const Step1: React.FC<{
+  total: number;
+  submitting: boolean;
+  consents: Consents;
+  onConsents: (c: Consents) => void;
+  error: string | null;
+  onSubmit: () => void;
+}> = ({ total, submitting, consents, onConsents, error, onSubmit }) => {
   const free = !PAYMENTS_ENABLED || total <= 0;
+  const ready = consents.terms && consents.age;
+  const toggle = (key: keyof Consents) => {
+    Haptics.selectionAsync().catch(() => {});
+    onConsents({ ...consents, [key]: !consents[key] });
+  };
 
   return (
     <View>
@@ -230,13 +278,21 @@ const Step1: React.FC<{ total: number; submitting: boolean; onSubmit: () => void
         </Text>
       </View>
 
+      <View style={{ marginTop: 14, gap: 10 }}>
+        <ConsentRow checked={consents.terms} onPress={() => toggle('terms')} label="Ich akzeptiere die Teilnahmebedingungen des Turniers." />
+        <ConsentRow checked={consents.age} onPress={() => toggle('age')} label="Ich bin mindestens 18 Jahre alt." />
+        <ConsentRow checked={consents.media} onPress={() => toggle('media')} label="Fotos und Videos von mir dürfen veröffentlicht werden (optional)." />
+      </View>
+
+      {error ? <Text style={s.error}>{error}</Text> : null}
+
       <View style={{ marginTop: 16 }}>
         <NCButton
           variant="primary"
           size="lg"
           full
           onPress={onSubmit}
-          disabled={submitting}
+          disabled={submitting || !ready}
         >
           {submitting
             ? 'Wird verarbeitet…'
@@ -248,6 +304,20 @@ const Step1: React.FC<{ total: number; submitting: boolean; onSubmit: () => void
     </View>
   );
 };
+
+const ConsentRow: React.FC<{ checked: boolean; onPress: () => void; label: string }> = ({ checked, onPress, label }) => (
+  <Pressable onPress={onPress} style={s.consentRow} accessibilityRole="checkbox" accessibilityState={{ checked }}>
+    <View
+      style={[
+        s.checkbox,
+        { borderColor: checked ? NC.primary : NC.borderStr, backgroundColor: checked ? NC.primary : 'transparent' },
+      ]}
+    >
+      {checked ? <NCIcon name="check" size={12} color="#FFFFFF" strokeWidth={3} /> : null}
+    </View>
+    <Text style={s.consentText}>{label}</Text>
+  </Pressable>
+);
 
 // ─── Step 2 — Done ─────────────────────────────────────────
 const Step2: React.FC<{ eventTitle: string; eventDateLabel?: string; onDone: () => void }> = ({
@@ -354,6 +424,31 @@ const s = StyleSheet.create({
     letterSpacing: -0.2,
   },
   typeSub: { marginTop: 1, fontFamily: fontFamily.uiMedium, fontSize: 12, color: NC.textS },
+  fieldLabel: { fontFamily: fontFamily.uiSemibold, fontSize: 13, color: NC.textP, marginBottom: 6 },
+  fieldHint: { fontFamily: fontFamily.uiMedium, fontSize: 12, color: NC.textT, marginTop: 6 },
+  input: {
+    borderWidth: 1,
+    borderColor: NC.borderStr,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: NC.textP,
+    fontFamily: fontFamily.uiMedium,
+    fontSize: 15,
+    backgroundColor: NC.bgCard,
+  },
+  consentRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  consentText: { flex: 1, fontFamily: fontFamily.uiMedium, fontSize: 13, color: NC.textS, lineHeight: 18 },
+  error: { fontFamily: fontFamily.uiMedium, fontSize: 13, color: NC.gold, marginTop: 12 },
 
   summary: {
     marginTop: 16,

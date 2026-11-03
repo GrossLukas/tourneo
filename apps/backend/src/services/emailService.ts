@@ -180,6 +180,36 @@ class EmailService {
 
     await this.send(email, subject, html, text);
   }
+
+  // ──────────────────────────────────────────────────────────
+  // Duo partner invite
+  // ──────────────────────────────────────────────────────────
+  async sendDuoInvite(email: string, inviterName: string, eventTitle: string, eventDate: string): Promise<void> {
+    const subject = `${inviterName} lädt dich zu ${eventTitle} ein`;
+    const when = eventDate ? ` am ${eventDate}` : '';
+    const text =
+      `Hallo,\n\n` +
+      `${inviterName} hat dich als Duo-Partner für "${eventTitle}"${when} eingetragen.\n\n` +
+      `Lade die ${env.app.name}-App, melde dich mit dieser E-Mail-Adresse an und registriere dich für das Turnier – ` +
+      `dann seid ihr automatisch als Duo verknüpft.\n\n` +
+      `Wenn du die Einladung nicht erwartest, kannst du diese E-Mail ignorieren.\n\n` +
+      `– Dein ${env.app.name}-Team`;
+
+    const safeInviter = escapeHtml(inviterName);
+    const safeTitle = escapeHtml(eventTitle);
+    const safeWhen = escapeHtml(when);
+    const safeAppName = escapeHtml(env.app.name);
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; color: #111;">
+        <h1 style="color:#065B66; margin-bottom: 12px;">Duo-Einladung</h1>
+        <p><strong>${safeInviter}</strong> hat dich als Duo-Partner für <strong>${safeTitle}</strong>${safeWhen} eingetragen.</p>
+        <p>Lade die ${safeAppName}-App, melde dich mit dieser E-Mail-Adresse an und registriere dich für das Turnier – dann seid ihr automatisch als Duo verknüpft.</p>
+        <p style="font-size:12px; color:#666; margin-top: 32px;">Wenn du die Einladung nicht erwartest, kannst du diese E-Mail ignorieren.<br>– Dein ${safeAppName}-Team</p>
+      </div>
+    `;
+
+    await this.send(email, subject, html, text);
+  }
 }
 
 export const emailService = new EmailService();

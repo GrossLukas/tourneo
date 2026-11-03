@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import { wantsEventAt } from '../utils/geo';
 import { db, t } from '../config/database';
 import { env } from '../config/environment';
 
@@ -193,6 +194,9 @@ export class NotificationService {
   ): Promise<{ notified: number }> {
     const event = await db(t('events')).where('id', eventId).first();
     if (!event) return { notified: 0 };
+    const venue = event.venue_id
+      ? await db(t('venues')).where('id', event.venue_id).first('latitude', 'longitude')
+      : undefined;
 
     const pageSize = options.pageSize ?? 500;
     const concurrency = options.concurrency ?? 25;
@@ -205,15 +209,25 @@ export class NotificationService {
     let totalNotified = 0;
 
     while (true) {
-      const users: Array<{ id: number }> = await db(t('users'))
-        .where('status', 'active')
-        .where('id', '>', lastId)
-        .orderBy('id', 'asc')
-        .limit(pageSize)
-        .select('id');
+      const page: Array<{ id: number; notify_nearby_events: any; latitude: any; longitude: any; notify_radius_km: any }> =
+        await db(t('users'))
+          .leftJoin(t('profiles'), `${t('profiles')}.user_id`, `${t('users')}.id`)
+          .where(`${t('users')}.status`, 'active')
+          .where(`${t('users')}.id`, '>', lastId)
+          .orderBy(`${t('users')}.id`, 'asc')
+          .limit(pageSize)
+          .select(
+            `${t('users')}.id`,
+            `${t('profiles')}.notify_nearby_events`,
+            `${t('profiles')}.latitude`,
+            `${t('profiles')}.longitude`,
+            `${t('profiles')}.notify_radius_km`
+          );
 
-      if (!users.length) break;
-      lastId = users[users.length - 1].id;
+      if (!page.length) break;
+      lastId = page[page.length - 1].id;
+      // Users who chose nearby-only alerts skip tournaments outside their radius
+      const users = page.filter((u) => wantsEventAt(u, venue));
 
       // Dispatch within the page in capped-concurrency chunks so a slow
       // FCM call from one user does not stall the rest.

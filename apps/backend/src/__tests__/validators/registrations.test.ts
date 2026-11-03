@@ -80,6 +80,29 @@ describe('createRegistrationSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('should accept duo registration with a partner e-mail and normalise it', () => {
+    const result = createRegistrationSchema.safeParse({
+      event_id: 1,
+      registration_type: 'duo',
+      partner_email: '  Partner@Example.COM ',
+      consent_tournament_terms: true,
+      consent_age_verified: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.partner_email).toBe('partner@example.com');
+  });
+
+  it('should reject an invalid partner e-mail', () => {
+    const result = createRegistrationSchema.safeParse({
+      event_id: 1,
+      registration_type: 'duo',
+      partner_email: 'kein-email',
+      consent_tournament_terms: true,
+      consent_age_verified: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
   // Duo requires partner
   it('should reject duo registration without partner_user_id', () => {
     const result = createRegistrationSchema.safeParse({

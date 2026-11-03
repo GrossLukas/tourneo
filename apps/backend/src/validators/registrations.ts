@@ -5,6 +5,8 @@ export const createRegistrationSchema = z.object({
   registration_type: z.enum(['solo', 'duo', 'team']),
   team_id: z.number().int().positive().optional(),
   partner_user_id: z.number().int().positive().optional(),
+  // Duo partner by e-mail: linked when that person has (or later creates) an account and registers too
+  partner_email: z.string().trim().toLowerCase().email().max(255).optional(),
   consent_tournament_terms: z.literal(true, {
     errorMap: () => ({ message: 'You must accept the tournament terms' }),
   }),
@@ -16,12 +18,12 @@ export const createRegistrationSchema = z.object({
   invite_token: z.string().max(36).optional(),
 }).refine(
   (data) => {
-    if (data.registration_type === 'duo' && !data.partner_user_id) {
+    if (data.registration_type === 'duo' && !data.partner_user_id && !data.partner_email) {
       return false;
     }
     return true;
   },
-  { message: 'Partner is required for duo registration', path: ['partner_user_id'] }
+  { message: 'Partner is required for duo registration', path: ['partner_email'] }
 ).refine(
   (data) => {
     if (data.registration_type === 'team' && !data.team_id) {

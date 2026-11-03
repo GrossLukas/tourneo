@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../src/providers/ThemeProvider';
-import { THeader, TListItem, TCard, TButton, TDivider, TInput, TAvatar } from '../src/components/common';
+import { THeader, TListItem, TCard, TButton, TDivider, TInput, TAvatar, TChip } from '../src/components/common';
 import { useAuthStore } from '../src/store/authStore';
 import { useBiometricStore } from '../src/store/biometricStore';
 import { useBiometrics } from '../src/hooks/useBiometrics';
@@ -19,6 +19,10 @@ import { useConsentStore } from '../src/store/consentStore';
 import { spacing, fontSize, fontWeight } from '../src/theme/spacing';
 import * as SecureStore from 'expo-secure-store';
 import api from '../src/api/client';
+import * as Location from 'expo-location';
+import { getNotificationArea, setNotificationArea } from '../src/api/v2';
+
+const RADIUS_OPTIONS = [25, 50, 100];
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -40,6 +44,7 @@ export default function SettingsScreen() {
 
   // Notification toggle (local)
   const [pushEnabled, setPushEnabled] = useState(consent?.pushNotifications ?? true);
+  const [nearby, setNearby] = useState<{ enabled: boolean; radius_km: number }>({ enabled: false, radius_km: 50 });
 
   useEffect(() => {
     loadConsent();
@@ -106,6 +111,38 @@ export default function SettingsScreen() {
         },
       ]
     );
+  };
+
+  useEffect(() => {
+    getNotificationArea()
+      .then((a) => setNearby({ enabled: a.enabled, radius_km: a.radius_km }))
+      .catch(() => {});
+  }, []);
+
+  /* ── Nearby alerts ─────────────────────────────────────────── */
+  const saveNearby = async (enabled: boolean, radius: number) => {
+    try {
+      if (!enabled) {
+        await setNotificationArea({ enabled: false });
+        setNearby({ enabled: false, radius_km: radius });
+        return;
+      }
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(t('settings.nearbyOnly'), t('settings.nearbyNoPermission'));
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+      await setNotificationArea({
+        enabled: true,
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        radius_km: radius,
+      });
+      setNearby({ enabled: true, radius_km: radius });
+    } catch {
+      Alert.alert(t('common.error'), t('settings.nearbySaveFailed'));
+    }
   };
 
   /* ── Data Export ───────────────────────────────────────────── */
@@ -292,6 +329,33 @@ export default function SettingsScreen() {
               thumbColor={pushEnabled ? '#fff' : colors.bgTertiary}
             />
           </View>
+          <View style={styles.switchRow}>
+            <View style={styles.switchInfo}>
+              <Ionicons name="location-outline" size={22} color={colors.primary as string} style={{ marginRight: spacing.sm }} />
+              <Text style={[styles.switchLabel, { color: colors.textPrimary }]}>{t('settings.nearbyOnly')}</Text>
+            </View>
+            <Switch
+              value={nearby.enabled}
+              onValueChange={(v) => saveNearby(v, nearby.radius_km)}
+              trackColor={{ false: colors.border, true: colors.primary as string }}
+              thumbColor={nearby.enabled ? '#fff' : colors.bgTertiary}
+            />
+          </View>
+          {nearby.enabled ? (
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+              {RADIUS_OPTIONS.map((r) => (
+                <TChip
+                  key={r}
+                  label={`${r} km`}
+                  selected={nearby.radius_km === r}
+                  onPress={() => saveNearby(true, r)}
+                />
+              ))}
+            </View>
+          ) : null}
+          <Text style={{ color: colors.textTertiary, fontSize: fontSize.xs, marginTop: spacing.sm }}>
+            {t('settings.nearbyHint')}
+          </Text>
         </TCard>
 
         {/* ── Consent / DSGVO Management ─────────────────────── */}
