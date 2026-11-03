@@ -10,6 +10,7 @@ import { ReferralService } from '../services/referralService';
 import { AchievementService } from '../services/achievementService';
 import { BracketService } from '../services/bracketService';
 import { EloService } from '../services/eloService';
+import { MatchRecordService } from '../services/matchRecordService';
 import { PlaytomicService } from '../services/playtomicService';
 import { MatchFeedbackService } from '../services/matchFeedbackService';
 import { RatingHistoryService } from '../services/ratingHistoryService';
@@ -93,9 +94,10 @@ router.get(
   authenticate,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const profile = await db(t('profiles'))
-        .where('user_id', req.user!.userId)
-        .first();
+      const [profile, record] = await Promise.all([
+        db(t('profiles')).where('user_id', req.user!.userId).first(),
+        MatchRecordService.forUser(req.user!.userId),
+      ]);
       const padel = Number(profile?.elo_padel ?? 1000);
       const fifa = Number(profile?.elo_fifa ?? 1000);
       res.json({
@@ -112,6 +114,7 @@ router.get(
             tier: EloService.getTier(fifa),
           },
           matches_played: Number(profile?.elo_matches_played ?? 0),
+          record,
         },
       });
     } catch (error) {

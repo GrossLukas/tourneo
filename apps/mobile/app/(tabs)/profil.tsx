@@ -32,7 +32,7 @@ import {
 import { fontFamily } from '../../src/theme/typography';
 import { useAuthStore } from '../../src/store/authStore';
 import { MEMBERSHIPS_PURCHASABLE } from '../../src/config/features';
-import { getMyElo, getMyAchievements, type EloTier } from '../../src/api/v2';
+import { getMyElo, getMyAchievements, getMyStreak, type EloTier } from '../../src/api/v2';
 
 interface EloPart {
   elo: number;
@@ -79,14 +79,21 @@ const ACHIEVEMENT_ICON: Record<string, IconName> = {
 export default function ProfilScreen() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const [elo, setElo] = useState<{ padel: EloPart; matches: number } | null>(null);
+  const [elo, setElo] = useState<{ padel: EloPart; matches: number; winRate: number | null } | null>(null);
+  const [streak, setStreak] = useState(0);
   const [achievements, setAchievements] = useState<{ id: number; type: string }[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
         const e = await getMyElo();
-        setElo({ padel: e.padel, matches: e.matches_played });
+        setElo({ padel: e.padel, matches: e.matches_played, winRate: e.record ? e.record.win_rate : null });
+      } catch {
+        // ignore
+      }
+      try {
+        const st = await getMyStreak();
+        setStreak(st.week_streak);
       } catch {
         // ignore
       }
@@ -109,8 +116,6 @@ export default function ProfilScreen() {
   const displayName = user?.display_name || user?.first_name || 'Tourneo Spieler';
   const handle = user?.email ? `@${user.email.split('@')[0]}` : '@tourneo';
 
-  const winrate = 0; // backend exposes /me/stats but isn't surfaced in v2 yet
-  const streak = 0;
 
   const handleLogout = () => {
     Alert.alert('Abmelden', 'Möchtest du dich wirklich abmelden?', [
@@ -170,7 +175,7 @@ export default function ProfilScreen() {
         {/* Stat grid */}
         <View style={s.statGrid}>
           <StatBig value={elo?.padel?.elo ?? '—'} label="ELO" mono />
-          <StatBig value={`${winrate}%`} label="Winrate" />
+          <StatBig value={elo?.winRate != null ? `${elo.winRate}%` : '—'} label="Winrate" />
           <StatBig value={streak} label="Streak" icon="flame" />
         </View>
 

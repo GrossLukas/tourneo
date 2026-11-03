@@ -108,6 +108,8 @@ export async function getMyElo() {
     padel: { elo: number; peak: number; tier: EloTier };
     fifa: { elo: number; peak: number; tier: EloTier };
     matches_played: number;
+    /** Completed matches; missing on older backends. */
+    record?: { wins: number; losses: number; win_rate: number };
   };
 }
 export async function getMyAchievements() {

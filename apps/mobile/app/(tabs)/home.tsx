@@ -40,7 +40,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useEventStore, type Event } from '../../src/store/eventStore';
 import { useRegistrationStore } from '../../src/store/registrationStore';
 import { useNotificationStore } from '../../src/store/notificationStore';
-import { getMyElo, getMyEloHistory } from '../../src/api/v2';
+import { getMyElo, getMyEloHistory, getMyStreak, type EloTier } from '../../src/api/v2';
 
 interface EloSummary {
   elo: number;
@@ -341,7 +341,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={s.rankPill}>
                   <NCIcon name="crown" size={14} color={NC.gold} />
-                  <Text style={s.rankText}>Rang {elo?.rank || 'A'}</Text>
+                  <Text style={s.rankText}>Rang {elo?.rank || '–'}</Text>
                 </View>
               </View>
 
@@ -472,25 +472,32 @@ export default function HomeScreen() {
 }
 
 // ─── ELO loader ────────────────────────────────────────────
+const TIER_LABEL: Record<EloTier, string> = {
+  bronze: 'Bronze',
+  silver: 'Silber',
+  gold: 'Gold',
+  platinum: 'Platin',
+  diamond: 'Diamant',
+  elite: 'Elite',
+};
+
 async function loadEloSummary(): Promise<EloSummary> {
-  const [eloRes, history] = await Promise.all([
+  const [eloRes, history, streak] = await Promise.all([
     getMyElo().catch(() => null),
     getMyEloHistory('padel', 12).catch(() => [] as { elo: number }[]),
+    getMyStreak().catch(() => null),
   ]);
   const points = history.map((h) => h.elo);
-  const ranked = eloRes?.padel?.tier;
-  const rank = ranked ? ranked.charAt(0).toUpperCase() : 'A';
-  // Win/loss/streak aren't returned by /me/elo; default to 0 until the
-  // backend exposes them via /me/stats.  Keep the design's slot rather than
-  // hiding the row.
+  const tier = eloRes?.padel?.tier;
   return {
     elo: eloRes?.padel?.elo ?? 0,
     delta: points.length > 1 ? points[points.length - 1] - points[points.length - 2] : 0,
-    rank,
-    wins: 0,
-    losses: 0,
-    wr: 0,
-    streak: 0,
+    rank: tier ? TIER_LABEL[tier] ?? tier : '–',
+    wins: eloRes?.record?.wins ?? 0,
+    losses: eloRes?.record?.losses ?? 0,
+    wr: eloRes?.record?.win_rate ?? 0,
+    // Weekly play streak (Duolingo-style), same value as on the challenges screen
+    streak: streak?.week_streak ?? 0,
     history: points,
   };
 }
