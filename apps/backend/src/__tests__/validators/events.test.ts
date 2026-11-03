@@ -184,6 +184,22 @@ describe('createEventSchema', () => {
 // updateEventSchema
 // ─────────────────────────────────────────────────────────────
 describe('updateEventSchema', () => {
+  it('should leave maintenance_mode untouched when not sent', () => {
+    const result = updateEventSchema.safeParse({ title: 'Updated Title' });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.maintenance_mode).toBeUndefined();
+  });
+
+  it('should accept pausing an event with a note', () => {
+    const result = updateEventSchema.safeParse({ maintenance_mode: true, maintenance_message: 'Platzwechsel – neue Zeiten folgen' });
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject an overly long maintenance note', () => {
+    const result = updateEventSchema.safeParse({ maintenance_message: 'x'.repeat(2001) });
+    expect(result.success).toBe(false);
+  });
+
   it('should accept partial updates', () => {
     const result = updateEventSchema.safeParse({ title: 'Updated Title' });
     expect(result.success).toBe(true);

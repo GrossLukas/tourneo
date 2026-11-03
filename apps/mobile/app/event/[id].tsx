@@ -19,6 +19,7 @@ import {
   Pressable,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -41,6 +42,7 @@ import { fontFamily } from '../../src/theme/typography';
 import { useEventStore } from '../../src/store/eventStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { StandingsTable, AmericanoView } from '../../src/components/events';
+import { setEventMaintenance } from '../../src/api/v2';
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -80,7 +82,37 @@ export default function EventDetailScreen() {
   const memberFee = isMember ? fee * 0.9 : fee;
   const dateFull = formatDateFull(e.start_date);
 
+  const paused = Boolean(e.maintenance_mode);
+  const pausedNote = e.maintenance_message || 'Dieses Turnier wird gerade überarbeitet. Die Anmeldung ist kurz pausiert.';
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+  const togglePaused = () => {
+    const apply = async (message?: string) => {
+      try {
+        await setEventMaintenance(e.id, !paused, message);
+        await fetchEventById(e.id);
+      } catch {
+        Alert.alert('Fehler', 'Der Status konnte nicht geändert werden.');
+      }
+    };
+    if (paused) {
+      apply();
+    } else if (Platform.OS === 'ios') {
+      Alert.prompt('Turnier pausieren', 'Optionaler Hinweis für die Spieler', (text) => apply(text));
+    } else {
+      Alert.alert('Turnier pausieren', 'Neue Anmeldungen werden gestoppt, bis du fortsetzt.', [
+        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Pausieren', style: 'destructive', onPress: () => apply() },
+      ]);
+    }
+  };
+
   const handleRegister = () => {
+    if (paused) {
+      Alert.alert('Turnier pausiert', pausedNote);
+      return;
+    }
     if (!user) {
       Alert.alert(
         'Anmeldung erforderlich',
@@ -162,6 +194,28 @@ export default function EventDetailScreen() {
             </View>
           </View>
         </View>
+
+        {/* Admin: pause / resume */}
+        {isAdmin ? (
+          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+            <NCButton variant="ghost" size="sm" onPress={togglePaused}>
+              {paused ? 'Turnier fortsetzen' : 'Turnier pausieren'}
+            </NCButton>
+          </View>
+        ) : null}
+
+        {/* Maintenance notice */}
+        {paused ? (
+          <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+            <NCCard padded={false} style={s.pausedCard}>
+              <NCIcon name="stopwatch" size={18} color={NC.gold} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.pausedTitle}>Turnier pausiert</Text>
+                <Text style={s.body}>{pausedNote}</Text>
+              </View>
+            </NCCard>
+          </View>
+        ) : null}
 
         {/* Prize pool */}
         {prizeTotal > 0 ? (
@@ -304,8 +358,8 @@ export default function EventDetailScreen() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <NCButton variant="primary" size="lg" full iconRight="arrowR" onPress={handleRegister}>
-              Anmelden
+            <NCButton variant="primary" size="lg" full iconRight="arrowR" onPress={handleRegister} disabled={paused}>
+              {paused ? 'Pausiert' : 'Anmelden'}
             </NCButton>
           </View>
         </View>
@@ -556,6 +610,22 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
+  },
+  pausedCard: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+    padding: 14,
+    borderColor: NC.gold,
+    borderWidth: 1,
+    backgroundColor: NC.goldBg,
+  },
+  pausedTitle: {
+    fontFamily: fontFamily.displayBold,
+    fontSize: 15,
+    fontWeight: '700',
+    color: NC.goldLight,
+    marginBottom: 4,
   },
   subTitle: {
     fontFamily: fontFamily.displayBold,

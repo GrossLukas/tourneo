@@ -260,10 +260,19 @@ router.put('/events/:id', async (req: Request, res: Response, next: NextFunction
       'level', 'access_type', 'has_food_drinks', 'has_streaming',
       'special_notes', 'rules_summary', 'rules_full', 'banner_image_url',
       'faq', 'venue_hints', 'prize_table', 'streaming_url',
+      'maintenance_mode', 'maintenance_message',
     ];
 
     const updates: Record<string, any> = {};
     const before: Record<string, any> = {};
+
+    if (req.body.maintenance_mode !== undefined && typeof req.body.maintenance_mode !== 'boolean') {
+      throw AppError.badRequest('maintenance_mode must be a boolean');
+    }
+    const note = req.body.maintenance_message;
+    if (note !== undefined && note !== null && (typeof note !== 'string' || note.length > 2000)) {
+      throw AppError.badRequest('maintenance_message must be a string of at most 2000 characters');
+    }
 
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {

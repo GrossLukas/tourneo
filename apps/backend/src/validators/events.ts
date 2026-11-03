@@ -24,6 +24,9 @@ const eventBaseFields = {
   has_food_drinks: z.boolean().default(false),
   has_streaming: z.boolean().default(false),
   special_notes: z.string().max(5000).optional(),
+  // No .default(): updateEventSchema is .partial(), and a default would clear the flag on every unrelated update
+  maintenance_mode: z.boolean().optional(),
+  maintenance_message: z.string().max(2000).nullable().optional(),
   rules_summary: z.string().max(10000).optional(),
   banner_image_url: z.string().url().max(500).optional(),
   sponsor_name: z.string().max(100).optional(),

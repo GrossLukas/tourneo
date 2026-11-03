@@ -43,6 +43,8 @@ export class EventService {
         has_food_drinks: input.has_food_drinks,
         has_streaming: input.has_streaming,
         special_notes: input.special_notes || null,
+        maintenance_mode: input.maintenance_mode ?? false,
+        maintenance_message: input.maintenance_message || null,
         rules_summary: input.rules_summary || null,
         banner_image_url: input.banner_image_url || null,
         sponsor_name: input.sponsor_name || null,
@@ -317,6 +319,14 @@ export class EventService {
 
     if (event.status === 'cancelled' || event.status === 'completed') {
       return { canRegister: false, reason: 'Event is no longer accepting registrations' };
+    }
+
+    // Paused by an admin: the event stays visible, registrations wait until the flag is cleared
+    if (event.maintenance_mode) {
+      return {
+        canRegister: false,
+        reason: event.maintenance_message || 'Registration is paused while this tournament is being updated',
+      };
     }
 
     // Private events are invite-only: the registration must carry the

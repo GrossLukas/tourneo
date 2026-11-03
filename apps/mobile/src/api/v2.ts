@@ -102,6 +102,14 @@ export async function getWaitlistStatus(registrationId: number) {
 }
 
 // ─── ELO / achievements / referrals ───────────────────────
+/** Admin: pause or resume registrations for one tournament (maintenance mode). */
+export async function setEventMaintenance(eventId: number, paused: boolean, message?: string | null) {
+  await apiClient.put(`/admin/events/${eventId}`, {
+    maintenance_mode: paused,
+    maintenance_message: paused ? message?.trim() || null : null,
+  });
+}
+
 export async function getMyElo() {
   const res = await apiClient.get('/me/elo');
   return res.data.data as {

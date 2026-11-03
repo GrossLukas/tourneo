@@ -26,6 +26,8 @@ export interface Event {
   has_food_drinks: boolean;
   has_streaming: boolean;
   special_notes: string | null;
+  maintenance_mode?: boolean;
+  maintenance_message?: string | null;
   rules_summary?: string | null;
   banner_image_url: string | null;
   status: string;
