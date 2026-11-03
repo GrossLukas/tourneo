@@ -5,7 +5,7 @@
  * OpenStreetMap and links to its own website / booking page, phone and a
  * map route. Tourneo only finds and links – it never charges anything.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,8 @@ import { fontFamily } from '../../src/theme/typography';
 import { findHalls, type HallSearchResult, type FoundHall } from '../../src/api/v2';
 import { useHallPickStore } from '../../src/store/hallPickStore';
 import { addMissingHallUrl, bookingLabel, formatOpeningHours } from '../../src/utils/hallLinks';
+import { applyHallFilter, DEFAULT_HALL_FILTER, isFilterActive, type HallFilter } from '../../src/utils/hallFilters';
+import { useFavoriteHallsStore } from '../../src/store/favoriteHallsStore';
 
 const RADII = [10, 25, 50, 100, 200];
 
@@ -46,6 +48,20 @@ export default function HallFinderScreen() {
   const [result, setResult] = useState<HallSearchResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<HallFilter>(DEFAULT_HALL_FILTER);
+  const [showFilters, setShowFilters] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
+  const { favorites, load: loadFavorites, toggle: toggleFavorite } = useFavoriteHallsStore();
+
+  useEffect(() => {
+    loadFavorites();
+  }, [loadFavorites]);
+
+  const favoriteIds = useMemo(() => new Set(favorites.map((f) => f.id)), [favorites]);
+  const visible = useMemo(() => {
+    if (showFavorites) return applyHallFilter(favorites, { ...filter, enoughCourtsOnly: false });
+    return applyHallFilter(result?.venues ?? [], filter);
+  }, [showFavorites, favorites, result, filter]);
 
   const run = async (opts: { lat?: number; lng?: number; place?: string; radius?: number; players?: number }) => {
     Keyboard.dismiss();
@@ -172,19 +188,36 @@ export default function HallFinderScreen() {
         </View>
       ) : (
         <FlatList
-          data={result?.venues ?? []}
+          data={visible}
           keyExtractor={(v) => v.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40, gap: 10 }}
           ListHeaderComponent={
-            error ? <Text style={s.error}>{error}</Text>
-              : result ? (
-                <Text style={s.hint}>
-                  {result.venues.length} {result.venues.length === 1 ? 'Halle' : 'Hallen'} im Umkreis von {result.radius_km} km
-                  {result.place ? ` um ${result.place.split(',')[0]}` : ''}
-                </Text>
-              ) : (
-                <Text style={s.hint}>Such nach einem Ort oder nutze deinen Standort.</Text>
-              )
+            <View style={{ gap: 10 }}>
+              <View style={s.toolbar}>
+                <Chip label={`Meine Hallen (${favorites.length})`} on={showFavorites} onPress={() => setShowFavorites((v) => !v)} />
+                <Chip
+                  label={isFilterActive(filter) ? 'Filter ✓' : 'Filter'}
+                  on={showFilters}
+                  onPress={() => setShowFilters((v) => !v)}
+                />
+              </View>
+              {showFilters ? <FilterPanel filter={filter} onChange={setFilter} /> : null}
+              {error ? <Text style={s.error}>{error}</Text>
+                : showFavorites ? (
+                  <Text style={s.hint}>
+                    {favorites.length ? `${visible.length} gemerkte ${visible.length === 1 ? 'Halle' : 'Hallen'}` : 'Noch keine Halle gemerkt – tipp in der Suche auf „Merken“.'}
+                  </Text>
+                )
+                : result ? (
+                  <Text style={s.hint}>
+                    {visible.length} {visible.length === 1 ? 'Halle' : 'Hallen'} im Umkreis von {result.radius_km} km
+                    {result.place ? ` um ${result.place.split(',')[0]}` : ''}
+                    {visible.length !== result.venues.length ? ` (gefiltert, ${result.venues.length} insgesamt)` : ''}
+                  </Text>
+                ) : (
+                  <Text style={s.hint}>Such nach einem Ort oder nutze deinen Standort.</Text>
+                )}
+            </View>
           }
           renderItem={({ item }) => (
             <HallCard
@@ -192,6 +225,9 @@ export default function HallFinderScreen() {
               players={players}
               pickMode={pickMode}
               onChoose={choose}
+              favorite={favoriteIds.has(item.id)}
+              onFavorite={() => toggleFavorite(item)}
+              showDistance={!showFavorites}
               onBook={(id) => router.push(`/venue/${id}`)}
             />
           )}
@@ -217,11 +253,28 @@ const HallCard: React.FC<{
   pickMode: boolean;
   onChoose: (hall: FoundHall) => void;
   onBook: (id: number) => void;
-}> = ({ hall, players, pickMode, onChoose, onBook }) => (
+  favorite: boolean;
+  onFavorite: () => void;
+  /** Saved halls keep the distance of the search they were saved from – hide it there */
+  showDistance: boolean;
+}> = ({ hall, players, pickMode, onChoose, onBook, favorite, onFavorite, showDistance }) => (
   <NCCard padded={false} style={s.card}>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
       <Text style={s.name} numberOfLines={2}>{hall.name}</Text>
-      <Text style={s.distance}>{hall.distance_km.toLocaleString('de', { maximumFractionDigits: 1 })} km</Text>
+      {showDistance ? (
+        <Text style={s.distance}>{hall.distance_km.toLocaleString('de', { maximumFractionDigits: 1 })} km</Text>
+      ) : null}
+      <Pressable
+        onPress={() => {
+          Haptics.selectionAsync().catch(() => {});
+          onFavorite();
+        }}
+        hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel={favorite ? 'Nicht mehr merken' : 'Halle merken'}
+      >
+        <NCIcon name="heart" size={20} color={favorite ? NC.gold : NC.textT} />
+      </Pressable>
     </View>
     {hall.address ? <Text style={s.hint}>{hall.address}</Text> : null}
     <View style={s.badges}>
@@ -263,7 +316,52 @@ const HallCard: React.FC<{
   </NCCard>
 );
 
+const Chip: React.FC<{ label: string; on: boolean; onPress: () => void }> = ({ label, on, onPress }) => (
+  <Pressable
+    onPress={() => {
+      Haptics.selectionAsync().catch(() => {});
+      onPress();
+    }}
+    style={[s.chip, { backgroundColor: on ? NC.primary : NC.bgCard, borderColor: on ? NC.primary : NC.border }]}
+    accessibilityRole="button"
+    accessibilityState={{ selected: on }}
+  >
+    <Text style={[s.chipText, { color: on ? '#FFFFFF' : NC.textS }]}>{label}</Text>
+  </Pressable>
+);
+
+const FilterPanel: React.FC<{ filter: HallFilter; onChange: (f: HallFilter) => void }> = ({ filter, onChange }) => (
+  <NCCard padded={false} style={{ padding: 12, gap: 10 }}>
+    <View style={s.chips}>
+      <Chip label="Alle" on={filter.kind === 'all'} onPress={() => onChange({ ...filter, kind: 'all' })} />
+      <Chip label="Halle" on={filter.kind === 'indoor'} onPress={() => onChange({ ...filter, kind: 'indoor' })} />
+      <Chip label="Draußen" on={filter.kind === 'outdoor'} onPress={() => onChange({ ...filter, kind: 'outdoor' })} />
+    </View>
+    <View style={s.chips}>
+      <Chip label="Mit Buchungslink" on={filter.bookableOnly} onPress={() => onChange({ ...filter, bookableOnly: !filter.bookableOnly })} />
+      <Chip label="Genug Plätze" on={filter.enoughCourtsOnly} onPress={() => onChange({ ...filter, enoughCourtsOnly: !filter.enoughCourtsOnly })} />
+    </View>
+    <View style={s.chips}>
+      <Chip label="Nächste zuerst" on={filter.sort === 'distance'} onPress={() => onChange({ ...filter, sort: 'distance' })} />
+      <Chip label="Meiste Plätze" on={filter.sort === 'courts'} onPress={() => onChange({ ...filter, sort: 'courts' })} />
+    </View>
+    <TextInput
+      value={filter.text}
+      onChangeText={(text) => onChange({ ...filter, text })}
+      placeholder="In den Ergebnissen suchen"
+      placeholderTextColor={NC.textT}
+      style={s.input}
+    />
+    {isFilterActive(filter) ? (
+      <Pressable onPress={() => onChange(DEFAULT_HALL_FILTER)} hitSlop={8}>
+        <Text style={[s.hint, { textAlign: 'right' }]}>Filter zurücksetzen</Text>
+      </Pressable>
+    ) : null}
+  </NCCard>
+);
+
 const s = StyleSheet.create({
+  toolbar: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
