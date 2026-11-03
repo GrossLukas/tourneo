@@ -121,7 +121,9 @@ const TournamentCard: React.FC<{ event: Event; onPress: () => void }> = ({ event
           <Text style={cardStyles.dateMonth}>{dt.month}</Text>
           <Text style={cardStyles.dateDay}>{dt.day}</Text>
           <View style={cardStyles.levelStrip}>
-            <Text style={cardStyles.levelText}>{lvl.toUpperCase()}</Text>
+            <Text style={cardStyles.levelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              {lvl.toUpperCase()}
+            </Text>
           </View>
         </View>
 
@@ -240,9 +242,11 @@ export default function TurniereScreen() {
       </View>
 
       {/* Level chips */}
+      {/* flexGrow/flexShrink 0: a horizontal ScrollView in a column layout otherwise gets squeezed */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0, flexShrink: 0 }}
         contentContainerStyle={{ paddingHorizontal: 20, gap: 8, paddingBottom: 14 }}
       >
         {LEVELS.map((l) => {
@@ -361,6 +365,7 @@ const s = StyleSheet.create({
     fontSize: 14,
   },
   chip: {
+    flexShrink: 0,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
@@ -418,15 +423,17 @@ const cardStyles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingVertical: 3,
+    paddingHorizontal: 4,
     backgroundColor: 'rgba(0,0,0,0.3)',
     alignItems: 'center',
   },
+  // "INTERMEDIATE" is wider than the 72px tile – shrink to fit instead of clipping
   levelText: {
     fontFamily: fontFamily.uiBold,
     fontSize: 8.5,
     fontWeight: '700',
     color: 'rgba(255,255,255,0.55)',
-    letterSpacing: 0.7,
+    letterSpacing: 0.3,
   },
   title: {
     fontFamily: fontFamily.displayBold,
